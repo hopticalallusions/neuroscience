@@ -1,0 +1,93 @@
+set_plot_parameters
+
+dochannels=setdiff([1:length(s.y)],badchannels);
+
+figure(1)
+resetpeaks=input('reset extracellular biophysics analysis (y/n)? ', 's');  %used to add results from multiple recording sessions.
+if resetpeaks=='y'
+ampdistchan=[]; detectionrange=[]; allamps=[]; alldistance=[]; clustercounter=1;
+close 1
+figure(1)
+end
+
+load([timesdir 'finalspiketimes.mat'])   %load alltimes{clust}{clusteriteration}
+load([savedir 'final_params.mat']);  %loads parameters file.
+ 
+select_doclusters;
+       
+probetype=parameters.probetype;
+samplingrate=parameters.samplingrate;
+bestchans=parameters.bestchannels;
+x=s.x;  y=s.y;
+
+electrodedist=[];
+for i=1:length(x);
+    xi=x(i);
+    yi=y(i);
+    for j=1:length(x);      
+        xj=x(j);
+        yj=y(j);
+        distij=sqrt((xi-xj)^2+(yi-yj)^2);
+        electrodedist{i,j}=distij;
+    end
+end
+        
+for clustind=1:length(doclusters);
+clust=doclusters(clustind);
+peakampclusti=[];
+bestchanclusti=bestchans{clust};
+disttobestchanclusti=[];
+ampdistchanclusti=[];
+
+load([finalwavedir 'waveforms_i' num2str(1) '_cl' num2str(clust) '.mat'])
+
+    for chanind=1:length(dochannels);
+       channel=dochannels(chanind);       
+       if length(waveforms{channel})>0     
+          if size(waveforms{channel},1)==1
+               meanwave=waveforms{channel};
+          else meanwave=mean(waveforms{channel});
+          end
+          pkampclustichanj=range(meanwave);      
+          peakampclusti{channel}=pkampclustichanj;     
+          disttobestchanclusti{channel}=electrodedist{bestchanclusti,channel};
+          ampdistchanclusti=[ampdistchanclusti; pkampclustichanj disttobestchanclusti{channel} channel];
+     
+       end   
+         
+    end
+
+    if length(ampdistchanclusti)==0
+    continue
+    end
+distclusti=ampdistchanclusti(:,2);
+[sorteddists, sortorder]=sort(distclusti);
+ampdistchanclusti=ampdistchanclusti(sortorder,:);
+
+ampdistchan{clustercounter}=ampdistchanclusti;
+clustercounter=clustercounter+1;
+end
+
+maxamp=[];  allamps=[];
+for clustind=1:length(ampdistchan);
+a=ampdistchan{clustind};
+b=find(a(:,1)>=75);  
+c=max(b);
+detectionrange=[detectionrange; a(c,2)]; 
+end
+
+save(['c:\data analysis\ampdistchan.mat'],'ampdistchan', '-mat')
+
+
+figure(1)
+for i=1:length(ampdistchan)
+    ampsi=ampdistchan{i}(:,1);
+    disti=ampdistchan{i}(:,2);
+    norm_ampsi=ampsi/max(ampsi);
+    alldistance=[amp_vs_distance(:,1) disti];
+    amp_vs_distance(:,2)=[amp_vs_distance(:,2) norm_ampsi];
+    plot(disti,norm_ampsi,'ob')
+    hold on
+end
+    
+        

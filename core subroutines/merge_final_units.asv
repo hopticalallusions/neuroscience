@@ -1,0 +1,283 @@
+['merge_final_units']
+set_plot_parameters
+
+timesdir=[savedir 'sortedtimes\'];
+load([timesdir 'penultimate_params.mat']);  %loads parameters file.
+
+maxtrial=parameters.maxtrial;
+usechannels=parameters.allusechannels;
+
+badclusts=parameters.badunits;    
+if removebadclusts=='y'
+['units discarded because of likely refractory violations: ' num2str(badclusts)]
+doclusters=setdiff(doclusters,badclusts);   %added October 29 2011.
+end
+
+load([timesdir 'spiketimes.mat'])   %loads spiketimes created in collect_spiketimes;
+load([timesdir 'baretimes.mat'])   %loads spiketimes created in collect_spiketimes;
+load([timesdir 'jittertimes.mat'])   %loads spiketimes created in collect_spiketimes;
+
+if doclusters=='all';
+doclusters=1:length(spiketimes);
+end
+
+close all
+scrsz=get(0,'ScreenSize');
+
+origdoclusters=doclusters;
+maxjitter=min([(leftpoints-origleftpoints) (rightpoints-origrightpoints)]);
+
+if maxjitter>=upsamplingfactor;
+jittersamples=-maxjitter:upsamplingfactor:maxjitter;
+jittersamples=setdiff(jittersamples,0);
+jittersamples=[0 jittersamples];
+a=find(abs(jittersamples)>rejecttime);
+jittersamples(a)=[];
+else jittersamples=0;
+end
+
+meanwaves=[]; sdwaves=[]; badunits=[];
+
+for clustind=1:length(doclusters);
+    clust=doclusters(clustind);   
+    lengthperchan=parameters.lengthperchan{clust};
+    bestchan=parameters.bestchannel{clust};
+    timesclusti=spiketimes{clust};
+    if length(timesclusti)<2
+        continue
+    end
+    
+    stimesi=spiketimes{clust};
+    difftimes=diff(stimesi);
+    fractionbursts=length(find(abs(difftimes)<maxburstisi))/length(difftimes);
+      
+    load([finalwavedir 'waveforms_i' num2str(1) '_cl' num2str(clust) '.mat'])
+    
+  meanwavesik=[]; sdwavesik=[];  
+  for k=1:length(jittersamples);
+  jitterk=jittersamples(k);
+    
+    meanwaveclusti=[]; sdwaveclusti=[];
+    for j=1:length(waveforms);   %for each channel.
+
+        t0=leftpoints-origleftpoints-jitterk;
+        tf=t0+origleftpoints+origrightpoints;
+        
+        waveschanj=waveforms{j}(:,t0:tf);
+        
+        if size(waveforms{j},1)>1
+        meanwaveclusti=[meanwaveclusti, mean(waveschanj)];
+        else
+        meanwaveclusti=[meanwaveclusti, waveschanj];
+        end
+        sdwaveclusti=[sdwaveclusti, std(waveschanj)];
+        
+        if j==bestchan & k==1 & max(abs(mean(waveschanj)))<discardSDfactor*max(std(waveschanj)) & fractionbursts<minburstfraction
+            badunits=[badunits clust];
+        end
+        
+    end
+    meanwavesik{k}=meanwaveclusti;
+    sdwavesik{k}=sdwaveclusti;
+    
+  end
+    meanwaves{clust}=meanwavesik;
+    sdwaves{clust}=sdwavesik;
+
+end
+
+doclusters=setdiff(doclusters,badunits);
+['discarded ' num2str(length(badunits)) ' units which failed the SD test, ' num2str(length(doclusters)) ' units remaining.']
+
+samemeans=[];
+for i=1:length(doclusters);
+    clusti=doclusters(i);
+    
+    stimesi=spiketimes{clusti};
+            
+    meanwavei=meanwaves{clusti}{1};
+    
+    for j=2:length(doclusters);
+      clustj=doclusters(j);
+      if i>=j | parameters.shaft{clusti}~=parameters.shaft{clustj}
+         continue
+      end
+        
+      stimesj=spiketimes{clustj}; 
+     
+      timeratio=length(stimesi)/length(stimesj);
+      if timeratio>=1  %equalize # of times.
+      newstimesi=stimesi(1:length(stimesj));
+      else newstimesj=stimesj(1:length(stimesi));
+      end
+      difftimes=abs(newstimesj-newstimesi);
+      fractionbursts=length(find(abs(difftimes)<maxburstisi))/length(difftimes);
+                                        
+      if fractionbursts>=minburstfraction;   %added 30/11/11
+      mergeSDfactor=origmergeSDfactor+0.5; 
+      else mergeSDfactor=origmergeSDfactor;
+      end
+             
+      for k=1:length(jittersamples);
+      jitterk=jittersamples(k);
+   
+        meanwavej=meanwaves{clustj}{k};
+        
+        diffwaves=abs(meanwavei-meanwavej);     %THIS IS THE SLOWEST LINE IN LOOP. use only ~1 to 3 points instead of entire waveform; implemented on 7/12/11 to deal with Dec6b data.
+        
+        maxsd=max([sdwaves{clusti}{1}; sdwaves{clustj}{k}]);
+        mindiff=maxsd;
+    
+        nomatches=length(find(diffwaves>mergeSDfactor*mindiff));
+        
+        if sum(nomatches)>0
+        nomatches2=length(find(diffwaves>(3*mergeSDfactor)*mindiff));
+            if sum(nomatches2)>0
+                combinedtimes=sort([stimesi stimesj]);
+                fractionreject=length(find(combinedtimes<=rejecttime/samplingrate))/length(combined
+        
+        if sum(nomatches)<=0      
+            samemeans=[samemeans; clusti clustj];   %the left and right columns specify indices to be merged. 
+            continue   %continue is for the jittersamples loop          
+        end
+        
+      end
+      
+    end
+    
+end
+        
+% newwaveforms=[]; 
+newtimes=[]; newbaretimes=[]; newjittertimes=[]; newbestchan=[]; newchanswithspikes=[];
+newdochannels=[]; newlengthperchan=[]; newchannelsetindex=[]; newshaft=[];
+unitcounter=1;  mergeclusts=[]; usedclusts=[];
+
+if length(samemeans)>0
+ 
+a=unique(samemeans);
+
+    for i=1:length(a);
+        clusti=a(i);
+        if length(intersect(usedclusts,clusti))>0
+            continue
+        end
+        
+        tempmerge=clusti;
+        for j=1:100;
+            b=ismember(samemeans, tempmerge);
+            [c,d]=find(b==1);         
+            tempmerge=unique([samemeans(c,1) samemeans(c,2)]);
+        end
+                      
+       mergeclusts{i}=tempmerge;     
+    
+       usedclusts=[usedclusts mergeclusts{i}'];
+    end
+     
+    newmergeclusts=[]; mergecounter=1;
+    for j=1:length(mergeclusts)
+        if length(mergeclusts{j})>0
+            newmergeclusts{mergecounter}=mergeclusts{j};
+            mergecounter=mergecounter+1;
+        end
+    end
+    mergeclusts=newmergeclusts;
+   
+    for ind=1:length(mergeclusts);  
+           
+        allinds=unique(mergeclusts{ind});  %all indices to merge.
+        firstind=allinds(1);
+%         mergewaves=[]; 
+        mergetimes=[]; mergebaretimes=[]; mergejittertimes=[];        
+        for i=1:length(allinds);
+            indi=allinds(i);       
+            
+%             load([finalwavedir 'waveforms_i' num2str(1) '_cl' num2str(indi) '.mat'])
+%             
+%             if i==1   
+%                 for j=1:length(waveforms);   %for each channel.
+%                 t0=origleftpoints;
+%                 tf=t0+rightpoints;
+%                 waveschanj=waveforms{j}(:,t0:tf);
+%                 mergewaves{j}=waveschanj;                
+%                 end
+%             end
+            
+            mergetimes=[mergetimes spiketimes{indi}];   
+            mergebaretimes=[mergebaretimes baretimes{indi}];
+            mergejittertimes=[mergejittertimes jittertimes{indi}];
+        end
+            
+        [mergetimes, sortindex]=sort(mergetimes);   
+        mergebaretimes=mergebaretimes(sortindex);
+        mergejittertimes=mergejittertimes(sortindex);
+        
+        difftimes=diff(mergetimes);
+        overlaps=find(difftimes<rejecttime);          %indices of spike which has isi<rejecttime with another spike.
+        mergetimes(overlaps)=[];  %removes duplicate events found on multiple channels.
+        mergebaretimes(overlaps)=[];
+        mergejittertimes(overlaps)=[];
+        
+%         newwaveforms{unitcounter}=mergewaves;
+        newtimes{unitcounter}=mergetimes;
+        newbaretimes{unitcounter}=mergebaretimes;
+        newjittertimes{unitcounter}=mergejittertimes; 
+        newshaft{unitcounter}=parameters.shaft{firstind};
+        
+        unitcounter=unitcounter+1; 
+ 
+    end
+    
+end
+
+
+allinds=setdiff(doclusters,usedclusts);  %now do the unmerged units, rejecting the bad units.
+ 
+    for ind=1:length(allinds);    
+        clust=allinds(ind);
+         
+%         load([finalwavedir 'waveforms_i' num2str(1) '_cl' num2str(clust) '.mat'])
+%         wavesclusti=[];      
+%         for j=1:length(waveforms);   %for each channel.
+%         t0=origleftpoints;
+%         tf=t0+rightpoints;
+%         waveschanj=waveforms{j}(:,t0:tf);
+%         wavesclusti{j}=waveschanj;                
+%         end
+        
+        stimesi=spiketimes{clust};
+        baretimesi=baretimes{clust};
+        jittertimesi=jittertimes{clust};
+        
+        [stimesi, sortindex]=sort(stimesi);   
+        baretimesi=baretimesi(sortindex);
+        jittertimesi=jittertimesi(sortindex);
+        
+        difftimes=diff(stimesi);
+        overlaps=find(difftimes<rejecttime);          %indices of spike which has isi<rejecttime with another spike.
+        stimesi(overlaps)=[];  %removes duplicate events found on multiple channels.
+        baretimesi(overlaps)=[];
+        jittertimesi(overlaps)=[];
+         
+%         newwaveforms{unitcounter}=wavesclusti;
+        newtimes{unitcounter}=stimesi;
+        newbaretimes{unitcounter}=baretimesi;
+        newjittertimes{unitcounter}=jittertimesi;
+        newshaft{unitcounter}=parameters.shaft{clust};
+        
+        unitcounter=unitcounter+1; 
+ 
+    end
+
+spiketimes=newtimes;
+baretimes=newbaretimes;
+jittertimes=newjittertimes;
+['pruned final number of units from ' num2str(length(origdoclusters)) ' to ' num2str(length(spiketimes)) '.']
+
+save([timesdir 'finalspiketimes.mat'],'spiketimes', '-mat')
+save([timesdir 'finalbaretimes.mat'],'baretimes','-mat')
+save([timesdir 'finaljittertimes.mat'],'jittertimes','-mat')
+
+plotcorrelations='y';
+psthccg_muxi   %cross-correlation
+close all

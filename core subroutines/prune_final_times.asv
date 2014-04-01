@@ -1,0 +1,240 @@
+channelsets=parameters.channelsetindex;
+dosets=parameters.dosets;
+meanspikes=parameters.templates;
+origmeanspikes=parameters.origtemplates;
+allusechannels=parameters.allusechannels;
+channelsperset=parameters.channelsperset;
+setperunit=parameters.setperunit;
+noisedochannels=parameters.noisedochannels;
+
+samemeans=[];
+
+for setind=1:length(dosets);
+    currentset=dosets(setind);
+        
+    usechannels=channelsperset{currentset};       %channels in the current set.
+    usechannels=intersect(usechannels, allusechannels);
+    usechannels=setdiff(usechannels, badchannels);
+    dochannels=usechannels;
+
+    unitsinset=find(setperunit==currentset);
+   
+    for i=1:length(unitsinset);
+        clusti=unitsinset(i);
+        stimesi=spiketimes{clusti};
+        
+        templatei=meanspikes{clusti};
+        lengthperchan=parameters.lengthperchan{clusti};
+        
+        for j=2:length(unitsinset);
+            
+            if i>=j
+                continue
+            end
+            
+            clustj=unitsinset(j);
+            stimesj=spiketimes{clustj};
+            
+            if length(stimesi)<=final_minspikesperunit | length(stimesj)<=final_minspikesperunit
+            continue
+            end
+            
+            templatej=meanspikes{clustj};
+            
+            diffwaves=abs(templatei-templatej);     %THIS IS THE SLOWEST LINE IN LOOP. use only ~1 to 3 points instead of entire waveform; implemented on 7/12/11 to deal with Dec6b data.
+        
+%           distance(j)=sqrt(sum((meanwavei-meanwavej).^2));  %default: %Euclidean distance of spike i, channel k, to cluster j.
+            distance(j)=sum(diffwaves);
+        
+                minchoice=min([range(meanwavei) range(meanwavej)]);
+    
+        fudgefactor=(minchoice-3*minamplitude)/(minamplitude);
+
+        mindiff=(mergeclusterstdev+fudgefactor)*(noiselevel);  
+        mindis=mindiff; %*sqrt(pointsinwave/length(dochannels));        
+         
+        nomatches=length(find(diffwaves>mindiff));
+            
+            
+            
+         
+                chank=dochannels(k);          
+                noiselevel=noisedochannels{chank};    %default
+          
+%                 range0=(k-1)*lengthperchan+1; 
+%                 rangef=k*lengthperchan;
+                
+                a=templatei(range0a:rangefa);
+                b=templatej(range0b:rangefb);   
+                               
+                timeratio=length(stimesi)/length(stimesj);
+                if timeratio>=1  %equalize # of times.
+                    stimesi=stimesi(1:length(stimesj));
+                else stimesj=stimesj(1:length(stimesi));
+                end
+                difftimes=abs(stimesj-stimesi);
+                         
+                if max(abs(a))<2.5*minamplitude | max(abs(b))<2.5*minamplitude   %added 30/11/11
+                fudgefactor=0;   %default=-0.5;
+                    if max(abs(a))<2*minamplitude | max(abs(b))<2*minamplitude   %added 30/11/11
+                    fudgefactor=fudgefactor-0.5;   %default=-0.5;
+                        if max(abs(a))<1.5*minamplitude | max(abs(b))<1.5*minamplitude   %added 30/11/11
+                        fudgefactor=fudgefactor-1;   %default=-1;
+                        end
+                    end         
+                elseif  max(abs(a))>=2.5*minamplitude & max(abs(b))>=2.5*minamplitude 
+                fudgefactor=2;
+                else fudgefactor=0;
+                end
+                
+                if mean(difftimes)<1.5*maxburstisi;   %added 30/11/11
+                burstfactor=2;   %default=0.5;
+                else burstfactor=0;
+                end
+                      
+                diffwaves=abs(a-b);
+                mindiff=(fin_mergecluststdev+fudgefactor+burstfactor)*(noiselevel);
+                nomatch=length(find(diffwaves>mindiff));
+                if nomatch==0 
+                    if range(a)>=2.5*minamplitude & range(b)>=2.5*minamplitude
+                    nomatches=[nomatches -1];       %-1 indicates no points deviated by >mindiff and the amplitude of the units was >=3*minamplitude
+                    else nomatches=[nomatches 0];   %0 indicates no points deviated by >mindiff but the amplitude of the units was <3*minamplitude
+                    end 
+                else nomatches=[nomatches 1];  %+1 indicates soem point deviated by >mindiff.
+                end  
+            
+            
+            if sum(nomatches)<=0    
+            
+            stimesi=sort(stimesi);
+            stimesj=sort(stimesj);
+            combinedtimes=sort([stimesi stimesj]);
+            isi_ij=diff(combinedtimes);
+            isi_i=diff(stimesi);
+            isi_j=diff(stimesj);
+            
+            pctbad_isi_ij=length(find(isi_ij<minisi))/length(isi_ij);
+            pctbad_isi_i=length(find(isi_i<minisi))/length(isi_i);
+            pctbad_isi_j=length(find(isi_j<minisi))/length(isi_j);
+            
+                if pctbad_isi_ij<=pctbad_isi_i & pctbad_isi_ij<=pctbad_isi_j & pctbad_isi_i<maxfractionbadISI & pctbad_isi_j<maxfractionbadISI      %merge units only if combined ISI is no worse than separate ISIs.           
+                samemeans=[samemeans; clusti clustj];   %the left and right columns specify indices to be merged. 
+                end
+             continue    %used with jitterind. if found match, stop attempting to jitter match and move to next cluster.
+            
+            end   
+            
+
+               
+        end
+               
+    end
+          
+end
+
+
+newmeanspikes=[]; origmeans=[]; newtimes=[]; newbaretimes=[]; newjittertimes=[]; newbestchan=[]; newchanswithspikes=[];
+newdochannels=[]; newlengthperchan=[]; newchannelsetindex=[]; newshaft=[];
+unitcounter=1;  mergeclusts=[]; usedclusts=[];
+
+if length(samemeans)>0
+ 
+a=unique(samemeans);
+
+    for i=1:length(a);
+        clusti=a(i);
+        if length(intersect(usedclusts,clusti))>0
+            continue
+        end
+        
+        tempmerge=clusti;
+        for j=1:10;
+            b=ismember(samemeans, tempmerge);
+            [c,d]=find(b==1);         
+            tempmerge=unique([samemeans(c,1) samemeans(c,2)]);
+        end
+                      
+       mergeclusts{i}=tempmerge;     
+    
+       usedclusts=[usedclusts mergeclusts{i}'];
+    end
+     
+    newmergeclusts=[]; mergecounter=1;
+    for j=1:length(mergeclusts)
+        if length(mergeclusts{j})>0
+            newmergeclusts{mergecounter}=mergeclusts{j};
+            mergecounter=mergecounter+1;
+        end
+    end
+    mergeclusts=newmergeclusts;
+   
+    for ind=1:length(mergeclusts);  
+           
+        allinds=unique(mergeclusts{ind});  %all indices to merge.
+        firstind=allinds(1);
+        mergemeans=[]; mergeorigmeans=[]; mergetimes=[]; mergebaretimes=[]; mergejittertimes=[];
+        for i=1:length(allinds);
+            indi=allinds(i);
+            mergemeans=[mergemeans; meanspikes{indi}];
+            mergeorigmeans=[mergeorigmeans; origmeanspikes{indi}];
+            mergetimes=sort([mergetimes spiketimes{indi}]);   
+            mergebaretimes=sort([mergebaretimes baretimes{indi}]);
+            mergejittertimes=sort([mergejittertimes jittertimes{indi}]);
+        end
+         
+        newmeanspikes{unitcounter}=mean(mergemeans);  %average of the templates to be merged.
+        origmeans{unitcounter}=mean(mergeorigmeans);
+        newtimes{unitcounter}=unique(mergetimes);
+        newbaretimes{unitcounter}=unique(mergebaretimes);
+        newjittertimes{unitcounter}=mergejittertimes;
+        
+        newbestchan{unitcounter}=parameters.bestchannel{firstind};
+        newchanswithspikes{unitcounter}=parameters.chanswithspikes{firstind};
+        newdochannels{unitcounter}=parameters.dochannels{firstind};        
+        newlengthperchan{unitcounter}=parameters.lengthperchan{firstind};
+        newchannelsetindex{unitcounter}=parameters.channelsetindex{firstind};
+        newshaft{unitcounter}=parameters.shaft{firstind};
+        
+        unitcounter=unitcounter+1; 
+ 
+    end
+    
+end
+
+
+allinds=setdiff([1:length(meanspikes)],usedclusts);
+ 
+    for ind=1:length(allinds);    %discard units with insufficient number of spikes.
+        clust=allinds(ind);
+           
+     
+        stimesi=spiketimes{clust};
+            
+            if length(stimesi)<final_minspikesperunit 
+            continue
+            end
+          
+        newmeanspikes{unitcounter}=parameters.templates{clust};  %average of the templates to be merged.
+        origmeans{unitcounter}=parameters.origtemplates{clust};
+        newtimes{unitcounter}=stimesi;
+        newbaretimes{unitcounter}=baretimes{clust};
+        newjittertimes{unitcounter}=jittertimes{clust};
+        
+        newbestchan{unitcounter}=parameters.bestchannel{clust};
+        newchanswithspikes{unitcounter}=parameters.chanswithspikes{clust};
+        newdochannels{unitcounter}=parameters.dochannels{clust};        
+        newlengthperchan{unitcounter}=parameters.lengthperchan{clust};
+        newchannelsetindex{unitcounter}=parameters.channelsetindex{clust};
+        newshaft{unitcounter}=parameters.shaft{clust};
+        
+        unitcounter=unitcounter+1; 
+ 
+    end
+
+spiketimes=newtimes;
+baretimes=newbaretimes;
+jittertimes=newjittertimes;
+
+
+['pruned final number of units from ' num2str(length(meanspikes)) ' to ' num2str(length(newtimes)) '.']
+    

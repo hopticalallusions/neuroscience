@@ -1,0 +1,73 @@
+zsaline=[]; znicotine=[]; zchloral=[];
+
+for multichansetind=1:length(plot_multichannels)
+
+%***psth for selected channels in plotsummedchannels. The advantage of this is that overlapping
+%spikes are eliminated, giving a more realistic total event count than just
+%adding all spikes across all channels.
+stimesinset=spiketimes{multichansetind};
+
+for eventind=1:(length(eventannotations)-1);
+    eventname=eventannotations{eventind};
+    t0=timeannotations{eventind};
+    tpre=t0-tcompare*60;
+    tpost=t0+tcompare*60;
+    
+    pretimes=find(spiketimes<t0 & spiketimes>tpre);
+    posttimes=find(spiketimes>t0 & spiketimes<tpost);
+        
+    pretimes=spiketimes(pretimes);
+    posttimes=spiketimes(posttimes);
+          
+    if strfind(eventname,'saline')>0
+    zsaline=(length(posttimes)-length(pretimes))/length(pretimes);  
+    elseif strfind(eventname,'nicotine')>0
+    znicotine=(length(posttimes)-length(pretimes))/length(pretimes);     
+    elseif strfind(eventname,'chloral')>0
+    zchloral=(length(posttimes)-length(pretimes))/length(pretimes);
+    else      
+    continue       
+    end    
+end
+        
+ratechange=[];   
+ratechange.filename=[subject '\' datei '\' filename];
+ratechange.channels=plotsummedchannels;
+ratechange.detectstdev=detectstdev;
+ratechange.noiseprctile=noiseprctile;
+ratechange.timerange=tcompare;
+ratechange.saline=zsaline;
+ratechange.nicotine=znicotine;
+ratechange.chloral=zchloral;
+ratechange
+save([multisavedir 'ratechange.mat'], 'ratechange','-MAT')
+
+sot=['filename: ' ratechange.filename ';'];
+dlmwrite([multisavedir 'ratechange.txt'],sot,'delimiter','','newline','pc')
+
+sot=['used channels: ' num2str(ratechange.channels) ';'];
+dlmwrite([multisavedir 'ratechange.txt'],sot,'-append','delimiter','','newline','pc'); 
+
+sot=['time range (min): ' num2str(ratechange.timerange) ';'];
+dlmwrite([multisavedir 'ratechange.txt'],sot,'-append','delimiter','','newline','pc');
+
+sot=['detection threshold: ' num2str(detectstdev) ';'];
+dlmwrite([multisavedir 'ratechange.txt'],sot,'-append','delimiter','','newline','pc'); 
+
+sot=['noise percentile: ' num2str(noiseprctile) ';'];
+dlmwrite([multisavedir 'ratechange.txt'],sot,'-append','delimiter','','newline','pc'); 
+
+if length(zsaline)>0
+sot=['saline relative change: ' num2str(ratechange.saline) ';'];
+dlmwrite([multisavedir 'ratechange.txt'],sot,'-append','delimiter','','newline','pc'); 
+end
+
+if length(znicotine)>0
+sot=['nicotine relative change: ' num2str(ratechange.nicotine) ';'];
+dlmwrite([multisavedir 'ratechange.txt'],sot,'-append','delimiter','','newline','pc'); 
+end
+
+if length(zchloral)>0
+sot=['chloral hydrate relative change: ' num2str(ratechange.chloral) ';'];
+dlmwrite([multisavedir 'ratechange.txt'],sot,'-append','delimiter','','newline','pc'); 
+end

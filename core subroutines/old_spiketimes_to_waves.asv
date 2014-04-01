@@ -1,0 +1,202 @@
+['spiketimes_to_waves']
+set_plot_parameters;     %CONTAINS IMPORTANT PARAMETERS THAT AFFECT PLOTTING!
+
+load([timesdir 'penultimate_params.mat']);  %loads parameters file.
+load([timesdir 'spiketimes.mat'])
+load([timesdir 'baretimes.mat'])
+load([timesdir 'jittertimes.mat'])
+
+trialduration=parameters.trialduration;
+maxtrial=parameters.maxtrial;
+numberoftrials=maxtrial-1;  
+minamplitude=parameters.minamplitude;
+
+if max_wave_trials<=numberoftrials
+    numberof_wavetrials=max_wave_trials;
+else numberof_wavetrials=numberoftrials;
+end
+
+if doclusters=='all';
+doclusters=1:length(spiketimes);
+end
+
+mkdir(finalwavedir);
+delete([finalwavedir '*.mat']);
+
+badclusts=parameters.badunits;    
+if removebadclusts=='y'
+['units discarded because of likely refractory violations: ' num2str(badclusts)]
+doclusters=setdiff(doclusters,badclusts);   %added October 29 2011.
+end
+ 
+muxifiles=unique(ceil(plotchannels/32));  %specifies which dot muxi files to open for plotting
+muxibackgndfiles=unique(ceil(plotbackgroundchans/32));   %specifies which dot muxi files to open for backgnd subtraction.
+
+wavefilecounter=[];  ampfilecounter=1; waveforms=[];  spikeamps=[]; appendmorespikes=[]; %initialize waveform array.
+for i=1:length(doclusters);
+    clusti=doclusters(i);
+    wavefilecounter(clusti)=1;
+    appendmorespikes{clusti}='y';
+    for j=1:length(plotchannels);
+        chanjx=plotchannels(j);
+        waveforms{chanjx}=[];
+        spikeamps{clusti}{chanjx}=[];
+    end
+    save([finalwavedir 'waveforms_i' num2str(wavefilecounter(clusti)) '_cl' num2str(clusti) '.mat'],'waveforms', '-mat');  %saves empty file.   
+end
+    save([finalwavedir 'spikeamps_i' num2str(ampfilecounter) '.mat'],'spikeamps', '-mat');  %saves empty file.
+   
+
+
+for iterations=1:numberof_wavetrials;
+trial=dotrials(iterations);
+['doing spiketimes_to_waves. maxcluststdev = ' num2str(maxcluststdev) ', f=' num2str(f_low) '-' num2str(f_high) ' Hz. trial ' num2str(trial) ' of ' num2str(numberof_wavetrials)]
+
+    if trial<10
+    datafilename=[rawpath filename '_t0' num2str(trial)];
+    else
+    datafilename=[rawpath filename '_t' num2str(trial)];
+    end
+
+    backgroundchans=plotbackgroundchans;
+    if length(plotbackgroundchans)>0;
+    backgndsignal_muxi
+    else
+    backgnddata=0;
+    end   
+       
+
+    for clustind=1:length(doclusters);
+        clust=doclusters(clustind);
+            
+        if appendmorespikes{clust}=='y'    %added if clause on November 7 2011 to place an upper bound on number of collected waves, which takes a long time.
+                        
+        bestchaninclust=parameters.bestchannel{clust};
+            
+        shaftinuse=s.shaft(bestchaninclust);   %finds the shaft containing these channels; should only be single shaft.
+        channelsonshaft=find(s.shaft==shaftinuse);    %finds all the channels on that shaft.
+                                    
+        stimes=baretimes{clust};
+        wavejitters=jittertimes{clust};
+            
+        pointsintrial=find(stimes<(trial*trialduration) & stimes>=((trial-1)*trialduration));
+        timesintrial=stimes(pointsintrial)-(trial-1)*trialduration;      
+        jittersintrial=wavejitters(pointsintrial);
+        
+        ['unit ' num2str(clust) ', contains ' num2str(length(pointsintrial)) ' in trial ' num2str(trial) '.']
+            
+        wavefile=dir([finalwavedir 'waveforms_i' num2str(wavefilecounter(clust)) '_cl' num2str(clust) '.mat']);   %load & initialize waveform file.   
+        if wavefile.bytes<maxwavesize;                    
+        load([finalwavedir 'waveforms_i' num2str(wavefilecounter(clust)) '_cl' num2str(clust) '.mat']);          
+        else                       
+        wavefilecounter(clust)=wavefilecounter(clust)+1;        
+        clear waveforms; waveforms=[];  %initialize waveform array.            
+        	for j=1:length(plotchannels);
+                chanjx=plotchannels(j);
+                waveforms{chanjx}=[];                   
+            end                     
+        end 
+            
+        ampfile=dir([finalwavedir 'spikeamps_i' num2str(ampfilecounter) '.mat']);  %load & initialize amplitude file    
+        if ampfile.bytes<maxwavesize;                    
+        load([finalwavedir 'spikeamps_i' num2str(ampfilecounter) '.mat']);                              
+        else                       
+        ampfilecounter=ampfilecounter+1;        
+        clear spikeamps; spikeamps=[];  %initialize waveform array.
+            for i=1:length(doclusters);
+                clustxi=doclusters(i);
+                for j=1:length(plotchannels);
+                    chanxj=plotchannels(j);
+                    spikeamps{clustxi}{chanjx}=[];                   
+                end                     
+            end                         
+        end 
+        
+                                    
+        for i=1:length(muxifiles);
+    
+            muxi=muxifiles(i);     
+            datafile=[datafilename '.mux' num2str(muxi)];   
+
+            fid = fopen(datafile,'r','b');
+            data = fread(fid,[1,inf],'int16');    
+            fclose(fid);
+            data=data/2^20;  %divide by multiplication factor used in Labview DAQ system.
+
+            muxichans=plotchannels(find(plotchannels<(32*muxi+1) & plotchannels>32*(muxi-1)))-32*(muxi-1);
+            for chanind=1:length(muxichans);
+                channel=muxichans(chanind);
+                absolutechan=muxichans(chanind)+(muxi-1)*32;
+                
+                if length(find(channelsonshaft==absolutechan))==0   %only plots channels on the same shaft.
+                continue
+                end
+                
+                if muxi==1
+                    datach=data(channel:32:length(data));  %demultiplexing. 
+                elseif muxi>1   
+                    channel=channel-1;
+                    if channel==0;
+                    channel=32;
+                    end
+                datach=data(channel:32:length(data));  %demultiplexing. April 9 2011.  takes into account that when reading out muxi files where i>1, the channel order is shifted by 1.
+                end
+                datach=datach-backgnddata-mean(datach);  %subtracts the background channel if backgroundchans were specified.
+   
+                dofilter_muxi
+
+                datach=1e6*datach;  %converts data to microvolts.
+            
+                wavesclustichanj=[]; ampsclustichanj=[];
+                for timeind=1:length(timesintrial);
+                fromind=timesintrial(timeind)-(leftpoints+extraleft-1);  %added 12 on 2/12/11 because of jitter compensation; this number must match t0 & tf constant
+                toind=timesintrial(timeind)+(rightpoints+extraright-1);
+
+                waveformi=datach(fromind:toind);
+              
+                waveformi=interp(waveformi,upsamplingfactor);
+            
+                t0=-jittersintrial(timeind)+(2+extraleft)*upsamplingfactor;                    % t0=-wavejitter(i)+3*upsamplingfactor;
+                tf=length(waveformi)-jittersintrial(timeind)-(extraright)*upsamplingfactor;    % tf=length(waveformi)-wavejitter(i)-upsamplingfactor;
+        
+                waveformi=waveformi(t0:tf);   %aligned waveform.  
+                ampsclustichanj=[ampsclustichanj range(waveformi)];
+                
+                waveformi=decimate(waveformi,upsamplingfactor); 
+                           
+                waveformi=waveformi; %-min(abs(waveformi));  %dc offset removal added Nov 7 2011.
+                wavesclustichanj=[wavesclustichanj; waveformi];
+                                
+                end
+                
+                waveforms{absolutechan}=[waveforms{absolutechan}; wavesclustichanj];  
+                spikeamps{clust}{absolutechan}=[spikeamps{clust}{absolutechan} ampsclustichanj];      
+
+%                 save_final_waves_amps
+                
+                if length(find(stimes<(trial*trialduration)))>plotmax   %added November 7 2011; if 'n' then in the next trial won't append any more waves for this cluster.
+                appendmorespikes{clust}='n';       %note: plotmax is specified in set_plot_parameters
+                end
+                             
+            end
+            
+        end 
+            
+            save([finalwavedir 'waveforms_i' num2str(wavefilecounter(clust)) '_cl' num2str(clust) '.mat'],'waveforms', '-mat')
+            save([finalwavedir 'spikeamps_i' num2str(ampfilecounter) '.mat'],'spikeamps', '-mat')
+            clear waveforms datach spikeamps
+
+        end
+        
+    end
+        
+end
+
+       
+
+
+%     end  %chaninds
+% end   %muxifiles
+% clear data
+% 
+% end

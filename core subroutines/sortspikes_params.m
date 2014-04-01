@@ -1,0 +1,11 @@
+        sortspikes=[];
+        sortspikes.spiketimes=alltimes;
+        sortspikes.spikeinds=allspikeinds;
+        sortspikes.meanspikes=meanspikes;
+        sortspikes.allnoiselevels=allnoiselevels;
+        sortspikes.channels=dochannels;   
+        sortspikes.trialduration=trialduration;
+        sortspikes.lasttrialduration=lasttrialduration;
+        sortspikes.lasttrial=lasttrial;
+        sortspikes.channelset=channelsetindex; 
+        sortspikes.minamplitude=minamplitude;

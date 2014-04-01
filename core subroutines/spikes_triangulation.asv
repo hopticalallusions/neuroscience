@@ -1,0 +1,76 @@
+%only includes channels whose corresponding amplitudes are >minplotamp. uses set_plot_parameters.  %stored in \final amplitudes\
+
+['spikes_triangulation']
+set_plot_parameters
+
+leftpoints=final_leftpoints;
+rightpoints=final_rightpoints;
+
+load([finalwavedir 'spikeamps.mat'])
+load([timesdir 'finalspiketimes.mat'])
+load([timesdir 'final_params.mat']);  %loads parameters file.
+bestchannel=parameters.bestchannels;
+wavespecs=parameters.wavespecs;
+
+badclusts=parameters.badunits;   
+doclusters=1:length(spiketimes);
+if removebadclusts=='y'
+['units discarded because of likely refractory violations: ' num2str(badclusts)]
+doclusters=setdiff(doclusters,badclusts);   %added October 29 2011.
+end
+
+
+spikeposition=[]; 
+for clustind=1:length(doclusters);
+    clust=doclusters(clustind);
+    spikeposition.x{clust}=[];
+    spikeposition.y{clust}=[];
+end
+
+roughyposition=[];
+for clustind=1:length(doclusters);
+    clust=doclusters(clustind);
+    
+    ampsinclust=spikeamps{clust};
+    
+    spikeposx=[]; spikeposy=[];      
+    
+        spikex=0; spikey=0; totalampi=0;
+        for chanind=1:length(plotchannels);
+            chanj=plotchannels(chanind);  
+            xchanj=x(chanj);
+            ychanj=y(chanj);                          
+                if length(ampsinclust{chanj})>0 & abs(mean(ampsinclust{chanj}))>minplotamp   %minplotamp is set in set_plot_parameters, = minamplitude.
+                ampichanj=mean(abs(ampsinclust{chanj}));       
+                totalampi=[totalampi+ampichanj];
+                spikex=[spikex+xchanj*ampichanj];
+                spikey=[spikey+ychanj*ampichanj];       
+                end             
+        end
+        
+        xposition=spikex/totalampi;
+        yposition=spikey/totalampi;
+        spikeposx=[spikeposx xposition];
+        spikeposy=[spikeposy yposition];
+        
+    
+     spikeposition.x{clust}=spikeposx;
+     spikeposition.y{clust}=spikeposy;
+     
+     roughyposition=[roughyposition y(bestchannel{clust})];
+    
+end
+
+spikeposition.roughyposition=roughyposition;
+
+save([savedir 'units\wave specs\' 'spikeposition' '.mat'], 'spikeposition', '-mat')
+
+plot_spikewidth
+
+plot_spikeposition
+
+
+'done.'
+
+
+        

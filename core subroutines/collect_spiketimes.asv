@@ -1,0 +1,108 @@
+['collecting_spiketimes']
+set_plot_parameters
+
+%******************
+load([timesdir 'spiketimes_n1.mat'])   %load alltimes{clust}{clusteriteration} 
+if doclusters=='all';
+doclusters=1:length(alltimes);
+end
+    
+doclusters=setdiff(doclusters,dontdoclusters);
+ 
+rawpath=parameters.rawpath;
+filename=parameters.filename;
+probetype=parameters.probetype;
+samplingrate=parameters.samplingrate;
+trialduration=parameters.trialduration;
+allcluststdev=parameters.allcluststdev;
+samplingrate=parameters.samplingrate;
+dotrials=parameters.dotrials;
+maxtrial=parameters.maxtrial;
+trialduration=parameters.trialduration;
+minamplitude=parameters.minamplitude;
+numberiterations=length(allcluststdev);
+spiketimes=[]; baretimes=[]; jitters=[];
+numberoftrials=maxtrial-1;  
+
+max_wave_trials=numberoftrials;
+if max_wave_trials<=numberoftrials
+    numberof_wavetrials=max_wave_trials;
+else numberof_wavetrials=numberoftrials;
+end
+        
+timefiles=dir([timesdir 'spiketimes_n*']);
+psthisijpgdir=[timesdir 'psth_ISI_jpg\'];
+textdir=[timesdir 'text time files\'];
+mkdir(psthisijpgdir)
+delete([psthisijpgdir, '*.jpg'])
+mkdir(textdir)
+delete([textdir, '*.txt'])
+scrsz=get(0,'ScreenSize');
+
+compare_cluststdev   %plots number of spikes per unit for different allcluststdev values.
+
+for clustind=1:length(doclusters);
+    clusti=doclusters(clustind);
+    spiketimes{clusti}=[];  %initialize array;
+    baretimes{clusti}=[];
+    jittertimes{clusti}=[];
+end
+
+for timefileind=1:length(timefiles);
+    timefilex=timefiles(timefileind).name;
+    jitterfilex=['timejitter_n' num2str(timefileind) '.mat'];
+    
+    load([timesdir timefilex])   %load alltimes{clust}{clusteriteration}
+    load([timesdir jitterfilex]) %load alljitters{clust}{clusteriteration}
+    
+        
+        for clustind=1:length(doclusters);
+            clusti=doclusters(clustind);
+            
+            for iterj=1:numberiterations;             
+            
+            if subtract_templates=='y'  %added if statement on October 24 2011.
+                if allcluststdev(iterj)>maxcluststdev
+                continue
+                end 
+            elseif subtract_templates=='n'
+                if allcluststdev(iterj)~=maxcluststdev
+                continue
+                end 
+            end
+            
+            timesclustiiterj=(alltimes{clusti}{iterj}); 
+            jittersclustiiterj=alljitters{clusti}{iterj};
+            
+            overtimeinds=find(timesclustiiterj/samplingrate>numberoftrials*trialduration/samplingrate);  %removes any times in the very last trial.
+            timesclustiiterj(overtimeinds)=[]; 
+            jittersclustiiterj(overtimeinds)=[];
+            spiketimes{clusti}=[spiketimes{clusti} (timesclustiiterj+jittersclustiiterj/upsamplingfactor)/samplingrate];
+            baretimes{clusti}=[ baretimes{clusti} timesclustiiterj];
+            jittertimes{clusti}=[jittertimes{clusti} jittersclustiiterj];
+            
+            end           
+        end       
+end
+      
+for clustind=1:length(doclusters);
+clusti=doclusters(clustind);
+[spiketimes{clusti}, sortorder]=sort(spiketimes{clusti});  %sort in proper order.
+baretimes{clusti}=baretimes{clusti}(sortorder);
+jittertimes{clusti}=jittertimes{clusti}(sortorder);
+end
+
+
+prune_penult_times;   %merges units and discards units with insufficient spikes.  note that final_minspikesperunit 
+                      %determines lower bound on number of sufficient spikes for unit to survive.
+
+save([timesdir 'spiketimes.mat'],'spiketimes', '-mat')
+save([timesdir 'baretimes.mat'],'baretimes','-mat')
+save([timesdir 'jittertimes.mat'],'jittertimes','-mat')
+  
+allindices=1:length(spiketimes);
+
+badclusts=[]; %maybebadclusts;
+save_penultparameters
+
+ 
