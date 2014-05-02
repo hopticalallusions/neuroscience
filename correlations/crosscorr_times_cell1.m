@@ -32,6 +32,40 @@ if strcmp(triggerevent1, 'allspikes')
     end
     
     disp(['calculating cross-correlations for the continuous data set from t=0 to t=' num2str(tf) ' s.'])
+elseif strcmp(triggerevent1, 'testing')
+    %ahowe
+    %make a shorter recording by truncating. this will allow fatster
+    %runtime
+        doevent1trials=1;
+    t0=0;
+    if recordingduration<maxcorrtime
+    tf=100;      %%ahowe
+    else tf=100; %%ahowe
+    end
+    longtimebins=0:timebinsize:tf;  %time bins used for converting firing rate from all trials into a 1D column vector.
+    
+    if strcmp(spikes_or_bursts1,'s')
+    for unitind=1:length(dounits1);
+        unitj=dounits1(unitind);
+        stimes1{unitj}=spiketimes{unitj}; 
+        outsiderange=find(stimes1{unitj}>tf);
+        stimes1{unitj}(outsiderange)=[];      
+    end
+    
+    elseif strcmp(spikes_or_bursts1,'b')
+        
+    for unitind=1:length(dounits1)
+        unitj=dounits1(unitind);
+        bursttimesj=bursts{unitj};   
+        countsj=counts{unitj};    
+        bursttimesj=bursttimesj(find(countsj>=minspikesperburst));        
+        stimes1{unitj}=bursttimesj;
+    end
+    
+    end
+    
+    disp(['calculating cross-correlations for the continuous data set from t=0 to t=' num2str(tf) ' s.'])
+
     
 else   
     longtimebins=0:timebinsize:((length(doevent1trials)+1)*(2*posteventtime+preeventtime));  %time bins used for converting firing rate from all trials into a 1D column vector.

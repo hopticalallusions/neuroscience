@@ -2,6 +2,9 @@
 %Calculates cross-correlation for the observed firing and jittered samples.
 disp(['**Warning: this program is very slow because of the multiple iterations of the jitter test. It is recommended to run job on multiple processors.**'])
 
+% ahowe
+profile on;
+
 set_plot_parameters
 
 spikes_or_bursts1='s';       %for first set of times in pair. 's' will use spikes, 'b' will use burst episodes,
@@ -12,6 +15,7 @@ unitclass2='all';        %second type of unit used in pairwise comparison. can s
 
 triggerevent1='allspikes';  %options: 'CS1', 'CS2', 'laser', 'startlicking', 'endlicking', 'solenoid', 'positive acceleration', 'negative acceleration','allspikes', 'LFP'
 %'allspikes' will use spikes from t=0 to t=maxcorrtime.
+triggerevent1='testing';  %% ahowe testing modification
 
 trialselection1='correct licking';     %select which event1 trials to display.
 %['all'] will use all trials.
@@ -60,6 +64,9 @@ trialgroupsize=10;  %(currently not in use in correlations.)
 format short;
 
 load_results
+
+
+load('/Users/andrew.howe/trackforbackup/masmanidisLab/spike-jitter/data analysis/Licking Training/Mouse 100/December 7 2013/Dec7a/stimuli/stimuli.mat')
 
 select_triggers_trials       %determines which event triggers and trials to use in plotting.
 
@@ -119,7 +126,8 @@ save([currentxcorrdir 'crosscorr_params.mat'], 'crosscorr_params', '-MAT')
 
 
 numberof_computers=[];
-numberof_computers=input('specify number of Matlab instances (N) that will be carrying out this job (can either be on same or different computers) [1]: ');
+%commented out by ahowe
+%numberof_computers=input('specify number of Matlab instances (N) that will be carrying out this job (can either be on same or different computers) [1]: ');
 if isempty(numberof_computers)==1
     numberof_computers=1;
 end
@@ -148,6 +156,10 @@ if strcmp(spikes_or_bursts1,'b') | strcmp(spikes_or_bursts2,'b')
     save([currentxcorrdir 'crosscorr_params.mat'], 'crosscorr_params', '-MAT')
 end
 
+if ~exist('spiketimes') %added by ahowe
+    load('/Users/andrew.howe/trackforbackup/masmanidisLab/spike-jitter/data analysis/Licking Training/Mouse 100/December 7 2013/Dec7a/single-unit/sortedtimes/finalspiketimes.mat')
+end
+    
 crosscorr_times_cell1
 crosscorr_times_cell2
 
@@ -173,7 +185,7 @@ for unitindi=1:length(dounits1_thiscomputer);
         end
         spikecountsi=histc(stimes1{uniti},longtimebins);  %binned spike counts.
         spikecountsj=histc(stimes2{unitj},longtimebins);  %binned spike counts.
-        xcorr_observed{unitj}=xcorr(spikecountsi, spikecountsj, maxlag);
+        xcorr_observed{unitj}=xcorr(spikecountsi, spikecountsj, maxlag); % observed (real cross corr)
         
         xcorr_jittered{unitj}=zeros(jitter_iterations,(2*maxlag+1)); timecounter=0; tstart=tic;
         for jittertrial=1:jitter_iterations
@@ -202,3 +214,5 @@ for unitindi=1:length(dounits1_thiscomputer);
 end
 
 disp(['Done. If this job was run on multiple computers, need to manually copy contents of the cross-correlation data folder.'])
+
+profile viewer;

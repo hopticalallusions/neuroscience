@@ -1,3 +1,17 @@
+%  % ahowe
+if ~exist('origleftpoints')
+    minoverlap=12;                      %default=12. used in findpeaks minimum time, in which two spikes are considered separable. determines spike wave alignment parameters
+    origleftpoints=minoverlap+1;            %left distance for waveforms in seed templates (but not in run_template_matching).
+end
+if ~exist('origrightpoints')
+    minoverlap=12;                      %default=12. used in findpeaks minimum time, in which two spikes are considered separable. determines spike wave alignment parameters
+    origrightpoints=minoverlap+1;           %right time for waveforms in seed templates (but not in run_template_matching).
+end
+if ~exist('upsamplingfactor')
+    upsamplingfactor=3;                 %default=3.
+end
+% %%%
+
 %****Set parameters*********
 dofilter='y';               %'y' or 'n' to either do or not do bandpass filtering.  You must do at least highpass filtering to make sense of the data.
 final_f_low=300;             %highpass filter frequency. used in final_times_to_waves. default=500.
@@ -59,7 +73,7 @@ for i=1:10;
 col=[col; colormap(hsv(128)); colormap('Autumn'); colormap('Winter'); colormap('Spring'); colormap('Summer')];
 end
 
-plotchannels=[s.channels];
+%plotchannels=[s.channels];
 plotbackgroundchans=setdiff(origbackgroundchans,badchannels);     %ok to leave empty. any channels added here will be subtracted from the data to remove noise artifacts.
 badbackgroundchans=[];      %specify any faulty channels on the probe.  
 maxcluststdev=10.5;         %default=12.5.  only keeps iterations whose clusterstdev was <= this value if subtract_templates=='y', or == this value if subtract_templates=='n'
