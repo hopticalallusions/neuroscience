@@ -1,6 +1,6 @@
 function makeItRain_v2()
 
-	ratName = 'v2';
+	ratName = 'v3';
 	version = '3.6';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
@@ -296,8 +296,13 @@ function makeItRain_v2()
             % desired behavior to make the drop ready, and then sitting
             % around waiting and doing nothing instead of completing the
             % circuit
+            %
+            % Phases :
+            % 1? : if it's ready, drop immediately. -- runs the risk of
+            % re-inforcing center only running
+            % 2 : if it's ready and they have exited the zone 4 area
             if  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Exited') && ready
-			if currentZone == 0 && ready
+			%if currentZone == 0 && ready
 				ready = false;
 				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
 				if mod(pass, 60) == 0
