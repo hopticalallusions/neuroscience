@@ -208,9 +208,11 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
         % datestr(aa/(24*60*60),formatOut) % this is to format seconds
         %     into fractions of a day...  'HH:MM:SS'
         disp(['Elapsed Time : ' datestr(elapsedTime/(24*60*60),'HH:MM:SS') ])
-        
+        if elapsedTime > timeToRun*60
+           
+        end
     end
-    
+
     [succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
 
     %
