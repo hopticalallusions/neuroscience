@@ -220,7 +220,7 @@ function makeItRain_v2()
 				currentZone = 4;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
 				% the OFF switch
-                %trialOver = true;
+                trialOver = true;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone6 Entered')
 				currentZone = 6;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone7 Entered')
@@ -332,9 +332,9 @@ function makeItRain_v2()
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
             end
-            %
-            %
-           
+        end
+        %
+        %
         if totalRewards > maxRewards 
             beep; beep; beep; beep;
             disp([ 'total rewards : ' num2str(totalRewards)]);
@@ -361,10 +361,13 @@ function makeItRain_v2()
 		videoTimeStamps = [ videoTimeStamps timeStampArray];
 		videoLocations = [ videoLocations extractedLocationArray];
         %calculate the speed of the rat
-        tempVel=videoLocations(3:length(videoLocations))-videoLocations(1:length(videoLocations)-2)
-        velocity=sqrt(tempVel(1:2:end).^2 + tempVel(2:2:end).^2)
-        plot(velFig, velocity);
-        end
+        tempVel=double(videoLocations(3:length(videoLocations))-videoLocations(1:length(videoLocations)-2));
+        velocity=sqrt(tempVel(1:2:end).^2 + tempVel(2:2:end).^2);
+        figure(velFig);
+        plot(velocity);
+        title('velocity of rat motion (unsmoothed)')
+        xlabel('time (data points)')
+        ylabel('speed (pixels)')
     end
     %
     % terminate event history
