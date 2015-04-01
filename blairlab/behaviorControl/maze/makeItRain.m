@@ -3,288 +3,299 @@
 close all
 clear all
 
-	ratName = 'v4';
-	version = 'dual 4.7 four zone';
-	timeToRun = 70; % minutes
-	dispenseInitialReward = true;	% are we going to give an initial reward
-	readyForTakeoff = true;
-    maxRewards = 300;
-    left=false;
-    %
-	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
-	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
-	videoTrackerName = 'VT0';	% name of the Video Tracker stream object in neuralynx cheetah
-    totalRewards = 0;
-    lastRewardedSequence = [];
-	% this needs the Neuralynx files in the include path. modify as needed.
+%%%%%%%
+%
+% Setup run data
+%
+%%%%%%%
+
+    ratName = 'v4';                 % name of rat
+    version = 'dual 4.7 four zone'; % version number for tracking which program used this; *manual*
+    timeToRun = 70;                 % minutes
+    maximumTime = 300;              % minutes
+    maxRewards = 300;               % pellets
+    dispenseInitialReward = true;	% are we going to give an initial reward
+    readyForTakeoff = true;         % false = wait for a signal to start
+                                    %       true = start immediately
+    left=false;                     % is the rat "right" or "left" handed
+
+%%%%%%%
+%
+% Setup system information
+%
+%%%%%%%
+
+    serverName = 'PHYSIO_RIG';	% neuralynx router server name 
+    eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
+    videoTrackerName = 'VT0';	% name of the Video Tracker stream object in neuralynx cheetah
+    % this needs the Neuralynx files in the include path. modify as needed.
+    % it might be a good idea to check if these are available
     savePath = 'C:\Documents and Settings\Administrator\My Documents\ahowe\data\rhombus-maze\'
-    left = false;
-    waitForReset = false;
-    maximumTime = 300; %minutes
-	%
-	droppedEventRecords = 0;
-	droppedVideoRecords = 0;
-	videoTimeStamps = [];
-	videoLocations = [];
-	%
-    %ctrlFigure = figure;
-    hud = figure();
-    %
-    trialOver = false;
-    button = uicontrol('style','push','string','quit','callback','trialOver = true;');
-  
-	%
-	% store timestamp for execution
-	%
-	startTimeString = [datestr(date) '_' num2str(now)];
-	
-	disp('Starting makeItRain ...')
-	disp(['version ' version])
-	disp(['rat = ' ratName])
-	% turn on OS warning sound
-	beep on;
-	
-	%%%% connect to Neuralynx
-	%
-	if ~NlxAreWeConnected()
-		disconnectResult = NlxDisconnectFromServer();
-		connectResult = NlxConnectToServer(serverName);
-		if ~connectResult
-			disp(['ERROR : Failed to connect to ' serverName ])
-			beep;
-			return
-		else
-			disp(['Successful connection to ' serverName])
-		end
-	end
 
-	%%%% open streams
-	%
-	openStreamResult = NlxOpenStream(eventLogName);
-	if ~openStreamResult
-		disp(['ERROR : Failed to open stream ' eventLogName ])
-		beep;
-		return
-	else
-		disp(['Successfully opened ' eventLogName])
-	end
-	%
-	%%%%%%%%%%%%%%%%%
-	%
-	openStreamResult = NlxOpenStream(videoTrackerName);
-	if ~openStreamResult
-		disp(['ERROR : Failed to open stream ' videoTrackerName ])
-		beep;
-		return
-	else
-		disp(['Successfully opened ' videoTrackerName])
-	end
-	%
-	%%%%
+%%%%%%%
+%
+% Initialize program 
+%
+%%%%%%%
 
-	% set up some state variables
-	inAZone = false;
-	currentZone = -1;
-	% run from 2 -> 4 - ( 1 | 2 | 3 ) - > 0 = reward
-	ready = false; %for pellet
-    %pause(60);
-	% 
-	% track zone sequences for live error detection
-	% 
-	zoneHistory = -1 * ones(1,10000);
-	zoneHistoryTimes = zeros(size(zoneHistory));
-	zoneHistoryIdx = 1; %starts at two because the indexing is silly.
-	
+% store timestamp for execution
+startTimeString = [datestr(date) '_' num2str(now)];
 
-	%
-	% set up history variables
-	%
-	eventIdx = 1;
-	eventHistoryTimesNlx = -1 * ones(1,10000);
-	eventHistoryTimesMatlab = -1 * ones(1,10000);
-	%
-	% initialize history
-	%
-	eventHistory = cellstr(['starting trial']);
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	eventHistory = cellstr(['rat = ' ratName]);
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%
-    % behavioral error tracking variables
-    %
-	rewardExitError = 0;
-	centerError = 0;
-	jumpError = 0;
-	choicePointError = 0;
-	cornerError = 0;
-    alternationError = 0;
-    %
-    % holding pattern
-    %
-    for waitingCounter = 1:(maximumTime*60)
-   		pause(1);
-		[succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
-		% process event stream
-		for idx = 1:length(eventStringArray)
-            if strcmpi(eventStringArray(idx), 'Zoned Video: Zone6 Entered')
-                readyForTakeoff = true
-				break;
-            end
-        end
-        if readyForTakeoff
-            % this foolishness is required to break the nested loops. :-/
+events = eventLog();
+events = logEvent( events, ['starting trial @ ', startTimeString], true );
+events = logEvent( events, ['rat = ' ratName], true );
+
+trialOver = false;
+waitForReset = false;
+totalRewards = 0;
+lastRewardedSequence = [];
+
+droppedEventRecords = 0;
+droppedVideoRecords = 0;
+videoTimeStamps = [];
+videoLocations = [];
+
+
+hud = figure();
+button = uicontrol('style','push','string','quit','callback','trialOver = true;');
+
+
+
+
+disp('Starting makeItRain ...')
+disp(['version ' version])
+disp(['rat = ' ratName])
+% turn on OS warning sound
+beep on;
+
+%%%% connect to Neuralynx
+%
+if ~NlxAreWeConnected()
+    disconnectResult = NlxDisconnectFromServer();
+    connectResult = NlxConnectToServer(serverName);
+    if ~connectResult
+        disp(['ERROR : Failed to connect to ' serverName ])
+        beep;
+        return
+    else
+        disp(['Successful connection to ' serverName])
+    end
+end
+
+%%%% open streams
+%
+openStreamResult = NlxOpenStream(eventLogName);
+if ~openStreamResult
+    disp(['ERROR : Failed to open stream ' eventLogName ])
+    beep;
+    return
+else
+    disp(['Successfully opened ' eventLogName])
+end
+%
+%%%%%%%%%%%%%%%%%
+%
+openStreamResult = NlxOpenStream(videoTrackerName);
+if ~openStreamResult
+    disp(['ERROR : Failed to open stream ' videoTrackerName ])
+    beep;
+    return
+else
+    disp(['Successfully opened ' videoTrackerName])
+end
+%
+%%%%
+
+% set up some state variables
+inAZone = false;
+currentZone = -1;
+% run from 2 -> 4 - ( 1 | 2 | 3 ) - > 0 = reward
+ready = false; %for pellet
+%pause(60);
+% 
+% track zone sequences for live error detection
+% 
+zoneHistory = -1 * ones(1,10000);
+zoneHistoryTimes = zeros(size(zoneHistory));
+zoneHistoryIdx = 1; %starts at two because the indexing is silly.
+
+
+%
+% behavioral error tracking variables
+%
+rewardExitError = 0;
+centerError = 0;
+jumpError = 0;
+choicePointError = 0;
+cornerError = 0;
+alternationError = 0;
+
+
+%%%%%%%
+%
+% Wait to start trial?
+%
+%%%%%%%
+
+for waitingCounter = 1:(maximumTime*60)
+    pause(1);
+    [succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
+    % process event stream
+    for idx = 1:length(eventStringArray)
+        if strcmpi(eventStringArray(idx), 'Zoned Video: Zone6 Entered')
+            readyForTakeoff = true
             break;
         end
     end
-    %
-    disp('Trial has gone live!')
-	eventHistory = [eventHistory ; cellstr('Trial has gone live!') ];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-    %
-  	%
-	% make an initial attractive reward
-	%
-	if dispenseInitialReward
-		%pause(10);
-		disp('Dispensing an initial reward...')
-		%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-        %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
-        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
-        pause(.5);
-		%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-        %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
-        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
+    if readyForTakeoff
+        % this foolishness is required to break the nested loops. :-/
+        break;
+    end
+end
 
+
+
+%%%%%%%
+%
+% Start trial
+%
+%%%%%%%
+
+events = logEvent( events, 'Trial has gone live!', true );
+
+% this sound sequence notifies us that the trial is live
+beep; beep; pause(2); beep;
+
+% make an initial attractive reward
+if dispenseInitialReward
+    events = logEvent( events, 'Dispensing an initial reward...', true );
+    %
+    NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
+    NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
+    pause(.5);
+    NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
+    NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
+end
+
+% graphics stuff
+lookback=512;
+% TODO  ugh. please fix this ugliness (see below) soon TODO
+greyVector=fliplr(0:1/(lookback+1):1);
+greyArray=[greyVector;greyVector;greyVector];
+xx = [];
+yy = [];
+dx = [];
+ddx = [];
+
+
+
+%%%%%%%
+%
+% MAIN LOOP
+%
+%%%%%%%
+tic;
+startTime = toc;
+elapsedTime = toc - startTime; % seconds
+
+while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
+
+    %
+    % Every 5 minutes, provide time elapsed
+    %
+    elapsedTime = toc - startTime; % seconds
+    if 0 == mod( round(elapsed), 300 )
+        % datestr(aa/(24*60*60),formatOut) % this is to format seconds
+        %     into fractions of a day...  'HH:MM:SS'
+        disp(['Elapsed Time : ' datestr(elapsedTime/(24*60*60),'HH:MM:SS') ])
+        
+    end
+    
+    [succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
+
+    %
+    % detect if any event records are dropped.
+    %
+    if numRecordsDropped > 0
+        droppedEventRecords = droppedEventRecords + 1;
+        disp(['System Error! : ' num2str(numRecordsDropped) ' event records dropped'])
+        eventHistory = [eventHistory ; [num2str(numRecordsDropped) ' event records dropped!'] ];
+        eventHistoryTimesNlx(eventIdx) = 0;
+        eventHistoryTimesMatlab(eventIdx) = now();
+        eventIdx = eventIdx + 1;
     end
     %
+    % process event stream
     %
-    %
-    % graphics stuff
-    lookback=512;
-    % TODO  ugh. please fix this ugliness (see below) soon TODO
-    greyVector=fliplr(0:1/(lookback+1):1);
-    greyArray=[greyVector;greyVector;greyVector];
-    xx = [];
-    yy = [];
-    dx = [];
-    ddx = [];
-    %
-    %
-    beep; beep; pause(2); beep;
-    %
-	% main loop
-	%
-    tic;
-    startTime = toc;
-    for pass = 1:(maximumTime*60)
-        if trialOver
-            disp('Ending trial!!');
-            beep;
-            beep;
-            break;
-        end;
-
-		[succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
-		%
-		% If it is an even minute, provide time remaining in trial
-		%
-        tocNow = toc;
-        if 0 == mod((maximumTime*60)-tocNow, 60 )
-            %datestr(aa/(24*60*60),formatOut) % this is to format seconds
-            %into fractions of a day...  'HH:MM:SS'
-			disp(['T-Minus ' datestr((maximumTime*60)-tocNow/(24*60*60),'MM') ' minutes until lift off'])
-		end
-		%
-		% detect if any event records are dropped.
-		%
-		if numRecordsDropped > 0
-			droppedEventRecords = droppedEventRecords + 1;
-			disp(['System Error! : ' num2str(numRecordsDropped) ' event records dropped'])
-			eventHistory = [eventHistory ; [num2str(numRecordsDropped) ' event records dropped!'] ];
-			eventHistoryTimesNlx(eventIdx) = 0;
-			eventHistoryTimesMatlab(eventIdx) = now();
-			eventIdx = eventIdx + 1;
-		end
-		%
-		% process event stream
-		%
-		for idx = 1:length(eventStringArray)
-			%
-			% store event history
-			%
-			eventHistory = [eventHistory ; eventStringArray(idx) ];
-			eventHistoryTimesNlx(eventIdx) = timeStampArray(idx);
-			eventHistoryTimesMatlab(eventIdx) = now();
-			eventIdx = eventIdx + 1;
-			%
-			%disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
-			%
-			if strcmpi(eventStringArray(idx), 'Zoned Video: Zone0 Entered')
-				currentZone = 0;
-            elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
-				currentZone = 1;
-                waitForReset = false;
-			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
-				currentZone = 2;
-                ready=true;
-			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
-				currentZone = 3;
-                waitForReset = false;
-			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
-				currentZone = 4;
-			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
-				% the OFF switch
-                trialOver = true;
-			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone6 Entered')
-				currentZone = 6;
-			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone7 Entered')
-				currentZone = 7;
-			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone8 Entered')
-				currentZone = 8;
-			end
-			%
-			% online sequence error detector
-			%
-			% this style of detection works because zoneHistory isn't updated until the rat exits a zone.
-			%
-			% TODO -- functionalize event additions
-			%
-			% TODO -- add comments about behavior error sequences.
-			%
-			if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx) == 4
-				% 0 -> ( 3 | 1 ) is a reward exit error
-				rewardExitError = rewardExitError + 1;
-				disp('Behavior Error! : reward zone exit error.')
-				eventHistory = [eventHistory ; cellstr('Behavior Error! : reward zone exit error.') ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-			elseif ( currentZone == 4 ) && zoneHistory(zoneHistoryIdx) == 2
-				centerError = centerError + 1;
-				disp('Behavior Error! : center zone exit error.')
-				eventHistory = [eventHistory ; cellstr('Behavior Error! : center zone exit error.') ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-			elseif (zoneHistory(zoneHistoryIdx) ~= currentZone) && ( currentZone == 3 || currentZone == 1 || currentZone == 2 ) && ( zoneHistory(zoneHistoryIdx) == 2 || zoneHistory(zoneHistoryIdx) == 1 || zoneHistory(zoneHistoryIdx) == 3)
-				% invalid logic before version 3.1
-				% movement from zone 3,2 or 1 to any of those three zones which is not the same zone as the previous requires jumping a gap
-				% the invalid logic existed in the context of entering and exiting the same zone, e.g. 3 -> 3
-				jumpError = jumpError + 1;
-				disp('Behavior Error! : jump error.')
-				eventHistory = [eventHistory ; cellstr('Behavior Error! : jump error.') ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-            end
+    for idx = 1:length(eventStringArray)
+        %
+        % store event history
+        %
+        eventHistory = [eventHistory ; eventStringArray(idx) ];
+        eventHistoryTimesNlx(eventIdx) = timeStampArray(idx);
+        eventHistoryTimesMatlab(eventIdx) = now();
+        eventIdx = eventIdx + 1;
+        %
+        %disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
+        %
+        if strcmpi(eventStringArray(idx), 'Zoned Video: Zone0 Entered')
+            currentZone = 0;
+        elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
+            currentZone = 1;
+            waitForReset = false;
+        elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
+            currentZone = 2;
+            ready=true;
+        elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
+            currentZone = 3;
+            waitForReset = false;
+        elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
+            currentZone = 4;
+        elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
+            % the OFF switch
+            trialOver = true;
+        elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone6 Entered')
+            currentZone = 6;
+        elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone7 Entered')
+            currentZone = 7;
+        elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone8 Entered')
+            currentZone = 8;
+        end
+        %
+        % online sequence error detector
+        %
+        % this style of detection works because zoneHistory isn't updated until the rat exits a zone.
+        %
+        % TODO -- functionalize event additions
+        %
+        % TODO -- add comments about behavior error sequences.
+        %
+        if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx) == 4
+            % 0 -> ( 3 | 1 ) is a reward exit error
+            rewardExitError = rewardExitError + 1;
+            disp('Behavior Error! : reward zone exit error.')
+            eventHistory = [eventHistory ; cellstr('Behavior Error! : reward zone exit error.') ];
+            eventHistoryTimesNlx(eventIdx) = 0;
+            eventHistoryTimesMatlab(eventIdx) = now();
+            eventIdx = eventIdx + 1;
+        elseif ( currentZone == 4 ) && zoneHistory(zoneHistoryIdx) == 2
+            centerError = centerError + 1;
+            disp('Behavior Error! : center zone exit error.')
+            eventHistory = [eventHistory ; cellstr('Behavior Error! : center zone exit error.') ];
+            eventHistoryTimesNlx(eventIdx) = 0;
+            eventHistoryTimesMatlab(eventIdx) = now();
+            eventIdx = eventIdx + 1;
+        elseif (zoneHistory(zoneHistoryIdx) ~= currentZone) && ( currentZone == 3 || currentZone == 1 || currentZone == 2 ) && ( zoneHistory(zoneHistoryIdx) == 2 || zoneHistory(zoneHistoryIdx) == 1 || zoneHistory(zoneHistoryIdx) == 3)
+            % invalid logic before version 3.1
+            % movement from zone 3,2 or 1 to any of those three zones which is not the same zone as the previous requires jumping a gap
+            % the invalid logic existed in the context of entering and exiting the same zone, e.g. 3 -> 3
+            jumpError = jumpError + 1;
+            disp('Behavior Error! : jump error.')
+            eventHistory = [eventHistory ; cellstr('Behavior Error! : jump error.') ];
+            eventHistoryTimesNlx(eventIdx) = 0;
+            eventHistoryTimesMatlab(eventIdx) = now();
+            eventIdx = eventIdx + 1;
+        end
             %
 %             if zoneHistoryIdx > 3
 %                 disp(zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx))
