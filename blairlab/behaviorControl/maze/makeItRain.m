@@ -9,7 +9,9 @@ function makeItRain_v2()
 	dispenseInitialReward = true;	% are we going to give an initial reward
 	totalRewards = 0;
 	% this needs the Neuralynx files in the include path. modify as needed.
-	path(path, 'C:\Documents and Settings\Dbuono\Desktop\NetComClientDevelopmentPackage_v211\Matlab_M-files');
+    savePath = 'C:\'
+    %
+    
 	%
 	droppedEventRecords = 0;
 	droppedVideoRecords = 0;
@@ -191,6 +193,109 @@ function makeItRain_v2()
 				end
 				currentZone = 4;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
+				% the OFF switch
+                	%
+                % terminate event history
+                %
+                disp('-----------------------')
+                %
+                disp(['total rewards = ' num2str(totalRewards)])
+                eventHistory = [eventHistory ; ['total rewards = ' num2str(totalRewards)]];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %
+                disp(['stable zone occupacies = ' num2str(zoneHistoryIdx)])
+                eventHistory = [eventHistory ; ['stable zone occupancies = ' num2str(zoneHistoryIdx)]];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %
+                disp(['reward exit errors = ' num2str(rewardExitError)])
+                eventHistory = [eventHistory ; ['rewardExitError = ' num2str(rewardExitError)]];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %
+                disp(['center errors = ' num2str(centerError)])
+                eventHistory = [eventHistory ; ['centerError = ' num2str(centerError)]];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %	
+                disp(['jump errors = ' num2str(jumpError)])
+                eventHistory = [eventHistory ; ['jumpError = ' num2str(jumpError)]];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %	
+                disp(['choice point error = ' num2str(choicePointError)])
+                eventHistory = [eventHistory ; ['choice Point Error = ' num2str(choicePointError)]];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %	
+                disp(['corner errors = ' num2str(cornerError)])
+                eventHistory = [eventHistory ; ['corner Error = ' num2str(cornerError)]];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %
+                disp('-----------------------')
+                %	
+                disp(['dropped events = ' num2str(droppedEventRecords)])
+                eventHistory = [eventHistory ; ['dropped events = ' num2str(droppedEventRecords)]];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %	
+                disp(['dropped video records = ' num2str(droppedVideoRecords)])
+                eventHistory = [eventHistory ; ['dropped video records = ' num2str(droppedVideoRecords)]];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %
+                disp('-----------------------')
+                %
+                eventHistory = [eventHistory ; 'end of trial' ];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                %
+                disp('-----------------------')
+
+                %
+                % store data to disk
+                %
+                runSummary.eventHistory = eventHistory;
+                runSummary.eventHistoryTimesNlx = eventHistoryTimesNlx(1:min(find(eventHistoryTimesNlx==-1))-1);
+                runSummary.eventHistoryTimesMatlab = eventHistoryTimesMatlab(1:min(find(eventHistoryTimesMatlab==-1))-1);
+                runSummary.zoneHistory = zoneHistory(1:zoneHistoryIdx);
+                runSummary.totalRewards = totalRewards;
+                runSummary.stableZoneEntries = zoneHistoryIdx;
+                runSummary.rewardExitError = rewardExitError;
+                runSummary.centerError = centerError;
+                runSummary.jumpError = jumpError;
+                runSummary.choicePointError = choicePointError;
+                runSummary.cornerError = cornerError;
+                runSummary.version = version;
+                runSummary.droppedEventRecords = droppedEventRecords;
+                runSummary.droppedVideoRecords = droppedVideoRecords;
+                runSummary.videoTimeStamps = videoTimeStamps;
+                runSummary.videoLocations = videoLocations;
+                runSummary.ratName = ratName;
+                %
+                %
+                save(['makeItRain_' ratName '_' startTimeString '.mat'], 'runSummary');
+                %
+                disconnectResult = NlxDisconnectFromServer();
+                %
+                disp('makeItRain finished')
+                beep
+                return
+			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone6 Entered')
+				currentZone = 5;
+			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone7 Entered')
 				currentZone = 5;
 			end
 			%
@@ -299,104 +404,5 @@ function makeItRain_v2()
 		videoLocations = [ videoLocations extractedLocationArray];
 
 	end
-
-	%
-	% terminate event history
-	%
-	disp('-----------------------')
-	%
-	disp(['total rewards = ' num2str(totalRewards)])
-	eventHistory = [eventHistory ; ['total rewards = ' num2str(totalRewards)]];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%
-	disp(['stable zone occupacies = ' num2str(zoneHistoryIdx)])
-	eventHistory = [eventHistory ; ['stable zone occupancies = ' num2str(zoneHistoryIdx)]];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%
-	disp(['reward exit errors = ' num2str(rewardExitError)])
-	eventHistory = [eventHistory ; ['rewardExitError = ' num2str(rewardExitError)]];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%
-	disp(['center errors = ' num2str(centerError)])
-	eventHistory = [eventHistory ; ['centerError = ' num2str(centerError)]];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%	
-	disp(['jump errors = ' num2str(jumpError)])
-	eventHistory = [eventHistory ; ['jumpError = ' num2str(jumpError)]];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%	
-	disp(['choice point error = ' num2str(choicePointError)])
-	eventHistory = [eventHistory ; ['choice Point Error = ' num2str(choicePointError)]];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%	
-	disp(['corner errors = ' num2str(cornerError)])
-	eventHistory = [eventHistory ; ['corner Error = ' num2str(cornerError)]];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%
-	disp('-----------------------')
-	%	
-	disp(['dropped events = ' num2str(droppedEventRecords)])
-	eventHistory = [eventHistory ; ['dropped events = ' num2str(droppedEventRecords)]];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%	
-	disp(['dropped video records = ' num2str(droppedVideoRecords)])
-	eventHistory = [eventHistory ; ['dropped video records = ' num2str(droppedVideoRecords)]];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%
-	disp('-----------------------')
-	%
-	eventHistory = [eventHistory ; 'end of trial' ];
-	eventHistoryTimesNlx(eventIdx) = 0;
-	eventHistoryTimesMatlab(eventIdx) = now();
-	eventIdx = eventIdx + 1;
-	%
-	disp('-----------------------')
-	
-	%
-	% store data to disk
-	%
-	runSummary.eventHistory = eventHistory;
-	runSummary.eventHistoryTimesNlx = eventHistoryTimesNlx(1:min(find(eventHistoryTimesNlx==-1))-1);
-	runSummary.eventHistoryTimesMatlab = eventHistoryTimesMatlab(1:min(find(eventHistoryTimesMatlab==-1))-1);
-	runSummary.zoneHistory = zoneHistory(1:zoneHistoryIdx);
-	runSummary.totalRewards = totalRewards;
-	runSummary.stableZoneEntries = zoneHistoryIdx;
-	runSummary.rewardExitError = rewardExitError;
-	runSummary.centerError = centerError;
-	runSummary.jumpError = jumpError;
-	runSummary.choicePointError = choicePointError;
-	runSummary.cornerError = cornerError;
-	runSummary.version = version;
-	runSummary.droppedEventRecords = droppedEventRecords;
-	runSummary.droppedVideoRecords = droppedVideoRecords;
-	runSummary.videoTimeStamps = videoTimeStamps;
-	runSummary.videoLocations = videoLocations;
-	runSummary.ratName = ratName;
-	
-	
-	save(['makeItRain_' ratName '_' startTimeString '.mat'], 'runSummary');
-	
-	disconnectResult = NlxDisconnectFromServer();
-	
-	disp('makeItRain finished')
-	beep
 
 end
