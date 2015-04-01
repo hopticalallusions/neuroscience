@@ -1,12 +1,12 @@
 function makeItRain_v2()
 
-	ratName = 'v3';
-	version = '3.5';
+	ratName = 'v2';
+	version = '3.6';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
 	videoTrackerName = 'VT1';	% name of the Video Tracker stream object in neuralynx cheetah
 	timeToRun = 25 ; % minutes
-	dispenseInitialReward = false;	% are we going to give an initial reward
+	dispenseInitialReward = true;	% are we going to give an initial reward
 	totalRewards = 0;
 	% this needs the Neuralynx files in the include path. modify as needed.
     savePath = 'C:\Documents and Settings\Administrator\My Documents\ahowe\data\rhombus-maze\'
@@ -67,18 +67,6 @@ function makeItRain_v2()
 	%
 	%%%%
 
-	
-	%
-	% make an initial attractive reward
-	%
-	if dispenseInitialReward
-		pause(10);
-		disp('Dispensing an initial reward...')
-		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-		pause(1);
-		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-	end
-	
 	% set up some state variables
 	inAZone = false;
 	currentZone = -1;
@@ -144,6 +132,17 @@ function makeItRain_v2()
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
+    %
+  	%
+	% make an initial attractive reward
+	%
+	if dispenseInitialReward
+		pause(10);
+		disp('Dispensing an initial reward...')
+		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+		pause(1);
+		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+	end
 	%
 	% main loop
 	%
@@ -290,6 +289,14 @@ function makeItRain_v2()
 			%
 			% TODO : this isn't going to work properly, but it's a test.
 			% mainly it's lacking alternation
+            % modified to encourage the rats to run towards the reward zone
+            % more quickly and overcome potential issues with credit
+            % assignment; at present we are somewhat concerned that they
+            % think the pellets are random, as they are sometime doing the
+            % desired behavior to make the drop ready, and then sitting
+            % around waiting and doing nothing instead of completing the
+            % circuit
+            if  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Exited') && ready
 			if currentZone == 0 && ready
 				ready = false;
 				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
