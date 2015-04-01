@@ -1,28 +1,26 @@
 function makeItRain_v2()
 
-	ratName = 'da1';
-	version = 'dual 3.2 double zone';
-	timeToRun = 44; % minutes
-	dispenseInitialReward = true;	% are we going to give an initial reward
-	readyForTakeoff = true;
-    maxRewards = 80;
-    %
+	ratName = 'v4';
+	version = 'dual 3.2 single zone';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
 	videoTrackerName = 'VT1';	% name of the Video Tracker stream object in neuralynx cheetah
-    totalRewards = 0;
+	timeToRun = 35; % minutes
+	dispenseInitialReward = true;	% are we going to give an initial reward
+	totalRewards = 0;
     lastRewardedSequence = [];
 	% this needs the Neuralynx files in the include path. modify as needed.
     savePath = 'C:\Documents and Settings\Administrator\My Documents\ahowe\data\rhombus-maze\'
     left = false;
+    readyForTakeoff = true;
+    %
     maximumTime = 300; %minutes
 	%
 	droppedEventRecords = 0;
 	droppedVideoRecords = 0;
 	videoTimeStamps = [];
 	videoLocations = [];
-	%
-    velFig = figure();
+	
 	%
 	% store timestamp for execution
 	%
@@ -103,15 +101,16 @@ function makeItRain_v2()
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
-	%
-    % behavioral error tracking variables
-    %
+	
+	
+	% behavioral error tracking variables
 	rewardExitError = 0;
 	centerError = 0;
 	jumpError = 0;
 	choicePointError = 0;
 	cornerError = 0;
     alternationError = 0;
+	
     %
     % holding pattern
     %
@@ -206,7 +205,11 @@ function makeItRain_v2()
 			eventHistoryTimesMatlab(eventIdx) = now();
 			eventIdx = eventIdx + 1;
 			%
+			%
+			%
 			%disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
+			%
+			% Oh where, oh where can my dear rat be? Oh where can my dear ratsky beeee? (sing this comment for added fun.)
 			%
 			if strcmpi(eventStringArray(idx), 'Zoned Video: Zone0 Entered')
 				currentZone = 0;
@@ -214,6 +217,7 @@ function makeItRain_v2()
 				currentZone = 1;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
 				currentZone = 2;
+                ready = true;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
 				currentZone = 3;
 			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
@@ -229,6 +233,8 @@ function makeItRain_v2()
 				currentZone = 8;
 			end
 			%
+			%
+						%
 			% online sequence error detector
 			%
 			% this style of detection works because zoneHistory isn't updated until the rat exits a zone.
@@ -236,6 +242,7 @@ function makeItRain_v2()
 			% TODO -- functionalize event additions
 			%
 			% TODO -- add comments about behavior error sequences.
+			%
 			%
 			if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx) == 4
 				% 0 -> ( 3 | 1 ) is a reward exit error
@@ -263,6 +270,7 @@ function makeItRain_v2()
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
 			end
+			%
 			%			
 			% Are we in a zone?
 			if strcmpi(eventStringArray(idx),strrep(eventStringArray(idx),'Exited', 'Exit'))
@@ -276,6 +284,7 @@ function makeItRain_v2()
 				% the goal here is to make sequence error detection online simpler by smoothing out
 				% the jumpiness of the zone detection software, and the ability of the rat to stand at the edge
 				% of a zone and move his body in and out
+				% disp(zoneHistory(1:30))
 				if zoneHistory(zoneHistoryIdx) ~= currentZone
 					zoneHistoryIdx = zoneHistoryIdx + 1;
 					zoneHistory(zoneHistoryIdx) = currentZone;
@@ -283,14 +292,23 @@ function makeItRain_v2()
 				end
 				currentZone = -1;
 			end
+            %
+            % debug
+            if (zoneHistoryIdx > 2 )
+            %    disp(lastRewardedSequence)
+                disp(zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx))
+            end
    			%
 			% Should sugar pellets rain from the sky?
 			%
-            if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
+            if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
 				lastRewardedSequence = [ 2 0 3 ];
-				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-                pause(.5);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+				disp('lastRewardedSequence : ')
+				%disp(lastRewardedSequence);
+                disp('pulse')
+				%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                %pause(.5);
+                %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
 				if mod(pass, 60) == 0
 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
@@ -305,11 +323,14 @@ function makeItRain_v2()
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
 				totalRewards = totalRewards + 1;
-            elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
+            elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
 				lastRewardedSequence = [ 2 0 1 ];
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-                pause(.5);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+				disp('lastRewardedSequence : ')
+				disp(lastRewardedSequence);
+				disp('pulse')
+                %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                %pause(.5);
+                %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
 				if mod(pass, 60) == 0
 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
@@ -324,7 +345,7 @@ function makeItRain_v2()
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
 				totalRewards = totalRewards + 1;
-			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
+			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
 				alternationError = alternationError + 1;
 				disp('Behavior Error! : alternation error.')
 				eventHistory = [eventHistory ; cellstr('Alternation Error! : alternation error.') ];
@@ -332,10 +353,39 @@ function makeItRain_v2()
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
             end
+            %
+            %
+            if  ready
+				ready = false;
+                if left
+    				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                    pause(.5);
+       				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                    disp('LEFT (0)');
+                    left = false;
+                else
+                    NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                    pause(.5);
+                    NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                    disp('RIGHT (2)');
+                    left = true;
+                end;
+				if mod(pass, 60) == 0
+					disp([num2str(round(pass/60)) ':00 -- made it rain']);
+				elseif mod(pass, 60) < 10
+					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
+				else
+					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
+				end
+				% log event
+				eventHistory = [eventHistory ; 'made it rain' ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+				totalRewards = totalRewards + 1;
+			end
         end
-        %
-        %
-        if totalRewards > maxRewards 
+        if totalRewards > 75 
             beep; beep; beep; beep;
             disp([ 'total rewards : ' num2str(totalRewards)]);
         end
@@ -360,16 +410,9 @@ function makeItRain_v2()
 		end
 		videoTimeStamps = [ videoTimeStamps timeStampArray];
 		videoLocations = [ videoLocations extractedLocationArray];
-        %calculate the speed of the rat
-        tempVel=double(videoLocations(3:length(videoLocations))-videoLocations(1:length(videoLocations)-2));
-        velocity=sqrt(tempVel(1:2:end).^2 + tempVel(2:2:end).^2);
-        figure(velFig);
-        plot(velocity);
-        title('velocity of rat motion (unsmoothed)')
-        xlabel('time (data points)')
-        ylabel('speed (pixels)')
+
     end
-    %
+
     % terminate event history
     %
     disp('-----------------------')
