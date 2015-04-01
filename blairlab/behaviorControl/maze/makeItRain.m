@@ -353,7 +353,7 @@ clear all
         %
         if ready
             totalRewards = totalRewards + 1;
-            tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ]
+            tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
             disp(tempStr);
             eventHistory = [eventHistory ; cellstr(tempStr) ];
     		eventHistoryTimesNlx(eventIdx) = 0;
