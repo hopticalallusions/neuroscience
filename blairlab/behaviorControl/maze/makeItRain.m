@@ -8,10 +8,10 @@ clear all
 %%%%%%%
 
 ratName = 'v4';                 % name of rat
-version = 'dual 4.7 four zone'; % version number for tracking which program used this; *manual*
-timeToRun = 25;                 % minutes
-maximumTime = 55;              % minutes
-maxRewards = 60;               % pellets
+version = 'dual 4.7.4 four zone'; % version number for tracking which program used this; *manual*
+timeToRun = 50;                 % minutes
+maximumTime = 90;              % minutes
+maxRewards = 150;               % pellets
 dispenseInitialReward = true;	% are we going to give an initial reward
 readyForTakeoff = true;         % false = wait for a signal to start
                                 %       true = start immediately
@@ -194,6 +194,8 @@ ddx = [];
 tic;
 startTime = toc;
 elapsedTime = toc - startTime; % seconds
+
+picIdx = 1;
 
 while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
 
@@ -409,14 +411,15 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
             for idx = 0:lookback-1
                 plot(xx(length(xx)-idx),-1*yy(length(xx)-idx),'*', 'MarkerFaceColor',greyArray(:,idx+1),'MarkerEdgeColor',greyArray(:,idx+1));
             end
-            axis([ 150 620 -470 0]);
-            title('recent XY (bk->wt; old->now)')
         end
+        plot(xx(end),yy(end),'o','MarkerFaceColor',[1 0 0],'MarkerEdgeColor',[1 0 0])
+        axis([ 150 620 -470 0]);
+        title('recent XY (bk->wt; old->now)')
         %
         % image of rat
         %
-%         subplot(4,5,[13 14 18 19])
-%         image(imread('http://164.67.14.239/oneshotimage.jpg'));
+        subplot(4,5,[13 14 18 19])
+        image(imread('http://164.67.14.239/oneshotimage.jpg'));
         %
         % transition map for zones --> basically Bayseian transition probability of
         % motion.
@@ -471,6 +474,8 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
             %colormap([1 1 1; 0 0 0; 0 0 1; 0 1 1; 0 1 0; 1 1 0; 1 0 1; 1 0 0])
             %colorbar('YTickLabel',{'0','1','2','4','6','8','10','15'});
         end
+        print([savePath 'makeItRain_' ratName '_' startTimeString '_' num2str(picIdx) '.png'], '-dpng' );
+        picIdx = picIdx + 1;
     end
 end
 %
