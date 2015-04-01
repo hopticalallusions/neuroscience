@@ -1,16 +1,10 @@
 function makeItRain_v2()
 
-	%%
-	%% TODO %%
-	%%
-	% needs some resets. Rat can run e.g. 0 -> 3 -> 4 -> 1 -> 0 sequence (i.e. in reverse of desired) 3x and recieve reward.
-	% other erroneous cases exist. use error detection logic block to implement state resets.
-
-	ratName = 'agh';
+	ratName = 'v1';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the stream structure in neuralynx cheetah
-	timeToRun = 1 ;% minutes
-	dispenseInitialReward = false;	% are we going to give an initial reward
+	timeToRun = 20 ;% minutes
+	dispenseInitialReward = true;	% are we going to give an initial reward
 	totalRewards = 0;
 	% this needs the Neuralynx files in the include path. modify as needed.
 	path(path, 'C:\Documents and Settings\Dbuono\Desktop\NetComClientDevelopmentPackage_v211\Matlab_M-files');
@@ -68,14 +62,8 @@ function makeItRain_v2()
 	% set up some state variables
 	inAZone = false;
 	currentZone = -1;
-	% run from 2 -> 4 -> ( 1 | 3 ) -> 0 = reward
-	% zone 2 = stepOne = True
-	% zone 4 && stepOne = True
-	% zone (1 | 3) && stepOne && stepTwo = True
-	% zone 0 && stepOne && stepTwo && stepThree = Reward!
-	stepOne = false;
-	stepTwo = false;
-	stepThree = false;
+	% run from 2 -> 4 - ( 1 | 2 | 3 ) - > 0 = reward
+	ready = false;
 	% 
 	% track zone sequences for live error detection
 	% 
@@ -152,7 +140,7 @@ function makeItRain_v2()
 			%
 			%
 			%
-			disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx-1)) ' : inZone ' num2str(currentZone) ' : stepOne ' num2str(stepOne) ' : stepTwo ' num2str(stepTwo) ' : stepThree ' num2str(stepThree)  ' : ' char(eventStringArray(idx))])
+			disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx-1)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
 			%
 			% Oh where, oh where can my dear rat be? Oh where can my dear ratsky beeee? (sing this comment for added fun.)
 			%
@@ -160,22 +148,15 @@ function makeItRain_v2()
 				currentZone = 0;
 			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
 				currentZone = 1;
-				if ( stepOne == true ) && ( stepTwo == true ) 
-					stepThree = true;
-				end
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
 				currentZone = 2;
-				stepOne = true;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
 				currentZone = 3;
-				if ( stepOne == true ) && ( stepTwo == true ) 
-					stepThree = true;
-				end
 			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
-				currentZone = 4;
-				if stepOne == true
-					stepTwo = true;
+				if zoneHistory(zoneHistoryIdx-1) == 2
+					ready = true;
 				end
+				currentZone = 4;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
 				currentZone = 5;
 			end
@@ -191,7 +172,7 @@ function makeItRain_v2()
 				% the goal here is to make sequence error detection online simpler by smoothing out
 				% the jumpiness of the zone detection software, and the ability of the rat to stand at the edge
 				% of a zone and move his body in and out
-				disp(zoneHistory(1:30))
+				%disp(zoneHistory(1:30))
 				if zoneHistory(zoneHistoryIdx-1) ~= currentZone
 					zoneHistory(zoneHistoryIdx) = currentZone;
 					zoneHistoryIdx = zoneHistoryIdx + 1;
@@ -203,10 +184,8 @@ function makeItRain_v2()
 			%
 			% TODO : this isn't going to work properly, but it's a test.
 			% mainly it's lacking alternation
-			if currentZone == 0 && stepThree && stepOne && stepTwo
-				stepOne = false;
-				stepTwo = false;
-				stepThree = false;
+			if currentZone == 0 && ready
+				ready = false;
 				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
 				disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
 				% log event
@@ -225,6 +204,8 @@ function makeItRain_v2()
 			% TODO -- functionalize event additions
 			%
 			% TODO -- add comments about behavior error sequences.
+			%
+			% TODO -- implement alternation error detection
 			%
 			if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx-1) == 0
 				% 0 -> ( 3 | 1 ) is a reward exit error
@@ -339,13 +320,7 @@ function makeItRain_v2()
 	runSummary.choicePointError = choicePointError;
 	runSummary.cornerError = cornerError;
 	save(['makeItRain_' ratName '_' startTimeString '.mat'], 'runSummary');
-	runSummary
-	min(find(zoneHistory==-1))
-	%save(['makeItRain_' ratName '_eventHistory_' startTimeString '.mat'], 'eventHistory');
-	%save(['makeItRain_' ratName '_eventHistoryTimes_' startTimeString '.mat'], 'eventHistoryTimesNlx');
-	%save(['makeItRain_' ratName '_eventHistoryTimes_' startTimeString '.mat'], 'eventHistoryTimesMatlab');
-	%save(['makeItRain_' ratName '_zoneHistory_' startTimeString '.mat'], 'zoneHistory');
-
+	
 	disconnectResult = NlxDisconnectFromServer();
 	
 	disp('makeItRain finished')
