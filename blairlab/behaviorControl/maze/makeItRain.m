@@ -1,4 +1,7 @@
-function makeItRain_v2()
+%function makeItRain_v2()
+
+close all
+clear all
 
 	ratName = 'agh';
 	version = 'dual 3.3 triple zone';
@@ -391,7 +394,10 @@ function makeItRain_v2()
             if length(ddx) > lookback+3
                 plot(ddx(end-lookback:end), 'r');
                 if min(ddx) == max(ddx)
+                    axis([ -10 lookback  -1 1 ]);
+                else
                     axis([ -10 lookback  min(ddx) 1.03*max(ddx) ]);
+                end
             else
                 plot(ddx, 'r');
                 %axis([ 0 1.03*length(ddx)  min(ddx) 1.03*max(ddx) ]);
@@ -411,12 +417,13 @@ function makeItRain_v2()
             greyArray=[greyVector;greyVector;greyVector];
             plot(xx,yy,'.')
             hold on;
-            for idx = 0:lookback-1
-                plot(xx(length(xx)-idx),yy(length(xx)-idx),'*', 'MarkerFaceColor',greyArray(:,idx+1),'MarkerEdgeColor',greyArray(:,idx+1));
+            if length(xx) > lookback + 3
+                for idx = 0:lookback-1
+                    plot(xx(length(xx)-idx),yy(length(xx)-idx),'*', 'MarkerFaceColor',greyArray(:,idx+1),'MarkerEdgeColor',greyArray(:,idx+1));
+                end
+                axis([ 150 620 0 470]);
+                title('recent XY (bk->wt; old->now)')
             end
-            axis([ 150 620 0 470]);
-            title('recent XY (bk->wt; old->now)')
-
 
             %
             % transition map for zones --> basically Bayseian transition probability of
@@ -568,4 +575,4 @@ function makeItRain_v2()
     beep
     return
     
-end
+%end
