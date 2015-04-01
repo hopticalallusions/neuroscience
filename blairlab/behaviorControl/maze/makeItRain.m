@@ -306,7 +306,7 @@ clear all
    			%
 			% Should sugar pellets rain from the sky?
 			%
-            if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
+            if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
 				lastRewardedSequence = [ 2 0 3 ];
 				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
                 pause(.5);
@@ -325,7 +325,7 @@ clear all
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
 				totalRewards = totalRewards + 1;
-            elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
+            elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
 				lastRewardedSequence = [ 2 0 1 ];
                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
                 pause(.5);
@@ -344,7 +344,7 @@ clear all
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
 				totalRewards = totalRewards + 1;
-			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
+			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
 				alternationError = alternationError + 1;
 				disp('Behavior Error! : alternation error.')
 				eventHistory = [eventHistory ; cellstr('Alternation Error! : alternation error.') ];
@@ -354,31 +354,33 @@ clear all
             end
         end
         %
-        if ready
-            totalRewards = totalRewards + 1;
-            tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
-            disp(tempStr);
-            eventHistory = [eventHistory ; cellstr(tempStr) ];
-    		eventHistoryTimesNlx(eventIdx) = 0;
-			eventHistoryTimesMatlab(eventIdx) = now();
-			eventIdx = eventIdx + 1;
-			totalRewards = totalRewards + 1;
-            if left
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-                pause(.1);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-                left=false;
-            else
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-                pause(.1);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-                left=true;
-            end
-            ready = false;
-        end
+%         if ready
+%             tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
+%             disp(tempStr);
+%             eventHistory = [eventHistory ; cellstr(tempStr) ];
+%     		eventHistoryTimesNlx(eventIdx) = 0;
+% 			eventHistoryTimesMatlab(eventIdx) = now();
+% 			eventIdx = eventIdx + 1;
+% 			totalRewards = totalRewards + 1;
+%             if left
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+%                 pause(.1);
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+%                 left=false;
+%             else
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%                 pause(.1);
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%                 left=true;
+%             end
+%             ready = false;
+%             waitForReset = true;
+%             rewardDisplayToggle = true;
+%         end
             
-        if (totalRewards > 0) && (0 == mod(totalRewards, 10))
+        if (totalRewards > 0) && (0 == mod(totalRewards, 10)) && rewardDisplayToggle
             disp([ '@ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ' total rewards : ' num2str(totalRewards)]);
+            rewardDisplayToggle = false;
         elseif totalRewards > maxRewards 
             beep; beep; beep; beep;
             disp([ 'total rewards : ' num2str(totalRewards)]);
