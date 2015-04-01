@@ -1,6 +1,7 @@
 function makeItRain_v2()
 
-	ratName = 'v1';
+	ratName = 'v4';
+	version = '3.1';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the stream structure in neuralynx cheetah
 	timeToRun = 20 ;% minutes
@@ -14,7 +15,8 @@ function makeItRain_v2()
 	%
 	startTimeString = [datestr(date) '_' num2str(now)];
 
-	disp('Starting makeItRain...')
+	disp('Starting makeItRain ...')
+	disp(['version ' version])
 	disp(['rat = ' ratName])
 	% turn on OS warning sound
 	beep on;
@@ -222,7 +224,10 @@ function makeItRain_v2()
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
-			elseif ( currentZone == 3 || currentZone == 1 || currentZone == 2 ) && ( zoneHistory(zoneHistoryIdx-1) == 2 || zoneHistory(zoneHistoryIdx-1) == 1 || zoneHistory(zoneHistoryIdx-1) == 3)
+			elseif (zoneHistory(zoneHistoryIdx-1) ~= currentZone) && ( currentZone == 3 || currentZone == 1 || currentZone == 2 ) && ( zoneHistory(zoneHistoryIdx-1) == 2 || zoneHistory(zoneHistoryIdx-1) == 1 || zoneHistory(zoneHistoryIdx-1) == 3)
+				% invalid logic before version 3.1
+				% movement from zone 3,2 or 1 to any of those three zones which is not the same zone as the previous requires jumping a gap
+				% the invalid logic existed in the context of entering and exiting the same zone, e.g. 3 -> 3
 				jumpError = jumpError + 1;
 				disp('Behavior Error! : jump error.')
 				eventHistory = [eventHistory ; 'Behavior Error! : jump error.' ];
@@ -319,6 +324,7 @@ function makeItRain_v2()
 	runSummary.jumpError = jumpError;
 	runSummary.choicePointError = choicePointError;
 	runSummary.cornerError = cornerError;
+	runSummary.version = version;
 	save(['makeItRain_' ratName '_' startTimeString '.mat'], 'runSummary');
 	
 	disconnectResult = NlxDisconnectFromServer();
