@@ -4,7 +4,7 @@ close all
 clear all
 
 	ratName = 'v4';
-	version = 'dual 4.3 single zone';
+	version = 'dual 4.5 dual zone';
 	timeToRun = 20; % minutes
 	dispenseInitialReward = false;	% are we going to give an initial reward
 	readyForTakeoff = true;
@@ -354,7 +354,7 @@ clear all
 %             end
         end
         %
-        if ready
+        if currentZone == 0 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 4 2 ] )
             tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
             disp(tempStr);
             eventHistory = [eventHistory ; cellstr(tempStr) ];
@@ -416,7 +416,9 @@ clear all
             xx = [ xx, txx ];
             yy = [ yy, tyy ];
             % plot linear velocity
-            if ( ttx == [] ) || ( tyy == [] )
+            if ( length(txx) == 0 ) || ( length(tyy) == 0 )
+                disp('bad video data')
+            else
                 % TODO empty txx and or tyy cause problems
                 tdx=sqrt(cast(((txx(2:length(txx))-txx(1:length(txx)-1))^2+(tyy(2:length(tyy))-tyy(1:length(tyy)-1))^2), 'double'));
                 % zero out big jumps
