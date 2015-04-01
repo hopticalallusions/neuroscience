@@ -1,11 +1,11 @@
 function makeItRain_v2()
 
-	ratName = 'v1';
-	version = '3.2';
+	ratName = 'v4';
+	version = '3.3';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the stream structure in neuralynx cheetah
 	timeToRun = 20 ;% minutes
-	dispenseInitialReward = false;	% are we going to give an initial reward
+	dispenseInitialReward = true;	% are we going to give an initial reward
 	totalRewards = 0;
 	% this needs the Neuralynx files in the include path. modify as needed.
 	path(path, 'C:\Documents and Settings\Dbuono\Desktop\NetComClientDevelopmentPackage_v211\Matlab_M-files');
@@ -200,20 +200,6 @@ function makeItRain_v2()
 				jumpError = jumpError + 1;
 				disp('Behavior Error! : jump error.')
 				eventHistory = [eventHistory ; 'Behavior Error! : jump error.' ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-			elseif currentZone == 2 && zoneHistory(zoneHistoryIdx) == 4
-				choicePointError = choicePointError + 1;
-				disp('Behavior Error! : choice point zone exit error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : choice point zone exit error.' ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-			elseif currentZone == 4 && ( zoneHistory(zoneHistoryIdx) == 1 || zoneHistory(zoneHistoryIdx) == 3 )
-				cornerError = cornerError + 1;
-				disp('Behavior Error! : corner zone exit error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : corner zone exit error.' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
