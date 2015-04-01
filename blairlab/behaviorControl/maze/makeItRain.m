@@ -1,5 +1,3 @@
-%function makeItRain_v2()
-
 close all
 clear all
 
@@ -9,15 +7,15 @@ clear all
 %
 %%%%%%%
 
-    ratName = 'v4';                 % name of rat
-    version = 'dual 4.7 four zone'; % version number for tracking which program used this; *manual*
-    timeToRun = 70;                 % minutes
-    maximumTime = 300;              % minutes
-    maxRewards = 300;               % pellets
-    dispenseInitialReward = true;	% are we going to give an initial reward
-    readyForTakeoff = true;         % false = wait for a signal to start
-                                    %       true = start immediately
-    left=false;                     % is the rat "right" or "left" handed
+ratName = 'v4';                 % name of rat
+version = 'dual 4.7 four zone'; % version number for tracking which program used this; *manual*
+timeToRun = 45;                 % minutes
+maximumTime = 60;              % minutes
+maxRewards = 200;               % pellets
+dispenseInitialReward = true;	% are we going to give an initial reward
+readyForTakeoff = true;         % false = wait for a signal to start
+                                %       true = start immediately
+left=false;                     % is the rat "right" or "left" handed
 
 %%%%%%%
 %
@@ -25,12 +23,12 @@ clear all
 %
 %%%%%%%
 
-    serverName = 'PHYSIO_RIG';	% neuralynx router server name 
-    eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
-    videoTrackerName = 'VT0';	% name of the Video Tracker stream object in neuralynx cheetah
-    % this needs the Neuralynx files in the include path. modify as needed.
-    % it might be a good idea to check if these are available
-    savePath = 'C:\Documents and Settings\Administrator\My Documents\ahowe\data\rhombus-maze\'
+serverName = 'PHYSIO_RIG';	% neuralynx router server name 
+nlxEventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
+videoTrackerName = 'VT0';	% name of the Video Tracker stream object in neuralynx cheetah
+% this needs the Neuralynx files in the include path. modify as needed.
+% it might be a good idea to check if these are available
+savePath = 'C:\Documents and Settings\Administrator\My Documents\ahowe\data\rhombus-maze\';
 
 %%%%%%%
 %
@@ -60,15 +58,15 @@ hud = figure();
 button = uicontrol('style','push','string','quit','callback','trialOver = true;');
 
 
-
-
 disp('Starting makeItRain ...')
 disp(['version ' version])
 disp(['rat = ' ratName])
-% turn on OS warning sound
-beep on;
 
-%%%% connect to Neuralynx
+beep on;        % turn on OS warning sound
+
+%%%% 
+%
+% connect to Neuralynx
 %
 if ~NlxAreWeConnected()
     disconnectResult = NlxDisconnectFromServer();
@@ -104,21 +102,19 @@ else
     disp(['Successfully opened ' videoTrackerName])
 end
 %
-%%%%
-
+%
 % set up some state variables
+%
 inAZone = false;
 currentZone = -1;
-% run from 2 -> 4 - ( 1 | 2 | 3 ) - > 0 = reward
 ready = false; %for pellet
-%pause(60);
+
 % 
 % track zone sequences for live error detection
 % 
 zoneHistory = -1 * ones(1,10000);
 zoneHistoryTimes = zeros(size(zoneHistory));
 zoneHistoryIdx = 1; %starts at two because the indexing is silly.
-
 
 %
 % behavioral error tracking variables
@@ -129,7 +125,7 @@ jumpError = 0;
 choicePointError = 0;
 cornerError = 0;
 alternationError = 0;
-
+trialStartError = 0;
 
 %%%%%%%
 %
@@ -143,7 +139,7 @@ for waitingCounter = 1:(maximumTime*60)
     % process event stream
     for idx = 1:length(eventStringArray)
         if strcmpi(eventStringArray(idx), 'Zoned Video: Zone6 Entered')
-            readyForTakeoff = true
+            readyForTakeoff = true;
             break;
         end
     end
@@ -194,6 +190,7 @@ ddx = [];
 % MAIN LOOP
 %
 %%%%%%%
+
 tic;
 startTime = toc;
 elapsedTime = toc - startTime; % seconds
@@ -201,44 +198,44 @@ elapsedTime = toc - startTime; % seconds
 while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
 
     %
-    % Every 5 minutes, provide time elapsed
+    % Every 3-ish minutes, provide time elapsed
     %
+
     elapsedTime = toc - startTime; % seconds
-    if 0 == mod( round(elapsed), 300 )
+    if 0 == mod( floor(elapsed), 180 )
         % datestr(aa/(24*60*60),formatOut) % this is to format seconds
         %     into fractions of a day...  'HH:MM:SS'
         disp(['Elapsed Time : ' datestr(elapsedTime/(24*60*60),'HH:MM:SS') ])
         if elapsedTime > timeToRun*60
-           
+            disp('!!! Trial is over !!!'); beep;
         end
     end
 
-    [succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
-
+    %
+    % retrieve neuralynx event data
+    %
+    [succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData(nlxEventLogName);
     %
     % detect if any event records are dropped.
     %
     if numRecordsDropped > 0
         droppedEventRecords = droppedEventRecords + 1;
-        disp(['System Error! : ' num2str(numRecordsDropped) ' event records dropped'])
-        eventHistory = [eventHistory ; [num2str(numRecordsDropped) ' event records dropped!'] ];
-        eventHistoryTimesNlx(eventIdx) = 0;
-        eventHistoryTimesMatlab(eventIdx) = now();
-        eventIdx = eventIdx + 1;
+        events = logEvent( events, ['System Error! : ' num2str(numRecordsDropped) ' event records dropped'], true );
     end
+
+    %%%%%%%
     %
-    % process event stream
+    % process all events in a loop
     %
+    %%%%%%%
+
     for idx = 1:length(eventStringArray)
-        %
+
         % store event history
+        events = logEvent( events, eventStringArray(idx), false, timeStampArray(idx) );
+
         %
-        eventHistory = [eventHistory ; eventStringArray(idx) ];
-        eventHistoryTimesNlx(eventIdx) = timeStampArray(idx);
-        eventHistoryTimesMatlab(eventIdx) = now();
-        eventIdx = eventIdx + 1;
-        %
-        %disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
+        % parse events into meaningfulness
         %
         if strcmpi(eventStringArray(idx), 'Zoned Video: Zone0 Entered')
             currentZone = 0;
@@ -263,397 +260,265 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
         elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone8 Entered')
             currentZone = 8;
         end
+
         %
         % online sequence error detector
         %
         % this style of detection works because zoneHistory isn't updated until the rat exits a zone.
-        %
         % TODO -- functionalize event additions
-        %
         % TODO -- add comments about behavior error sequences.
+        % TODO -- these are all backwards for lefties
         %
         if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx) == 4
-            % 0 -> ( 3 | 1 ) is a reward exit error
-            rewardExitError = rewardExitError + 1;
-            disp('Behavior Error! : reward zone exit error.')
-            eventHistory = [eventHistory ; cellstr('Behavior Error! : reward zone exit error.') ];
-            eventHistoryTimesNlx(eventIdx) = 0;
-            eventHistoryTimesMatlab(eventIdx) = now();
-            eventIdx = eventIdx + 1;
+            % 4 -> ( 3 | 1 ) is a trial start error where animal goes to
+            % reward zone without passing through the center
+            trialStartError = trialStartError + 1;
+            events = logEvent( events, [ 'Behavior Error! : Start point to reward zone; ', num2str(zoneHistory(zoneHistoryIdx)), ' -> ', num2str(currentZone) ], true );
         elseif ( currentZone == 4 ) && zoneHistory(zoneHistoryIdx) == 2
             centerError = centerError + 1;
-            disp('Behavior Error! : center zone exit error.')
-            eventHistory = [eventHistory ; cellstr('Behavior Error! : center zone exit error.') ];
-            eventHistoryTimesNlx(eventIdx) = 0;
-            eventHistoryTimesMatlab(eventIdx) = now();
-            eventIdx = eventIdx + 1;
+            events = logEvent( events, [ 'Behavior Error! : Center to start point; ', num2str(zoneHistory(zoneHistoryIdx)), ' -> ', num2str(currentZone) ], true );
         elseif (zoneHistory(zoneHistoryIdx) ~= currentZone) && ( currentZone == 3 || currentZone == 1 || currentZone == 2 ) && ( zoneHistory(zoneHistoryIdx) == 2 || zoneHistory(zoneHistoryIdx) == 1 || zoneHistory(zoneHistoryIdx) == 3)
             % invalid logic before version 3.1
             % movement from zone 3,2 or 1 to any of those three zones which is not the same zone as the previous requires jumping a gap
             % the invalid logic existed in the context of entering and exiting the same zone, e.g. 3 -> 3
             jumpError = jumpError + 1;
-            disp('Behavior Error! : jump error.')
-            eventHistory = [eventHistory ; cellstr('Behavior Error! : jump error.') ];
-            eventHistoryTimesNlx(eventIdx) = 0;
-            eventHistoryTimesMatlab(eventIdx) = now();
-            eventIdx = eventIdx + 1;
+            events = logEvent( events, [ 'Behavior Error! : Jump error; ', num2str(zoneHistory(zoneHistoryIdx)), ' -> ', num2str(currentZone) ], true );
+        elseif (( currentZone == 2 ) && zoneHistory(zoneHistoryIdx) == 0)
+            % if the rat goes from the choice point to the center
+            choicePointError = choicePointError + 1;
+            events = logEvent( events, [ 'Behavior Error! : Choice Point to Reward Zone; ', num2str(zoneHistory(zoneHistoryIdx)), ' -> ', num2str(currentZone) ], true );
+        elseif ( currentZone == 0 ) && ( zoneHistory(zoneHistoryIdx) == 1 || zoneHistory(zoneHistoryIdx) == 3 )
+            % if the rat goes from the reward point to the choice point
+            cornerError = cornerError + 1;
+            events = logEvent( events, [ 'Behavior Error! : Corner error; ', num2str(zoneHistory(zoneHistoryIdx)), ' -> ', num2str(currentZone) ], true );
         end
-            %
-%             if zoneHistoryIdx > 3
-%                 disp(zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx))
-%             end
-			%			
-			% Are we in a zone?
-			if strcmpi(eventStringArray(idx),strrep(eventStringArray(idx),'Exited', 'Exit'))
-				% we're in a zone
-				% because if we were *not* in a zone, we would not have exited, so the string would not have changed, so the compare is TRUE
-				inAZone = true;
-			else
-				% we're not in a zone
-				inAZone = false;
-				% if the currentZone is not the same as the last zone, record the zone in the sequence history
-				% the goal here is to make sequence error detection online simpler by smoothing out
-				% the jumpiness of the zone detection software, and the ability of the rat to stand at the edge
-				% of a zone and move his body in and out
-				if zoneHistory(zoneHistoryIdx) ~= currentZone
-					zoneHistoryIdx = zoneHistoryIdx + 1;
-					zoneHistory(zoneHistoryIdx) = currentZone;
-                    %disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
-				end
-				currentZone = -1;
-			end
-   			%
-			% Should sugar pellets rain from the sky?
-			
-            if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
-				lastRewardedSequence = [ 2 0 3 ];
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
-                pause(.1);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
-				% log event
-                 tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
-                 disp(tempStr);
-                 eventHistory = [eventHistory ; cellstr(tempStr) ];
-                eventHistoryTimesNlx(eventIdx) = 0;
-                eventHistoryTimesMatlab(eventIdx) = now();
-                eventIdx = eventIdx + 1;
-                totalRewards = totalRewards + 1;
-%                disp(zoneHistoryIdx(end-10:end))
-            elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
-				lastRewardedSequence = [ 2 0 1 ];
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
-                pause(.1);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
-				% log event
-                 tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
-                 disp(tempStr);
-                 eventHistory = [eventHistory ; cellstr(tempStr) ];
-                eventHistoryTimesNlx(eventIdx) = 0;
-                eventHistoryTimesMatlab(eventIdx) = now();
-                eventIdx = eventIdx + 1;
-                totalRewards = totalRewards + 1;
-% 			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
-% 				alternationError = alternationError + 1;
-% 				disp('Behavior Error! : alternation error.')
-% 				eventHistory = [eventHistory ; cellstr('Alternation Error! : alternation error.') ];
-% 				eventHistoryTimesNlx(eventIdx) = 0;
-% 				eventHistoryTimesMatlab(eventIdx) = now();
-% 				eventIdx = eventIdx + 1;
-             end
+        
+        
+        % Are we in a zone?
+        if strcmpi(eventStringArray(idx),strrep(eventStringArray(idx),'Exited', 'Exit'))
+            % we're in a zone
+            % because if we were *not* in a zone, we would not have exited, so the string would not have changed, so the compare is TRUE
+            inAZone = true;
+        else
+            % we're not in a zone
+            inAZone = false;
+            % if the currentZone is not the same as the last zone, record the zone in the sequence history
+            % the goal here is to make sequence error detection online simpler by smoothing out
+            % the jumpiness of the zone detection software, and the ability of the rat to stand at the edge
+            % of a zone and move his body in and out
+            if zoneHistory(zoneHistoryIdx) ~= currentZone
+                zoneHistoryIdx = zoneHistoryIdx + 1;
+                zoneHistory(zoneHistoryIdx) = currentZone;
+            end
+            currentZone = -1;
         end
+
         %
-%         if ready
-%             tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
-%             disp(tempStr);
-%             eventHistory = [eventHistory ; cellstr(tempStr) ];
-%     		eventHistoryTimesNlx(eventIdx) = 0;
-% 			eventHistoryTimesMatlab(eventIdx) = now();
-% 			eventIdx = eventIdx + 1;
-% 			totalRewards = totalRewards + 1;
-%             if left
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                 pause(.1);
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                 left=false;
-%             else
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                 pause(.1);
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                 left=true;
-%             end
-%             ready = false;
-%             waitForReset = true;
-%             rewardDisplayToggle = true;
-%         end
-
-%             if ready && ( zoneHistoryIdx > 2 ) && currentZone == 0 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 4 2 ] )
-%                 if left
-%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                     pause(.1);
-%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                     left=false;
-%                 else
-%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                     pause(.1);
-%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                     left=true;
-%                 end
-%                 ready = false;
-%                 waitForReset = true;
-%                 rewardDisplayToggle = true;				% log event
-%                 tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
-%                 disp(tempStr);
-%                 eventHistory = [eventHistory ; cellstr(tempStr) ];
-%                 eventHistoryTimesNlx(eventIdx) = 0;
-%                 eventHistoryTimesMatlab(eventIdx) = now();
-%                 eventIdx = eventIdx + 1;
-%                 totalRewards = totalRewards + 1;
-%             end
-
-%         if (totalRewards > 0) && (0 == mod(totalRewards, 10)) && rewardDisplayToggle
-%             disp([ '@ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ' total rewards : ' num2str(totalRewards)]);
-%             rewardDisplayToggle = false;
-%         elseif totalRewards > maxRewards 
-%             beep; beep; beep; beep;
-%             disp([ 'total rewards : ' num2str(totalRewards)]);
-%         end
-		%
-		%%%% Video Data
-		%
-		%
-		% For future reference concerning video tracking :
-		% locations are [ x y x y x y x y ... x y ]
-		% [aa,bb, locationArray, cc, VTRecsReturned, dd] =NlxGetNewVTData(videoTrackerName)
-		[ succeeded, timeStampArray, extractedLocationArray, extractedAngleArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewVTData(videoTrackerName);
-		%
-		% detect if any video records are dropped.
-		%
-		if numRecordsDropped > 0
-			droppedVideoRecords = droppedVideoRecords + 1;
-			disp(['System Error! : ' num2str(numRecordsDropped) ' video records dropped'])
-			eventHistory = [eventHistory ; [num2str(numRecordsDropped) ' video records dropped!'] ];
-			eventHistoryTimesNlx(eventIdx) = 0;
-			eventHistoryTimesMatlab(eventIdx) = now();
-			eventIdx = eventIdx + 1;
-		end
-		videoTimeStamps = [ videoTimeStamps timeStampArray];
-		videoLocations = [ videoLocations extractedLocationArray];
-        %calculate the speed of the rat
-
-        if length(videoLocations) > 99;
-            figure(hud);
-            % 2-D spatial location calculations for building plots
-            txx=extractedLocationArray([1:2:length(extractedLocationArray)]);
-            tyy=extractedLocationArray([2:2:length(extractedLocationArray)]);
-            xx = [ xx, txx ];
-            yy = [ yy, tyy ];
-            % plot linear velocity
-            if ( length(txx) == 0 ) || ( length(tyy) == 0 )
-                disp('bad video data')
-            else
-                % TODO empty txx and or tyy cause problems
-                tdx=sqrt(cast(((txx(2:length(txx))-txx(1:length(txx)-1))^2+(tyy(2:length(tyy))-tyy(1:length(tyy)-1))^2), 'double'));
-                % zero out big jumps
-                % 30 is a magic number; I think I got it by looking at a histogram.
-                tdx(find((tdx>30)))=0;
-                dx=[dx, tdx];
-                subplot(4,5,3:5)
-                lookback=1000;
-                if length(dx) > lookback+3
-                    plot(dx(end-lookback:end),'g')
-                    axis([ -10 1.03*(lookback)  -5 1.03*max(dx) ]);
-                else
-                    plot(dx, 'g')
-                    axis([ 0 1.03*length(dx)  -1 1.03*max(dx) ]);
-                end
-                % plot linear acceleration
-                tddx=tdx(2:length(tdx))-tdx(1:length(tdx)-1);
-                ddx=[ddx, tddx];
-                subplot(4,5,8:10)
-                if length(ddx) > lookback+3
-                    plot(ddx(end-lookback:end), 'r');
-                    if min(ddx) == max(ddx)
-                        axis([ -10 lookback  -1 1 ]);
-                    else
-                        axis([ -10 lookback  min(ddx) 1.03*max(ddx) ]);
-                    end
-                else
-                    plot(ddx, 'r');
-                    %axis([ 0 1.03*length(ddx)  min(ddx) 1.03*max(ddx) ]);
-                end
-            end
-            %
-            % plot all locations occupied and then the last 512 locations occupied with
-            % a black to white gradient of big circles
-            %
-            subplot(4,5,[1,2,6,7])
-            hold off;
-            lookback=512;
-            plot(xx,-1*yy,'.')
-            hold on;
-            if length(xx) > lookback + 3
-                for idx = 0:lookback-1
-                    plot(xx(length(xx)-idx),-1*yy(length(xx)-idx),'*', 'MarkerFaceColor',greyArray(:,idx+1),'MarkerEdgeColor',greyArray(:,idx+1));
-                end
-                axis([ 150 620 0 -470]);
-                title('recent XY (bk->wt; old->now)')
-            end
-            %
-            % image of rat
-            %
-            subplot(4,5,[13 14 18 19])
-            image(imread('http://164.67.14.239/oneshotimage.jpg'));
-            %
-            % transition map for zones --> basically Bayseian transition probability of
-            % motion.
-            %
-            if 0 == mod(round(tocNow),20);
-                subplot(4,5,20)
-                zoneNumberMinOffset = (1-min(zoneHistory(1:zoneHistoryIdx)) );
-                possibleZones = max(zoneHistory(1:zoneHistoryIdx))+zoneNumberMinOffset;
-                trans = zeros(possibleZones,possibleZones);
-                for idx = 2 : length(zoneHistory(1:zoneHistoryIdx));
-                    trans(zoneHistory(idx-1)+zoneNumberMinOffset,zoneHistory(idx)+zoneNumberMinOffset) = 1 + trans(zoneHistory(idx-1)+zoneNumberMinOffset,zoneHistory(idx)+zoneNumberMinOffset);
-                end;
-                qq=colormap;
-                colormap([1 1 1; qq])
-                imagesc(trans/sum(sum(trans)))
-                %colorbar()
-                subplot(4,5,15)
-                %imagesc(trans/sum(sum(trans)))
-                plot(1,totalRewards,'o')
-                axis([ 0 2 0 1.03*maxRewards])
-                %
-                % the nice version of the colormap for occupancy.
-                %
-                subplot(4,5,[11,12,16,17])
-                occupationHeat=zeros(max(yy)+1,max(xx)+1);
-                for idx=1:length(xx)
-                    occupationHeat(yy(idx)+1,xx(idx)+1)=occupationHeat(yy(idx)+1,xx(idx)+1)+1;
-                end
-                hold off;
-                plot(xx,-1*yy,'.k'); 
-                hold on;
-                markersize=4;
-                [rr,cc,vv]=find(occupationHeat>2);
-                plot(cc,-1*rr,'.b','MarkerSize', markersize);
-                [rr,cc,vv]=find(occupationHeat>4);
-                plot(cc,-1*rr,'.c','MarkerSize', markersize);
-                [rr,cc,vv]=find(occupationHeat>6);
-                plot(cc,-1*rr,'.g','MarkerSize', markersize);
-                [rr,cc,vv]=find(occupationHeat>8);
-                plot(cc,-1*rr,'.y','MarkerSize', markersize);
-                [rr,cc,vv]=find(occupationHeat>10);
-                plot(cc,-1*rr,'.m','MarkerSize', markersize);
-                [rr,cc,vv]=find(occupationHeat>15);
-                plot(cc,-1*rr,'.r','MarkerSize', markersize);
-                axis([ 150 620 0 470])
-                %title('Fig 8 Maze Occupancy','FontWeight','bold','FontName','Arial');
-                %xlabel('X coord. (px)','FontName','Arial');
-                %ylabel('Y coord. (px)','FontName','Arial');
-                %colormap([1 1 1; 0 0 0; 0 0 1; 0 1 1; 0 1 0; 1 1 0; 1 0 1; 1 0 0])
-                %colorbar('YTickLabel',{'0','1','2','4','6','8','10','15'});
-            end
+        % Should sugar pellets rain from the sky?
+        %
+        if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
+            lastRewardedSequence = [ 2 0 3 ];
+            NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
+            pause(.1);
+            NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
+            % log event
+            events = logEvent( events, ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ], true );
+            totalRewards = totalRewards + 1;
+        elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
+            lastRewardedSequence = [ 2 0 1 ];
+            NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
+            pause(.1);
+            NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
+            % log event
+            events = logEvent( events, ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ], true );
+            totalRewards = totalRewards + 1;
+        elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
+            alternationError = alternationError + 1;
+            events = logEvent( events, 'Behavior Error! : alternation error.', true );
         end
     end
-    %
-    % terminate event history
-    %
-    disp('-----------------------')
-    %
-    disp(['total rewards = ' num2str(totalRewards)])
-    eventHistory = [eventHistory ; cellstr(['total rewards = ' num2str(totalRewards)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp(['stable zone occupacies = ' num2str(zoneHistoryIdx)])
-    eventHistory = [eventHistory ; cellstr(['stable zone occupancies = ' num2str(zoneHistoryIdx)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp(['reward exit errors = ' num2str(rewardExitError)])
-    eventHistory = [eventHistory ; cellstr(['rewardExitError = ' num2str(rewardExitError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp(['center errors = ' num2str(centerError)])
-    eventHistory = [eventHistory ; cellstr(['centerError = ' num2str(centerError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %	
-    disp(['jump errors = ' num2str(jumpError)])
-    eventHistory = [eventHistory ; cellstr(['jumpError = ' num2str(jumpError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %	
-    disp(['choice point error = ' num2str(choicePointError)])
-    eventHistory = [eventHistory ; cellstr(['choice Point Error = ' num2str(choicePointError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %	
-    disp(['corner errors = ' num2str(cornerError)])
-    eventHistory = [eventHistory ; cellstr(['corner Error = ' num2str(cornerError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp('-----------------------')
-    %	
-    disp(['dropped events = ' num2str(droppedEventRecords)])
-    eventHistory = [eventHistory ; cellstr(['dropped events = ' num2str(droppedEventRecords)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %	
-    disp(['dropped video records = ' num2str(droppedVideoRecords)])
-    eventHistory = [eventHistory ; cellstr(['dropped video records = ' num2str(droppedVideoRecords)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp('-----------------------')
-    %
-    eventHistory = [eventHistory ; cellstr('end of trial') ];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp('-----------------------')
-
-    %
-    % store data to disk
-    %
-    runSummary.eventHistory = eventHistory;
-    runSummary.eventHistoryTimesNlx = eventHistoryTimesNlx(1:min(find(eventHistoryTimesNlx==-1))-1);
-    runSummary.eventHistoryTimesMatlab = eventHistoryTimesMatlab(1:min(find(eventHistoryTimesMatlab==-1))-1);
-    runSummary.zoneHistory = zoneHistory(1:zoneHistoryIdx);
-    runSummary.totalRewards = totalRewards;
-    runSummary.stableZoneEntries = zoneHistoryIdx;
-    runSummary.rewardExitError = rewardExitError;
-    runSummary.centerError = centerError;
-    runSummary.jumpError = jumpError;
-    runSummary.choicePointError = choicePointError;
-    runSummary.cornerError = cornerError;
-    runSummary.version = version;
-    runSummary.droppedEventRecords = droppedEventRecords;
-    runSummary.droppedVideoRecords = droppedVideoRecords;
-    runSummary.videoTimeStamps = videoTimeStamps;
-    runSummary.videoLocations = videoLocations;
-    runSummary.ratName = ratName;
-    %
-    %
-    save([savePath 'makeItRain_' ratName '_' startTimeString '.mat'], 'runSummary');
-    %
-    disconnectResult = NlxDisconnectFromServer();
-    %
-    disp('makeItRain finished')
-    beep
-    return
     
+    %
+    %%%% Video Data
+    %
+    % For future reference concerning video tracking :
+    % locations are [ x y x y x y x y ... x y ]
+    [ succeeded, timeStampArray, extractedLocationArray, extractedAngleArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewVTData(videoTrackerName);
+    % detect if any video records are dropped.
+    if numRecordsDropped > 0
+        droppedVideoRecords = droppedVideoRecords + numRecordsDropped;
+        events = logEvent( events, ['System Error! : ' num2str(numRecordsDropped) ' video records dropped'], true );
+    end
+    %
+    videoTimeStamps = [ videoTimeStamps timeStampArray];
+    videoLocations = [ videoLocations extractedLocationArray];
+    %
+    %calculate the speed of the rat
+    if length(videoLocations) > 99;
+        figure(hud);
+        % 2-D spatial location calculations for building plots
+        txx=extractedLocationArray( 1:2:length(extractedLocationArray) );
+        tyy=extractedLocationArray( 2:2:length(extractedLocationArray) );
+        xx = [ xx, txx ];
+        yy = [ yy, tyy ];
+        % plot linear velocity
+        if isempty(txx) || isempty(tyy)
+            disp('bad video data')
+        else
+            % TODO empty txx and or tyy cause problems
+            tdx=sqrt(cast(((txx(2:length(txx))-txx(1:length(txx)-1))^2+(tyy(2:length(tyy))-tyy(1:length(tyy)-1))^2), 'double'));
+            % zero out big jumps
+            % 30 is a magic number; I think I got it by looking at a histogram.
+            tdx(tdx>30)=0;
+            dx=[dx, tdx];
+            subplot(4,5,3:5)
+            lookback=1000;
+            if length(dx) > lookback+3
+                plot(dx(end-lookback:end),'g')
+                axis([ -10 1.03*(lookback)  -5 1.03*max(dx) ]);
+            else
+                plot(dx, 'g')
+                axis([ 0 1.03*length(dx)  -1 1.03*max(dx) ]);
+            end
+            % plot linear acceleration
+            tddx=tdx(2:length(tdx))-tdx(1:length(tdx)-1);
+            ddx=[ddx, tddx];
+            subplot(4,5,8:10)
+            if length(ddx) > lookback+3
+                plot(ddx(end-lookback:end), 'r');
+                if min(ddx) == max(ddx)
+                    axis([ -10 lookback  -1 1 ]);
+                else
+                    axis([ -10 lookback  min(ddx) 1.03*max(ddx) ]);
+                end
+            else
+                plot(ddx, 'r');
+                %axis([ 0 1.03*length(ddx)  min(ddx) 1.03*max(ddx) ]);
+            end
+        end
+        %
+        % plot all locations occupied and then the last 512 locations occupied with
+        % a black to white gradient of big circles
+        %
+        subplot(4,5,[1,2,6,7])
+        hold off;
+        lookback=512;
+        plot(xx,-1*yy,'.')
+        hold on;
+        if length(xx) > lookback + 3
+            for idx = 0:lookback-1
+                plot(xx(length(xx)-idx),-1*yy(length(xx)-idx),'*', 'MarkerFaceColor',greyArray(:,idx+1),'MarkerEdgeColor',greyArray(:,idx+1));
+            end
+            axis([ 150 620 0 -470]);
+            title('recent XY (bk->wt; old->now)')
+        end
+        %
+        % image of rat
+        %
+        subplot(4,5,[13 14 18 19])
+        image(imread('http://164.67.14.239/oneshotimage.jpg'));
+        %
+        % transition map for zones --> basically Bayseian transition probability of
+        % motion.
+        %
+        if 0 == mod(round(tocNow),20);
+            subplot(4,5,20)
+            zoneNumberMinOffset = (1-min(zoneHistory(1:zoneHistoryIdx)) );
+            possibleZones = max(zoneHistory(1:zoneHistoryIdx))+zoneNumberMinOffset;
+            trans = zeros(possibleZones,possibleZones);
+            for idx = 2 : length(zoneHistory(1:zoneHistoryIdx));
+                trans(zoneHistory(idx-1)+zoneNumberMinOffset,zoneHistory(idx)+zoneNumberMinOffset) = 1 + trans(zoneHistory(idx-1)+zoneNumberMinOffset,zoneHistory(idx)+zoneNumberMinOffset);
+            end;
+            qq=colormap;
+            colormap([1 1 1; qq])
+            imagesc(trans/sum(sum(trans)))
+            %colorbar()
+            subplot(4,5,15)
+            %imagesc(trans/sum(sum(trans)))
+            plot(1,totalRewards,'o')
+            hold on;
+            plot(1,maxRewards,'*r');
+            hold off;
+            axis([ 0 2 0 1.03*max([ maxRewards totalRewards ])]);
+            %
+            % the nice version of the colormap for occupancy.
+            %
+            subplot(4,5,[11,12,16,17])
+            occupationHeat=zeros(max(yy)+1,max(xx)+1);
+            for idx=1:length(xx)
+                occupationHeat(yy(idx)+1,xx(idx)+1)=occupationHeat(yy(idx)+1,xx(idx)+1)+1;
+            end
+            hold off;
+            plot(xx,-1*yy,'.k');
+            hold on;
+            markersize=4;
+            [rr,cc]=find(occupationHeat>2);
+            plot(cc,-1*rr,'.b','MarkerSize', markersize);
+            [rr,cc]=find(occupationHeat>4);
+            plot(cc,-1*rr,'.c','MarkerSize', markersize);
+            [rr,cc]=find(occupationHeat>6);
+            plot(cc,-1*rr,'.g','MarkerSize', markersize);
+            [rr,cc]=find(occupationHeat>8);
+            plot(cc,-1*rr,'.y','MarkerSize', markersize);
+            [rr,cc]=find(occupationHeat>10);
+            plot(cc,-1*rr,'.m','MarkerSize', markersize);
+            [rr,cc]=find(occupationHeat>15);
+            plot(cc,-1*rr,'.r','MarkerSize', markersize);
+            axis([ 150 620 0 470])
+            %title('Fig 8 Maze Occupancy','FontWeight','bold','FontName','Arial');
+            %xlabel('X coord. (px)','FontName','Arial');
+            %ylabel('Y coord. (px)','FontName','Arial');
+            %colormap([1 1 1; 0 0 0; 0 0 1; 0 1 1; 0 1 0; 1 1 0; 1 0 1; 1 0 0])
+            %colorbar('YTickLabel',{'0','1','2','4','6','8','10','15'});
+        end
+    end
+end
+%
+% terminate event history
+%
+disp('-----------------------')
+events = logEvent( events, ['total rewards = ' num2str(totalRewards)], true );
+events = logEvent( events, ['stable zone occupacies = ' num2str(zoneHistoryIdx)], true );
+events = logEvent( events, ['reward exit errors = ' num2str(rewardExitError)], true );
+events = logEvent( events, ['center errors = ' num2str(centerError)], true );
+events = logEvent( events, ['jumpError = ' num2str(jumpError)], true );
+events = logEvent( events, ['choice Point Error = ' num2str(choicePointError)], true );
+events = logEvent( events, ['corner errors = ' num2str(cornerError)], true );
+events = logEvent( events, ['trial start errors = ' num2str(trialStartError)], true );
+disp('-----------------------')
+events = logEvent( events, ['dropped events = ' num2str(droppedEventRecords)], true );
+events = logEvent( events, ['dropped video records = ' num2str(droppedVideoRecords)], true );
+disp('-----------------------')
+events = logEvent( events, 'end of trial' );
+disp('-----------------------')
+%
+% store data to disk
+%
+runSummary.eventHistory = events.getEventStack();
+runSummary.eventHistoryTimesNlx = events.getEventTimesNlx();
+runSummary.eventHistoryTimesMatlab = eventsgetEventTimesMatlab();
+runSummary.zoneHistory = zoneHistory(1:zoneHistoryIdx);
+runSummary.totalRewards = totalRewards;
+runSummary.stableZoneEntries = zoneHistoryIdx;
+runSummary.rewardExitError = rewardExitError;
+runSummary.centerError = centerError;
+runSummary.jumpError = jumpError;
+runSummary.choicePointError = choicePointError;
+runSummary.cornerError = cornerError;
+runSummary.version = version;
+runSummary.droppedEventRecords = droppedEventRecords;
+runSummary.droppedVideoRecords = droppedVideoRecords;
+runSummary.videoTimeStamps = videoTimeStamps;
+runSummary.videoLocations = videoLocations;
+runSummary.ratName = ratName;
+%
+%
+save([savePath 'makeItRain_' ratName '_' startTimeString '.mat'], 'runSummary');
+%
+disconnectResult = NlxDisconnectFromServer();
+%
+disp('makeItRain finished')
+beep
+
+%return
 %end
