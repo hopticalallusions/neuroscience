@@ -1,7 +1,7 @@
 function makeItRain_v2()
 
-	ratName = 'v1';
-	version = 'dual 2.0';
+	ratName = 'v2';
+	version = 'dual 1.0';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
 	videoTrackerName = 'VT1';	% name of the Video Tracker stream object in neuralynx cheetah
@@ -111,7 +111,7 @@ function makeItRain_v2()
     %
     % holding pattern
     %
-    readyForTakeoff = false;
+    readyForTakeoff = true;
     for waitingCounter = 1:(maximumTime*60)
    		pause(1);
 		[succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
@@ -207,13 +207,11 @@ function makeItRain_v2()
 			%
 			if strcmpi(eventStringArray(idx), 'Zoned Video: Zone0 Entered')
 				currentZone = 0;
-                if zoneHistory(zoneHistoryIdx) == 2
-					ready = true;
-				end
-            elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
+			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
 				currentZone = 1;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
 				currentZone = 2;
+                ready = true;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
 				currentZone = 3;
 			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
