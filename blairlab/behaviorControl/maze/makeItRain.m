@@ -1,4 +1,6 @@
-function makeItRain()
+function makeItRain_v2()
+
+disp('Starting run of makeItRain')
 
 serverName = 'PHYSIO_RIG';
 eventLogName = 'Events';
@@ -7,6 +9,9 @@ timeToRun = 20 ;% minutes
 path(path, 'C:\Documents and Settings\Dbuono\Desktop\NetComClientDevelopmentPackage_v211\Matlab_M-files');
 zoneEntryIdx = 1;
 zoneHistory = -1*ones(1,10000);
+zoneHistoryTimes = zeros(size(zoneHistory));
+
+startTimeString = [datestr(date) '_' num2str(now)];
 
 if ~NlxAreWeConnected()
 	disconnectResult = NlxDisconnectFromServer();
@@ -14,6 +19,8 @@ if ~NlxAreWeConnected()
 	if ~connectResult
 		disp(['ERROR : Failed to connect to ' serverName ])
 		return
+	else
+		disp(['Successful connection to ' serverName])
 	end
 end
 
@@ -28,37 +35,59 @@ if ~openStreamResult
 end
 
 % make an initial attractive reward
-NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-pause(1);
-NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-pause(1);
-NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-pause(1);
-NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%pause(1);
+%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%pause(1);
+%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%pause(1);
+%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
 
 
 %lastZone = -1;
 %currentZone = -1;
 %lastSequence = [ currentZone lastZone ];
 inAZone = false;
-ready = false;
+% run from 2 -> 4 -> ( 1 | 3 ) -> 0 = reward
+% zone 2 = stepOne = True
+% zone 4 && stepOne = True
+% zone (1 | 3) && stepOne && stepTwo = True
+% zone 0 && stepOne && stepTwo && stepThree = Reward!
+stepOne = false;
+stepTwo = false;
+stepThree = false;
 
 for pass = 1:(timeToRun*60)
 	pause(1);
 	[succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
+	if 0 == mod(pass, 60)
+		disp(['t Minus ' num2str(round(((timeToRun*60)-60)/60)) ' minutes'])
+	end
+	% process event stream
 	for idx = 1:length(eventStringArray)
+		%
+		disp([ 'Last Zone : ' num2str(zoneHistory(zoneEntryIdx)) ' ][ ' eventStringArray(idx)  ])
 		% Oh where, oh where can my dear rat be? Oh where can my dear ratsky beeee? (sing this comment for added fun.)
 		if strcmpi(eventStringArray(idx), 'Zoned Video: Zone0 Entered')
 			zoneHistory(zoneEntryIdx) = 0;
 		elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
 			zoneHistory(zoneEntryIdx) = 1;
+			if ( stepOne == true ) && ( stepTwo == true ) 
+				stepTwo = true;
+			end
 		elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
 			zoneHistory(zoneEntryIdx) = 2;
+			stepOne = true;
 		elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
 			zoneHistory(zoneEntryIdx) = 3;
+			if ( stepOne == true ) && ( stepTwo == true ) 
+				stepTwo = true;
+			end
 		elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
 			zoneHistory(zoneEntryIdx) = 4;
-			ready = true;
+			if stepOne == true
+				stepTwo = true;
+			end
 		elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
 			zoneHistory(zoneEntryIdx) = 5;
 		end
@@ -77,21 +106,26 @@ for pass = 1:(timeToRun*60)
 		%disp(lastSequence)
 		%disp(sum( lastSequence == [ currentZone lastZone ] ))
 		%disp(( sum( lastSequence == [ currentZone lastZone ] ) == length(lastSequence) ))
-		if zoneHistory(zoneEntryIdx) == 0 && ready
-			ready = false;
+		if zoneHistory(zoneEntryIdx) == 0 && stepThree
+			stepOne = false;
+			stepTwo = false;
+			stepThree = false;
 			NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+			pause(.5);
 			NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-			disp('made it rain');
+			disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
 		end
 		% this goes AFTER the reward to make the indexing less obnoxious
 		% If Ratsky entered a zone, increment the zone history index.
 		if strcmpi(eventStringArray(idx),strrep(eventStringArray(idx),'Entered', 'Narf!'))
 			zoneEntryIdx = zoneEntryIdx + 1;
 		end
-		disp(eventStringArray(idx))
+		%disp(eventStringArray(idx))
 	end
 end
 
+save(['makeItRain_zoneHistory_' startTimeString], 'zoneHistory');
+save(['makeItRain_zoneHistoryTimes_' startTimeString], 'zoneHistoryTimes');
 
 disconnectResult = NlxDisconnectFromServer();
 
