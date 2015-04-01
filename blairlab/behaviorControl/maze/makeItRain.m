@@ -3,12 +3,12 @@
 close all
 clear all
 
-	ratName = 'agh';
-	version = 'dual 4.5 four zone';
-	timeToRun = 30; % minutes
-	dispenseInitialReward = false;	% are we going to give an initial reward
+	ratName = 'v4';
+	version = 'dual 4.7 four zone';
+	timeToRun = 70; % minutes
+	dispenseInitialReward = true;	% are we going to give an initial reward
 	readyForTakeoff = true;
-    maxRewards = 60;
+    maxRewards = 300;
     left=false;
     %
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
@@ -286,9 +286,9 @@ clear all
 				eventIdx = eventIdx + 1;
             end
             %
-            if zoneHistoryIdx > 3
-                disp(zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx))
-            end
+%             if zoneHistoryIdx > 3
+%                 disp(zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx))
+%             end
 			%			
 			% Are we in a zone?
 			if strcmpi(eventStringArray(idx),strrep(eventStringArray(idx),'Exited', 'Exit'))
@@ -314,9 +314,9 @@ clear all
 			
             if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
 				lastRewardedSequence = [ 2 0 3 ];
-				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
                 pause(.1);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
 				% log event
                  tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
                  disp(tempStr);
@@ -328,9 +328,9 @@ clear all
 %                disp(zoneHistoryIdx(end-10:end))
             elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
 				lastRewardedSequence = [ 2 0 1 ];
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
                 pause(.1);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
 				% log event
                  tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
                  disp(tempStr);
