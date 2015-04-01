@@ -3,17 +3,17 @@
 close all
 clear all
 
-	ratName = 'v4';
-	version = 'dual 4.5 dual zone';
-	timeToRun = 20; % minutes
+	ratName = 'agh';
+	version = 'dual 4.5 four zone';
+	timeToRun = 30; % minutes
 	dispenseInitialReward = false;	% are we going to give an initial reward
 	readyForTakeoff = true;
-    maxRewards = 80;
+    maxRewards = 60;
     left=false;
     %
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
-	videoTrackerName = 'VT1';	% name of the Video Tracker stream object in neuralynx cheetah
+	videoTrackerName = 'VT0';	% name of the Video Tracker stream object in neuralynx cheetah
     totalRewards = 0;
     lastRewardedSequence = [];
 	% this needs the Neuralynx files in the include path. modify as needed.
@@ -186,10 +186,7 @@ clear all
             beep;
             break;
         end;
-		%
-		% each ~1 second sample the event state
-		%
-		pause(1);
+
 		[succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
 		%
 		% If it is an even minute, provide time remaining in trial
@@ -282,7 +279,11 @@ clear all
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
-			end
+            end
+            %
+            if zoneHistoryIdx > 3
+                disp(zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx))
+            end
 			%			
 			% Are we in a zone?
 			if strcmpi(eventStringArray(idx),strrep(eventStringArray(idx),'Exited', 'Exit'))
@@ -305,86 +306,99 @@ clear all
 			end
    			%
 			% Should sugar pellets rain from the sky?
-			%
-%             if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
-% 				lastRewardedSequence = [ 2 0 3 ];
-% 				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                 pause(.5);
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-% 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
-% 				if mod(pass, 60) == 0
-% 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
-% 				elseif mod(pass, 60) < 10
-% 					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				else
-% 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				end
-% 				% log event
-% 				eventHistory = [eventHistory ; cellstr('made it rain') ];
-% 				eventHistoryTimesNlx(eventIdx) = 0;
-% 				eventHistoryTimesMatlab(eventIdx) = now();
-% 				eventIdx = eventIdx + 1;
-% 				totalRewards = totalRewards + 1;
-%             elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
-% 				lastRewardedSequence = [ 2 0 1 ];
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                 pause(.5);
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-% 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
-% 				if mod(pass, 60) == 0
-% 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
-% 				elseif mod(pass, 60) < 10
-% 					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				else
-% 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				end
-% 				% log event
-% 				eventHistory = [eventHistory ; cellstr('made it rain') ];
-% 				eventHistoryTimesNlx(eventIdx) = 0;
-% 				eventHistoryTimesMatlab(eventIdx) = now();
-% 				eventIdx = eventIdx + 1;
-% 				totalRewards = totalRewards + 1;
-% 			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
+			
+            if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
+				lastRewardedSequence = [ 2 0 3 ];
+				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                pause(.1);
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+				% log event
+                 tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
+                 disp(tempStr);
+                 eventHistory = [eventHistory ; cellstr(tempStr) ];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                totalRewards = totalRewards + 1;
+%                disp(zoneHistoryIdx(end-10:end))
+            elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
+				lastRewardedSequence = [ 2 0 1 ];
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                pause(.1);
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+				% log event
+                 tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
+                 disp(tempStr);
+                 eventHistory = [eventHistory ; cellstr(tempStr) ];
+                eventHistoryTimesNlx(eventIdx) = 0;
+                eventHistoryTimesMatlab(eventIdx) = now();
+                eventIdx = eventIdx + 1;
+                totalRewards = totalRewards + 1;
+% 			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
 % 				alternationError = alternationError + 1;
 % 				disp('Behavior Error! : alternation error.')
 % 				eventHistory = [eventHistory ; cellstr('Alternation Error! : alternation error.') ];
 % 				eventHistoryTimesNlx(eventIdx) = 0;
 % 				eventHistoryTimesMatlab(eventIdx) = now();
 % 				eventIdx = eventIdx + 1;
-%             end
+             end
         end
         %
-        if currentZone == 0 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 4 2 ] )
-            tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
-            disp(tempStr);
-            eventHistory = [eventHistory ; cellstr(tempStr) ];
-    		eventHistoryTimesNlx(eventIdx) = 0;
-			eventHistoryTimesMatlab(eventIdx) = now();
-			eventIdx = eventIdx + 1;
-			totalRewards = totalRewards + 1;
-            if left
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-                pause(.1);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-                left=false;
-            else
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-                pause(.1);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-                left=true;
-            end
-            ready = false;
-            waitForReset = true;
-            rewardDisplayToggle = true;
-        end
-            
-        if (totalRewards > 0) && (0 == mod(totalRewards, 10)) && rewardDisplayToggle
-            disp([ '@ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ' total rewards : ' num2str(totalRewards)]);
-            rewardDisplayToggle = false;
-        elseif totalRewards > maxRewards 
-            beep; beep; beep; beep;
-            disp([ 'total rewards : ' num2str(totalRewards)]);
-        end
+%         if ready
+%             tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
+%             disp(tempStr);
+%             eventHistory = [eventHistory ; cellstr(tempStr) ];
+%     		eventHistoryTimesNlx(eventIdx) = 0;
+% 			eventHistoryTimesMatlab(eventIdx) = now();
+% 			eventIdx = eventIdx + 1;
+% 			totalRewards = totalRewards + 1;
+%             if left
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+%                 pause(.1);
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+%                 left=false;
+%             else
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%                 pause(.1);
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%                 left=true;
+%             end
+%             ready = false;
+%             waitForReset = true;
+%             rewardDisplayToggle = true;
+%         end
+
+%             if ready && ( zoneHistoryIdx > 2 ) && currentZone == 0 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 4 2 ] )
+%                 if left
+%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+%                     pause(.1);
+%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+%                     left=false;
+%                 else
+%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%                     pause(.1);
+%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%                     left=true;
+%                 end
+%                 ready = false;
+%                 waitForReset = true;
+%                 rewardDisplayToggle = true;				% log event
+%                 tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
+%                 disp(tempStr);
+%                 eventHistory = [eventHistory ; cellstr(tempStr) ];
+%                 eventHistoryTimesNlx(eventIdx) = 0;
+%                 eventHistoryTimesMatlab(eventIdx) = now();
+%                 eventIdx = eventIdx + 1;
+%                 totalRewards = totalRewards + 1;
+%             end
+
+%         if (totalRewards > 0) && (0 == mod(totalRewards, 10)) && rewardDisplayToggle
+%             disp([ '@ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ' total rewards : ' num2str(totalRewards)]);
+%             rewardDisplayToggle = false;
+%         elseif totalRewards > maxRewards 
+%             beep; beep; beep; beep;
+%             disp([ 'total rewards : ' num2str(totalRewards)]);
+%         end
 		%
 		%%%% Video Data
 		%
@@ -408,7 +422,7 @@ clear all
 		videoLocations = [ videoLocations extractedLocationArray];
         %calculate the speed of the rat
 
-        if length(videoLocations) > 100;
+        if length(videoLocations) > 99;
             figure(hud);
             % 2-D spatial location calculations for building plots
             txx=extractedLocationArray([1:2:length(extractedLocationArray)]);
@@ -486,9 +500,11 @@ clear all
                 qq=colormap;
                 colormap([1 1 1; qq])
                 imagesc(trans/sum(sum(trans)))
-                colorbar()
+                %colorbar()
                 subplot(4,5,15)
-                imagesc(trans/sum(sum(trans)))
+                %imagesc(trans/sum(sum(trans)))
+                plot(1,totalRewards,'o')
+                axis([ 0 2 0 1.03*maxRewards])
                 %
                 % the nice version of the colormap for occupancy.
                 %
