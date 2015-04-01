@@ -3,11 +3,11 @@
 close all
 clear all
 
-	ratName = 'agh';
+	ratName = 'da1';
 	version = 'dual 4.0 triple zone';
 	timeToRun = 44; % minutes
 	dispenseInitialReward = true;	% are we going to give an initial reward
-	readyForTakeoff = true;
+	readyForTakeoff = false;
     maxRewards = 80;
     %
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
