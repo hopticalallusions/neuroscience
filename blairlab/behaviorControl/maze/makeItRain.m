@@ -1,11 +1,11 @@
 function makeItRain_v2()
 
-	ratName = 'v4';
-	version = '3.1';
+	ratName = 'v1';
+	version = '3.2';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the stream structure in neuralynx cheetah
 	timeToRun = 20 ;% minutes
-	dispenseInitialReward = true;	% are we going to give an initial reward
+	dispenseInitialReward = false;	% are we going to give an initial reward
 	totalRewards = 0;
 	% this needs the Neuralynx files in the include path. modify as needed.
 	path(path, 'C:\Documents and Settings\Dbuono\Desktop\NetComClientDevelopmentPackage_v211\Matlab_M-files');
@@ -15,6 +15,11 @@ function makeItRain_v2()
 	%
 	startTimeString = [datestr(date) '_' num2str(now)];
 
+	if timeToRun > 30
+		disp(['WARNING : Disable this conditional to allow for a long run of ' num2str(timeToRun) ' minutes!!'] )
+		return
+	end
+	
 	disp('Starting makeItRain ...')
 	disp(['version ' version])
 	disp(['rat = ' ratName])
@@ -70,16 +75,14 @@ function makeItRain_v2()
 	% track zone sequences for live error detection
 	% 
 	zoneHistory = -1 * ones(1,10000);
-	zoneHistory(1) = -2 ; % this is such a lazy hack.
 	zoneHistoryTimes = zeros(size(zoneHistory));
-	zoneHistoryIdx = 2; %starts at two because the indexing is silly.
+	zoneHistoryIdx = 1; %starts at two because the indexing is silly.
 	
 
 	%
 	% set up history variables
 	%
 	eventIdx = 1;
-	% eventHistory = [];
 	eventHistoryTimesNlx = -1 * ones(1,10000);
 	eventHistoryTimesMatlab = -1 * ones(1,10000);
 	%
@@ -142,7 +145,7 @@ function makeItRain_v2()
 			%
 			%
 			%
-			disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx-1)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
+			disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
 			%
 			% Oh where, oh where can my dear rat be? Oh where can my dear ratsky beeee? (sing this comment for added fun.)
 			%
@@ -155,13 +158,68 @@ function makeItRain_v2()
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
 				currentZone = 3;
 			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
-				if zoneHistory(zoneHistoryIdx-1) == 2
+				if zoneHistory(zoneHistoryIdx) == 2
 					ready = true;
 				end
 				currentZone = 4;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
 				currentZone = 5;
 			end
+			%
+			%
+						%
+			% online sequence error detector
+			%
+			% this style of detection works because zoneHistory isn't updated until the rat exits a zone.
+			%
+			% TODO -- functionalize event additions
+			%
+			% TODO -- add comments about behavior error sequences.
+			%
+			% TODO -- implement alternation error detection
+			%
+			if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx) == 0
+				% 0 -> ( 3 | 1 ) is a reward exit error
+				rewardExitError = rewardExitError + 1;
+				disp('Behavior Error! : reward zone exit error.')
+				eventHistory = [eventHistory ; 'Behavior Error! : reward zone exit error.' ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+			elseif ( currentZone == 0 ) && zoneHistory(zoneHistoryIdx) == 2
+				centerError = centerError + 1;
+				disp('Behavior Error! : center zone exit error.')
+				eventHistory = [eventHistory ; 'Behavior Error! : center zone exit error.' ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+			elseif (zoneHistory(zoneHistoryIdx) ~= currentZone) && ( currentZone == 3 || currentZone == 1 || currentZone == 2 ) && ( zoneHistory(zoneHistoryIdx) == 2 || zoneHistory(zoneHistoryIdx) == 1 || zoneHistory(zoneHistoryIdx) == 3)
+				% invalid logic before version 3.1
+				% movement from zone 3,2 or 1 to any of those three zones which is not the same zone as the previous requires jumping a gap
+				% the invalid logic existed in the context of entering and exiting the same zone, e.g. 3 -> 3
+				jumpError = jumpError + 1;
+				disp('Behavior Error! : jump error.')
+				eventHistory = [eventHistory ; 'Behavior Error! : jump error.' ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+			elseif currentZone == 2 && zoneHistory(zoneHistoryIdx) == 4
+				choicePointError = choicePointError + 1;
+				disp('Behavior Error! : choice point zone exit error.')
+				eventHistory = [eventHistory ; 'Behavior Error! : choice point zone exit error.' ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+			elseif currentZone == 4 && ( zoneHistory(zoneHistoryIdx) == 1 || zoneHistory(zoneHistoryIdx) == 3 )
+				cornerError = cornerError + 1;
+				disp('Behavior Error! : corner zone exit error.')
+				eventHistory = [eventHistory ; 'Behavior Error! : corner zone exit error.' ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+			end
+			%
+			%			
 			% Are we in a zone?
 			if strcmpi(eventStringArray(idx),strrep(eventStringArray(idx),'Exited', 'Exit'))
 				% we're in a zone
@@ -174,10 +232,10 @@ function makeItRain_v2()
 				% the goal here is to make sequence error detection online simpler by smoothing out
 				% the jumpiness of the zone detection software, and the ability of the rat to stand at the edge
 				% of a zone and move his body in and out
-				%disp(zoneHistory(1:30))
-				if zoneHistory(zoneHistoryIdx-1) ~= currentZone
-					zoneHistory(zoneHistoryIdx) = currentZone;
+				% disp(zoneHistory(1:30))
+				if zoneHistory(zoneHistoryIdx) ~= currentZone
 					zoneHistoryIdx = zoneHistoryIdx + 1;
+					zoneHistory(zoneHistoryIdx) = currentZone;
 				end
 				currentZone = -1;
 			end
@@ -197,58 +255,6 @@ function makeItRain_v2()
 				eventIdx = eventIdx + 1;
 				totalRewards = totalRewards + 1;
 			end
-
-			%
-			% online sequence error detector
-			%
-			% this style of detection works because zoneHistory isn't updated until the rat exits a zone.
-			%
-			% TODO -- functionalize event additions
-			%
-			% TODO -- add comments about behavior error sequences.
-			%
-			% TODO -- implement alternation error detection
-			%
-			if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx-1) == 0
-				% 0 -> ( 3 | 1 ) is a reward exit error
-				rewardExitError = rewardExitError + 1;
-				disp('Behavior Error! : reward zone exit error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : reward zone exit error.' ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-			elseif ( currentZone == 0 ) && zoneHistory(zoneHistoryIdx-1) == 2
-				centerError = centerError + 1;
-				disp('Behavior Error! : center zone exit error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : center zone exit error.' ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-			elseif (zoneHistory(zoneHistoryIdx-1) ~= currentZone) && ( currentZone == 3 || currentZone == 1 || currentZone == 2 ) && ( zoneHistory(zoneHistoryIdx-1) == 2 || zoneHistory(zoneHistoryIdx-1) == 1 || zoneHistory(zoneHistoryIdx-1) == 3)
-				% invalid logic before version 3.1
-				% movement from zone 3,2 or 1 to any of those three zones which is not the same zone as the previous requires jumping a gap
-				% the invalid logic existed in the context of entering and exiting the same zone, e.g. 3 -> 3
-				jumpError = jumpError + 1;
-				disp('Behavior Error! : jump error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : jump error.' ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-			elseif currentZone == 2 && zoneHistory(zoneHistoryIdx-1) == 4
-				choicePointError = choicePointError + 1;
-				disp('Behavior Error! : choice point zone exit error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : choice point zone exit error.' ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-			elseif currentZone == 4 && ( zoneHistory(zoneHistoryIdx-1) == 1 || zoneHistory(zoneHistoryIdx-1) == 3 )
-				cornerError = cornerError + 1;
-				disp('Behavior Error! : corner zone exit error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : corner zone exit error.' ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-			end
 		end
 	end
 
@@ -263,8 +269,8 @@ function makeItRain_v2()
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 	%
-	disp(['stable zone occupacies = ' num2str(length(zoneHistory(1:min(find(zoneHistory==-1))-1)))])
-	eventHistory = [eventHistory ; ['stable zone occupancies = ' num2str(length(zoneHistory(1:min(find(zoneHistory==-1))-1)))]];
+	disp(['stable zone occupacies = ' num2str(zoneHistoryIdx)])
+	eventHistory = [eventHistory ; ['stable zone occupancies = ' num2str(zoneHistoryIdx)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
@@ -309,16 +315,12 @@ function makeItRain_v2()
 	%
 	% store data to disk
 	%
-	% pre-package data
-	%
-	% e.g. zoneHistory(1:min(find(zoneHistory==-1))-1) ; % ineer to outer : find all the -1 (i.e. unused) entries, get the minimum index for -1 values and subselect only the 1:prior to that -1 index.
-	%
 	runSummary.eventHistory = eventHistory;
 	runSummary.eventHistoryTimesNlx = eventHistoryTimesNlx(1:min(find(eventHistoryTimesNlx==-1))-1);
 	runSummary.eventHistoryTimesMatlab = eventHistoryTimesMatlab(1:min(find(eventHistoryTimesMatlab==-1))-1);
-	runSummary.zoneHistory = zoneHistory(1:min(find(zoneHistory==-1))-1);
+	runSummary.zoneHistory = zoneHistory(1:zoneHistoryIdx);
 	runSummary.totalRewards = totalRewards;
-	runSummary.stableZoneEntries = length(zoneHistory(1:min(find(zoneHistory==-1))-1));
+	runSummary.stableZoneEntries = zoneHistoryIdx;
 	runSummary.rewardExitError = rewardExitError;
 	runSummary.centerError = centerError;
 	runSummary.jumpError = jumpError;
