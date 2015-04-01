@@ -153,11 +153,16 @@ clear all
 	if dispenseInitialReward
 		%pause(10);
 		disp('Dispensing an initial reward...')
-		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+		%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+        %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
+        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
         pause(.5);
-		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+		%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+        %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High'); % master 8 port 1
+        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 0 6 High'); % master 8 port 2
+
     end
     %
     %
