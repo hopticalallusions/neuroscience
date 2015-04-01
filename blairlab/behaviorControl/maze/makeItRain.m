@@ -4,7 +4,7 @@ close all
 clear all
 
 	ratName = 'da3';
-	version = 'dual 4.2 single zone';
+	version = 'dual 4.3 single zone';
 	timeToRun = 20; % minutes
 	dispenseInitialReward = false;	% are we going to give an initial reward
 	readyForTakeoff = false;
@@ -306,52 +306,52 @@ clear all
    			%
 			% Should sugar pellets rain from the sky?
 			%
-%             if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
-% 				lastRewardedSequence = [ 2 0 3 ];
-% 				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                 pause(.5);
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-% 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
-% 				if mod(pass, 60) == 0
-% 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
-% 				elseif mod(pass, 60) < 10
-% 					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				else
-% 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				end
-% 				% log event
-% 				eventHistory = [eventHistory ; cellstr('made it rain') ];
-% 				eventHistoryTimesNlx(eventIdx) = 0;
-% 				eventHistoryTimesMatlab(eventIdx) = now();
-% 				eventIdx = eventIdx + 1;
-% 				totalRewards = totalRewards + 1;
-%             elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
-% 				lastRewardedSequence = [ 2 0 1 ];
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                 pause(.5);
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-% 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
-% 				if mod(pass, 60) == 0
-% 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
-% 				elseif mod(pass, 60) < 10
-% 					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				else
-% 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				end
-% 				% log event
-% 				eventHistory = [eventHistory ; cellstr('made it rain') ];
-% 				eventHistoryTimesNlx(eventIdx) = 0;
-% 				eventHistoryTimesMatlab(eventIdx) = now();
-% 				eventIdx = eventIdx + 1;
-% 				totalRewards = totalRewards + 1;
-% 			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
-% 				alternationError = alternationError + 1;
-% 				disp('Behavior Error! : alternation error.')
-% 				eventHistory = [eventHistory ; cellstr('Alternation Error! : alternation error.') ];
-% 				eventHistoryTimesNlx(eventIdx) = 0;
-% 				eventHistoryTimesMatlab(eventIdx) = now();
-% 				eventIdx = eventIdx + 1;
-%             end
+            if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
+				lastRewardedSequence = [ 2 0 3 ];
+				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                pause(.5);
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
+				if mod(pass, 60) == 0
+					disp([num2str(round(pass/60)) ':00 -- made it rain']);
+				elseif mod(pass, 60) < 10
+					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
+				else
+					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
+				end
+				% log event
+				eventHistory = [eventHistory ; cellstr('made it rain') ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+				totalRewards = totalRewards + 1;
+            elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
+				lastRewardedSequence = [ 2 0 1 ];
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                pause(.5);
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
+				if mod(pass, 60) == 0
+					disp([num2str(round(pass/60)) ':00 -- made it rain']);
+				elseif mod(pass, 60) < 10
+					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
+				else
+					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
+				end
+				% log event
+				eventHistory = [eventHistory ; cellstr('made it rain') ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+				totalRewards = totalRewards + 1;
+			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
+				alternationError = alternationError + 1;
+				disp('Behavior Error! : alternation error.')
+				eventHistory = [eventHistory ; cellstr('Alternation Error! : alternation error.') ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+            end
         end
         %
         if ready
