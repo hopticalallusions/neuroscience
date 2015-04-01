@@ -3,11 +3,11 @@
 close all
 clear all
 
-	ratName = 'da3';
+	ratName = 'v4';
 	version = 'dual 4.3 single zone';
 	timeToRun = 20; % minutes
 	dispenseInitialReward = false;	% are we going to give an initial reward
-	readyForTakeoff = false;
+	readyForTakeoff = true;
     maxRewards = 80;
     left=false;
     %
@@ -306,77 +306,77 @@ clear all
    			%
 			% Should sugar pellets rain from the sky?
 			%
-            if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
-				lastRewardedSequence = [ 2 0 3 ];
-				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-                pause(.5);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
-				if mod(pass, 60) == 0
-					disp([num2str(round(pass/60)) ':00 -- made it rain']);
-				elseif mod(pass, 60) < 10
-					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
-				else
-					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
-				end
-				% log event
-				eventHistory = [eventHistory ; cellstr('made it rain') ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-				totalRewards = totalRewards + 1;
-            elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
-				lastRewardedSequence = [ 2 0 1 ];
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-                pause(.5);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
-				if mod(pass, 60) == 0
-					disp([num2str(round(pass/60)) ':00 -- made it rain']);
-				elseif mod(pass, 60) < 10
-					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
-				else
-					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
-				end
-				% log event
-				eventHistory = [eventHistory ; cellstr('made it rain') ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-				totalRewards = totalRewards + 1;
-			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
-				alternationError = alternationError + 1;
-				disp('Behavior Error! : alternation error.')
-				eventHistory = [eventHistory ; cellstr('Alternation Error! : alternation error.') ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-            end
+%             if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
+% 				lastRewardedSequence = [ 2 0 3 ];
+% 				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+%                 pause(.5);
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+% 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
+% 				if mod(pass, 60) == 0
+% 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
+% 				elseif mod(pass, 60) < 10
+% 					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
+% 				else
+% 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
+% 				end
+% 				% log event
+% 				eventHistory = [eventHistory ; cellstr('made it rain') ];
+% 				eventHistoryTimesNlx(eventIdx) = 0;
+% 				eventHistoryTimesMatlab(eventIdx) = now();
+% 				eventIdx = eventIdx + 1;
+% 				totalRewards = totalRewards + 1;
+%             elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 1 ] )
+% 				lastRewardedSequence = [ 2 0 1 ];
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+%                 pause(.5);
+%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+% 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
+% 				if mod(pass, 60) == 0
+% 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
+% 				elseif mod(pass, 60) < 10
+% 					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
+% 				else
+% 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
+% 				end
+% 				% log event
+% 				eventHistory = [eventHistory ; cellstr('made it rain') ];
+% 				eventHistoryTimesNlx(eventIdx) = 0;
+% 				eventHistoryTimesMatlab(eventIdx) = now();
+% 				eventIdx = eventIdx + 1;
+% 				totalRewards = totalRewards + 1;
+% 			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 0 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
+% 				alternationError = alternationError + 1;
+% 				disp('Behavior Error! : alternation error.')
+% 				eventHistory = [eventHistory ; cellstr('Alternation Error! : alternation error.') ];
+% 				eventHistoryTimesNlx(eventIdx) = 0;
+% 				eventHistoryTimesMatlab(eventIdx) = now();
+% 				eventIdx = eventIdx + 1;
+%             end
         end
         %
-%         if ready
-%             tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
-%             disp(tempStr);
-%             eventHistory = [eventHistory ; cellstr(tempStr) ];
-%     		eventHistoryTimesNlx(eventIdx) = 0;
-% 			eventHistoryTimesMatlab(eventIdx) = now();
-% 			eventIdx = eventIdx + 1;
-% 			totalRewards = totalRewards + 1;
-%             if left
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                 pause(.1);
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                 left=false;
-%             else
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                 pause(.1);
-%                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                 left=true;
-%             end
-%             ready = false;
-%             waitForReset = true;
-%             rewardDisplayToggle = true;
-%         end
+        if ready
+            tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ];
+            disp(tempStr);
+            eventHistory = [eventHistory ; cellstr(tempStr) ];
+    		eventHistoryTimesNlx(eventIdx) = 0;
+			eventHistoryTimesMatlab(eventIdx) = now();
+			eventIdx = eventIdx + 1;
+			totalRewards = totalRewards + 1;
+            if left
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                pause(.1);
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                left=false;
+            else
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                pause(.1);
+                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                left=true;
+            end
+            ready = false;
+            waitForReset = true;
+            rewardDisplayToggle = true;
+        end
             
         if (totalRewards > 0) && (0 == mod(totalRewards, 10)) && rewardDisplayToggle
             disp([ '@ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ' total rewards : ' num2str(totalRewards)]);
@@ -416,34 +416,37 @@ clear all
             xx = [ xx, txx ];
             yy = [ yy, tyy ];
             % plot linear velocity
-            tdx=sqrt(cast(((txx(2:length(txx))-txx(1:length(txx)-1))^2+(tyy(2:length(tyy))-tyy(1:length(tyy)-1))^2), 'double'));
-            % zero out big jumps
-            % 30 is a magic number; I think I got it by looking at a histogram.
-            tdx(find((tdx>30)))=0;
-            dx=[dx, tdx];
-            subplot(4,5,3:5)
-            lookback=1000;
-            if length(dx) > lookback+3
-                plot(dx(end-lookback:end),'g')
-                axis([ -10 1.03*(lookback)  -5 1.03*max(dx) ]);
-            else
-                plot(dx, 'g')
-                axis([ 0 1.03*length(dx)  -1 1.03*max(dx) ]);
-            end
-            % plot linear acceleration
-            tddx=tdx(2:length(tdx))-tdx(1:length(tdx)-1);
-            ddx=[ddx, tddx];
-            subplot(4,5,8:10)
-            if length(ddx) > lookback+3
-                plot(ddx(end-lookback:end), 'r');
-                if min(ddx) == max(ddx)
-                    axis([ -10 lookback  -1 1 ]);
+            if ( ttx == [] ) || ( tyy == [] )
+                % TODO empty txx and or tyy cause problems
+                tdx=sqrt(cast(((txx(2:length(txx))-txx(1:length(txx)-1))^2+(tyy(2:length(tyy))-tyy(1:length(tyy)-1))^2), 'double'));
+                % zero out big jumps
+                % 30 is a magic number; I think I got it by looking at a histogram.
+                tdx(find((tdx>30)))=0;
+                dx=[dx, tdx];
+                subplot(4,5,3:5)
+                lookback=1000;
+                if length(dx) > lookback+3
+                    plot(dx(end-lookback:end),'g')
+                    axis([ -10 1.03*(lookback)  -5 1.03*max(dx) ]);
                 else
-                    axis([ -10 lookback  min(ddx) 1.03*max(ddx) ]);
+                    plot(dx, 'g')
+                    axis([ 0 1.03*length(dx)  -1 1.03*max(dx) ]);
                 end
-            else
-                plot(ddx, 'r');
-                %axis([ 0 1.03*length(ddx)  min(ddx) 1.03*max(ddx) ]);
+                % plot linear acceleration
+                tddx=tdx(2:length(tdx))-tdx(1:length(tdx)-1);
+                ddx=[ddx, tddx];
+                subplot(4,5,8:10)
+                if length(ddx) > lookback+3
+                    plot(ddx(end-lookback:end), 'r');
+                    if min(ddx) == max(ddx)
+                        axis([ -10 lookback  -1 1 ]);
+                    else
+                        axis([ -10 lookback  min(ddx) 1.03*max(ddx) ]);
+                    end
+                else
+                    plot(ddx, 'r');
+                    %axis([ 0 1.03*length(ddx)  min(ddx) 1.03*max(ddx) ]);
+                end
             end
             %
             % plot all locations occupied and then the last 512 locations occupied with
