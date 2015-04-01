@@ -1,17 +1,15 @@
 function makeItRain_v2()
-% LEFTY 
-% LEFTY
-% LEFTY 
-	ratName = 'v1';
-	version = 'dual 3.1 lefty';
+
+	ratName = 'agh';
+	version = '5.3';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
 	videoTrackerName = 'VT1';	% name of the Video Tracker stream object in neuralynx cheetah
-	timeToRun = 10 ; % minutes
+	timeToRun = 5; % minutes
 	dispenseInitialReward = false;	% are we going to give an initial reward
 	totalRewards = 0;
-    lastRewardedSequence = [];
-	% this needs the Neuralynx files in the include path. modify as needed.
+    consequtiveIdenticalCoordinatesThreshold = 40;
+    %
     savePath = 'C:\Documents and Settings\Administrator\My Documents\ahowe\data\rhombus-maze\'
     %
     maximumTime = 300; %minutes
@@ -28,9 +26,11 @@ function makeItRain_v2()
 	
 	disp('Starting makeItRain ...')
 	disp(['version ' version])
+	disp('This version alternates!!!')
 	disp(['rat = ' ratName])
 	% turn on OS warning sound
 	beep on;
+
 	
 	%%%% connect to Neuralynx
 	%
@@ -45,6 +45,7 @@ function makeItRain_v2()
 			disp(['Successful connection to ' serverName])
 		end
 	end
+
 
 	%%%% open streams
 	%
@@ -70,6 +71,17 @@ function makeItRain_v2()
 	%
 	%%%%
 
+	
+	%
+	% make an initial attractive reward
+	%
+	if dispenseInitialReward
+		disp('Dispensing an initial reward...')
+		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+		pause(1);
+		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+	end
+	
 	% set up some state variables
 	inAZone = false;
 	currentZone = -1;
@@ -108,19 +120,23 @@ function makeItRain_v2()
 	jumpError = 0;
 	choicePointError = 0;
 	cornerError = 0;
-    alternationError = 0;
+	alternationError = 0;
+	
+	% alternations
+	lastRewardedSequence = [];
+	% if 
 	
     %
     % holding pattern
     %
-    readyForTakeoff = true;
+    readyForTakeoff = false;
     for waitingCounter = 1:(maximumTime*60)
    		pause(1);
 		[succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
 		% process event stream
 		for idx = 1:length(eventStringArray)
             if strcmpi(eventStringArray(idx), 'Zoned Video: Zone6 Entered')
-                readyForTakeoff = true
+                readyForTakeoff = true;
 				break;
             end
         end
@@ -131,35 +147,23 @@ function makeItRain_v2()
     end
     %
     disp('Trial has gone live!')
-	eventHistory = [eventHistory ; cellstr('Trial has gone live!') ];
+	%eventHistory = [eventHistory ; cellstr('Trial has gone live!') ];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
-    %
-  	%
-	% make an initial attractive reward
 	%
-	if dispenseInitialReward
-		%pause(10);
-		disp('Dispensing an initial reward...')
-		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-        pause(.5);
-		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-    end
-    %
-    beep; beep; pause(2); beep;
-    %
 	% main loop
 	%
     trialOver = false;
 	for pass = 1:(maximumTime*60)
         if trialOver
             disp('Ending trial!!');
-            beep;
-            beep;
+            %eventHistory = [eventHistory ; 'Ending Trial!!' ];
+            eventHistoryTimesNlx(eventIdx) = 0;
+            eventHistoryTimesMatlab(eventIdx) = now();
+            eventIdx = eventIdx + 1;
             break;
-        end;
-		%
+        end;		%
 		% each ~1 second sample the event state
 		%
 		pause(1);
@@ -170,7 +174,7 @@ function makeItRain_v2()
 		if 0 == mod(pass, 60)
 			disp(['T-Minus ' num2str(round(((timeToRun*60)-pass)/60)) ' minutes until lift off'])
 			% get it? get it? we pick the rat up off the maze... (groan)
-			if ( round(((timeToRun*60)-pass)/60) == 1 ) || ( round(((timeToRun*60)-pass)/60) < -9 )
+			if round(((timeToRun*60)-pass)/60) < 3
                 beep
 				disp('!!!!')
 				disp('!!!!')
@@ -184,9 +188,9 @@ function makeItRain_v2()
 		% detect if any event records are dropped.
 		%
 		if numRecordsDropped > 0
-			droppedEventRecords = droppedEventRecords + 1;
+			droppedEventRecords = droppedEventRecords + numRecordsDropped;
 			disp(['System Error! : ' num2str(numRecordsDropped) ' event records dropped'])
-			eventHistory = [eventHistory ; cellstr([num2str(numRecordsDropped) ' event records dropped!']) ];
+			%eventHistory = [eventHistory ; [num2str(numRecordsDropped) ' event records dropped!'] ];
 			eventHistoryTimesNlx(eventIdx) = 0;
 			eventHistoryTimesMatlab(eventIdx) = now();
 			eventIdx = eventIdx + 1;
@@ -204,14 +208,14 @@ function makeItRain_v2()
 			eventIdx = eventIdx + 1;
 			%
 			%
-			%
-			%disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
+			%            %
+			disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ' char(eventStringArray(idx))]) 
 			%
 			% Oh where, oh where can my dear rat be? Oh where can my dear ratsky beeee? (sing this comment for added fun.)
 			%
 			if strcmpi(eventStringArray(idx), 'Zoned Video: Zone0 Entered')
 				currentZone = 0;
-            elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
+			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
 				currentZone = 1;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
 				currentZone = 2;
@@ -226,12 +230,10 @@ function makeItRain_v2()
 				currentZone = 6;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone7 Entered')
 				currentZone = 7;
-			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone8 Entered')
-				currentZone = 8;
 			end
 			%
 			%
-						%
+			%
 			% online sequence error detector
 			%
 			% this style of detection works because zoneHistory isn't updated until the rat exits a zone.
@@ -240,19 +242,18 @@ function makeItRain_v2()
 			%
 			% TODO -- add comments about behavior error sequences.
 			%
-			%
 			if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx) == 0
 				% 0 -> ( 3 | 1 ) is a reward exit error
 				rewardExitError = rewardExitError + 1;
 				disp('Behavior Error! : reward zone exit error.')
-				eventHistory = [eventHistory ; cellstr('Behavior Error! : reward zone exit error.') ];
+				%eventHistory = [eventHistory ; 'Behavior Error! : reward zone exit error.' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
 			elseif ( currentZone == 0 ) && zoneHistory(zoneHistoryIdx) == 2
 				centerError = centerError + 1;
 				disp('Behavior Error! : center zone exit error.')
-				eventHistory = [eventHistory ; cellstr('Behavior Error! : center zone exit error.') ];
+				%eventHistory = [eventHistory; 'Behavior Error! : center zone exit error.' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
@@ -262,11 +263,26 @@ function makeItRain_v2()
 				% the invalid logic existed in the context of entering and exiting the same zone, e.g. 3 -> 3
 				jumpError = jumpError + 1;
 				disp('Behavior Error! : jump error.')
-				eventHistory = [eventHistory ; cellstr('Behavior Error! : jump error.') ];
+				%eventHistory = [eventHistory; 'Behavior Error! : jump error.' ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+			elseif currentZone == 2 && zoneHistory(zoneHistoryIdx) == 4
+				choicePointError = choicePointError + 1;
+				disp('Behavior Error! : choice point zone exit error.')
+				%eventHistory = [eventHistory ; 'Behavior Error! : choice point zone exit error.' ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+			elseif currentZone == 4 && ( zoneHistory(zoneHistoryIdx) == 1 || zoneHistory(zoneHistoryIdx) == 3 )
+				cornerError = cornerError + 1;
+				disp('Behavior Error! : corner zone exit error.')
+				%eventHistory = [eventHistory; 'Behavior Error! : corner zone exit error.' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
 			end
+			
 			%
 			%			
 			% Are we in a zone?
@@ -285,26 +301,20 @@ function makeItRain_v2()
 				if zoneHistory(zoneHistoryIdx) ~= currentZone
 					zoneHistoryIdx = zoneHistoryIdx + 1;
 					zoneHistory(zoneHistoryIdx) = currentZone;
-                    disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
 				end
 				currentZone = -1;
 			end
-            %
-            % debug
-            %if (zoneHistoryIdx > 2 )
-            %    disp(lastRewardedSequence)
-            %    disp(zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx))
-            %end
-   			%
+			%
 			% Should sugar pellets rain from the sky?
 			%
-            if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 4 ] ) && ~ isequal(lastRewardedSequence, [ 2 4 3 ] )
-				lastRewardedSequence = [ 2 4 3 ];
+			% TODO : this isn't going to work properly, but it's a test.
+			% mainly it's lacking alternation
+			
+			if ( zoneHistoryIdx > 2 ) && currentZone == 0 && ( isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 2 4 3 ] ) || isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 2 4 1 ] ) ) && ~ isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
+				lastRewardedSequence = zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx);
 				disp('lastRewardedSequence : ')
 				disp(lastRewardedSequence);
 				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-                pause(.5);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
 				if mod(pass, 60) == 0
 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
@@ -319,71 +329,15 @@ function makeItRain_v2()
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
 				totalRewards = totalRewards + 1;
-            elseif ( zoneHistoryIdx > 2 ) && currentZone == 1 && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 4 ] ) && ~ isequal(lastRewardedSequence, [ 2 4 1 ] )
-				lastRewardedSequence = [ 2 4 1 ];
-				disp('lastRewardedSequence : ')
-				disp(lastRewardedSequence);
-				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-                pause(.5);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
-				if mod(pass, 60) == 0
-					disp([num2str(round(pass/60)) ':00 -- made it rain']);
-				elseif mod(pass, 60) < 10
-					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
-				else
-					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
-				end
-				% log event
-				eventHistory = [eventHistory; 'made it rain' ];
-				eventHistoryTimesNlx(eventIdx) = 0;
-				eventHistoryTimesMatlab(eventIdx) = now();
-				eventIdx = eventIdx + 1;
-				totalRewards = totalRewards + 1;
-			elseif ( zoneHistoryIdx > 2 ) && ( currentZone == 1 || currentZone == 3 ) && isequal( zoneHistory(zoneHistoryIdx-1:zoneHistoryIdx), [ 2 4 ] ) && ~isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
+			elseif ( zoneHistoryIdx > 2 ) && currentZone == 0 && ( isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 2 4 3 ] ) || isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 2 4 1 ] ) ) && isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
 				alternationError = alternationError + 1;
 				disp('Behavior Error! : alternation error.')
-				eventHistory = [eventHistory; cellstr('Alternation Error! : alternation error.') ];
+				%eventHistory = [eventHistory; 'Alternation Error! : alternation error.' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
-            end
-            %
-            %
-%             if  ready
-% 				ready = false;
-%                 if left
-%     				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                     pause(.5);
-%        				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                     disp('LEFT (0)');
-%                     left = false;
-%                 else
-%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                     pause(.5);
-%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                     disp('RIGHT (2)');
-%                     left = true;
-%                 end;
-% 				if mod(pass, 60) == 0
-% 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
-% 				elseif mod(pass, 60) < 10
-% 					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				else
-% 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				end
-% 				% log event
-% 				eventHistory = [eventHistory ; 'made it rain' ];
-% 				eventHistoryTimesNlx(eventIdx) = 0;
-% 				eventHistoryTimesMatlab(eventIdx) = now();
-% 				eventIdx = eventIdx + 1;
-% 				totalRewards = totalRewards + 1;
-% 			end
-        end
-        if totalRewards > 75 
-            beep; beep; beep; beep;
-            disp([ 'total rewards : ' num2str(totalRewards)]);
-        end
+			end
+		end
 		%
 		%%%% Video Data
 		%
@@ -396,115 +350,135 @@ function makeItRain_v2()
 		% detect if any video records are dropped.
 		%
 		if numRecordsDropped > 0
-			droppedVideoRecords = droppedVideoRecords + 1;
+			droppedVideoRecords = droppedVideoRecords + numRecordsDropped;
 			disp(['System Error! : ' num2str(numRecordsDropped) ' video records dropped'])
-			eventHistory = [eventHistory ; cellstr([num2str(numRecordsDropped) ' video records dropped!']) ];
+			%eventHistory = [eventHistory ; [num2str(numRecordsDropped) ' video records dropped!'] ];
 			eventHistoryTimesNlx(eventIdx) = 0;
 			eventHistoryTimesMatlab(eventIdx) = now();
 			eventIdx = eventIdx + 1;
 		end
 		videoTimeStamps = [ videoTimeStamps timeStampArray];
 		videoLocations = [ videoLocations extractedLocationArray];
+        %
+        %
+        % cool idea, doesn't work. :(
+        %
+%         consequtiveIdenticalCoordinates = 0;
+%         for idx = length(videoLocations)-consequtiveIdenticalCoordinatesThreshold-2:2:length(videoLocations)-1
+%             if ( idx >2 ) && ( videoLocations(idx-2) == videoLocations(idx) ) && (videoLocations(idx-1) == videoLocations(idx+1) ) 
+%                 consequtiveIdenticalCoordinates = consequtiveIdenticalCoordinates + 1
+%             end
+%             if consequtiveIdenticalCoordinates > consequtiveIdenticalCoordinatesThreshold
+%                 beep;pause(.5);beep;pause(.5);beep;pause(.5);beep;pause(.5);
+%                 disp('Check rat!!');
+%                 disp('Check rat!');
+%                 disp('The harness may have been lost!')
+%                 eventHistory = [eventHistory ; 'Check rat error thrown : The harness may have been lost based on lack of x-y corrdinate motion.'];
+%                 eventHistoryTimesNlx(eventIdx) = 0;
+%                 eventHistoryTimesMatlab(eventIdx) = now();
+%                 eventIdx = eventIdx + 1;
+%                 break
+%             end
+%         end
+        %
+	end
 
-    end
+	%
+	% terminate event history
+	%
+	disp('-----------------------')
+	%
+	disp(['total rewards = ' num2str(totalRewards)])
+	%eventHistory = [eventHistory; ['total rewards = ' num2str(totalRewards)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%
+	disp(['stable zone occupacies = ' num2str(zoneHistoryIdx)])
+	%eventHistory = [eventHistory; ['stable zone occupancies = ' num2str(zoneHistoryIdx)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%
+	disp(['reward exit errors = ' num2str(rewardExitError)])
+	%eventHistory = [eventHistory; ['rewardExitError = ' num2str(rewardExitError)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%
+	disp(['center errors = ' num2str(centerError)])
+	%eventHistory = [eventHistory; ['centerError = ' num2str(centerError)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%	
+	disp(['jump errors = ' num2str(jumpError)])
+	%eventHistory = [eventHistory; ['jumpError = ' num2str(jumpError)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%	
+	disp(['choice point error = ' num2str(choicePointError)])
+	%eventHistory = [eventHistory; ['choice Point Error = ' num2str(choicePointError)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%	
+	disp(['corner errors = ' num2str(cornerError)])
+	%eventHistory = [eventHistory; ['corner Error = ' num2str(cornerError)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%
+	disp('-----------------------')
+	%	
+	disp(['dropped events = ' num2str(droppedEventRecords)])
+	%eventHistory = [eventHistory; ['dropped events = ' num2str(droppedEventRecords)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%	
+	disp(['dropped video records = ' num2str(droppedVideoRecords)])
+	%eventHistory = [eventHistory; ['dropped video records = ' num2str(droppedVideoRecords)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%
+	disp('-----------------------')
+	%
+	%eventHistory = [eventHistory; 'end of trial' ];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%
+	disp('-----------------------')
+	
+	%
+	% store data to disk
+	%
+	runSummary.eventHistory = eventHistory;
+	runSummary.eventHistoryTimesNlx = eventHistoryTimesNlx(1:min(find(eventHistoryTimesNlx==-1))-1);
+	runSummary.eventHistoryTimesMatlab = eventHistoryTimesMatlab(1:min(find(eventHistoryTimesMatlab==-1))-1);
+	runSummary.zoneHistory = zoneHistory(1:zoneHistoryIdx);
+	runSummary.totalRewards = totalRewards;
+	runSummary.stableZoneEntries = zoneHistoryIdx;
+	runSummary.rewardExitError = rewardExitError;
+	runSummary.centerError = centerError;
+	runSummary.jumpError = jumpError;
+	runSummary.choicePointError = choicePointError;
+	runSummary.cornerError = cornerError;
+	runSummary.version = version;
+	runSummary.droppedEventRecords = droppedEventRecords;
+	runSummary.droppedVideoRecords = droppedVideoRecords;
+	runSummary.videoTimeStamps = videoTimeStamps;
+	runSummary.videoLocations = videoLocations;
+	runSummary.ratName = ratName;
+	
+	save(['makeItRain_' ratName '_' startTimeString '.mat'], 'runSummary');
+	
+	disconnectResult = NlxDisconnectFromServer();
+	
+	disp('makeItRain finished')
+	beep
 
-    % terminate event history
-    %
-    disp('-----------------------')
-    %
-    disp(['total rewards = ' num2str(totalRewards)])
-    eventHistory = [eventHistory ; cellstr(['total rewards = ' num2str(totalRewards)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp(['stable zone occupacies = ' num2str(zoneHistoryIdx)])
-    eventHistory = [eventHistory ; cellstr(['stable zone occupancies = ' num2str(zoneHistoryIdx)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp(['reward exit errors = ' num2str(rewardExitError)])
-    eventHistory = [eventHistory ; cellstr(['rewardExitError = ' num2str(rewardExitError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp(['center errors = ' num2str(centerError)])
-    eventHistory = [eventHistory ; cellstr(['centerError = ' num2str(centerError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %	
-    disp(['jump errors = ' num2str(jumpError)])
-    eventHistory = [eventHistory ; cellstr(['jumpError = ' num2str(jumpError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %	
-    disp(['choice point error = ' num2str(choicePointError)])
-    eventHistory = [eventHistory ; cellstr(['choice Point Error = ' num2str(choicePointError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %	
-    disp(['corner errors = ' num2str(cornerError)])
-    eventHistory = [eventHistory ; cellstr(['corner Error = ' num2str(cornerError)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp('-----------------------')
-    %	
-    disp(['dropped events = ' num2str(droppedEventRecords)])
-    eventHistory = [eventHistory ; cellstr(['dropped events = ' num2str(droppedEventRecords)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %	
-    disp(['dropped video records = ' num2str(droppedVideoRecords)])
-    eventHistory = [eventHistory ; cellstr(['dropped video records = ' num2str(droppedVideoRecords)])];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp('-----------------------')
-    %
-    eventHistory = [eventHistory ; cellstr('end of trial') ];
-    eventHistoryTimesNlx(eventIdx) = 0;
-    eventHistoryTimesMatlab(eventIdx) = now();
-    eventIdx = eventIdx + 1;
-    %
-    disp('-----------------------')
-
-    %
-    % store data to disk
-    %
-    runSummary.eventHistory = eventHistory;
-    runSummary.eventHistoryTimesNlx = eventHistoryTimesNlx(1:min(find(eventHistoryTimesNlx==-1))-1);
-    runSummary.eventHistoryTimesMatlab = eventHistoryTimesMatlab(1:min(find(eventHistoryTimesMatlab==-1))-1);
-    runSummary.zoneHistory = zoneHistory(1:zoneHistoryIdx);
-    runSummary.totalRewards = totalRewards;
-    runSummary.stableZoneEntries = zoneHistoryIdx;
-    runSummary.rewardExitError = rewardExitError;
-    runSummary.centerError = centerError;
-    runSummary.jumpError = jumpError;
-    runSummary.choicePointError = choicePointError;
-    runSummary.cornerError = cornerError;
-    runSummary.version = version;
-    runSummary.droppedEventRecords = droppedEventRecords;
-    runSummary.droppedVideoRecords = droppedVideoRecords;
-    runSummary.videoTimeStamps = videoTimeStamps;
-    runSummary.videoLocations = videoLocations;
-    runSummary.ratName = ratName;
-    %
-    %
-    save([savePath 'makeItRain_' ratName '_' startTimeString '.mat'], 'runSummary');
-    %
-    disconnectResult = NlxDisconnectFromServer();
-    %
-    disp('makeItRain finished')
-    beep
-    return
-    
 end
