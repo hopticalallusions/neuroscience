@@ -1,6 +1,6 @@
 function makeItRain_v2()
 
-	ratName = 'v1';
+	ratName = 'v3';
 	version = 'dual 2.1';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
