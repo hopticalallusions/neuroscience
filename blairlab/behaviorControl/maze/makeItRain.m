@@ -3,13 +3,13 @@
 close all
 clear all
 
-	ratName = 'v4';
-	version = 'dual 4.0 single zone';
-	timeToRun = 44; % minutes
+	ratName = 'da3';
+	version = 'dual 4.2 single zone';
+	timeToRun = 20; % minutes
 	dispenseInitialReward = false;	% are we going to give an initial reward
-	readyForTakeoff = true;
+	readyForTakeoff = false;
     maxRewards = 80;
-    left=false
+    left=false;
     %
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
@@ -159,6 +159,19 @@ clear all
         NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
     end
     %
+    %
+    %
+    % graphics stuff
+    lookback=512;
+    % TODO  ugh. please fix this ugliness (see below) soon TODO
+    greyVector=fliplr(0:1/(lookback+1):1);
+    greyArray=[greyVector;greyVector;greyVector];
+    xx = [];
+    yy = [];
+    dx = [];
+    ddx = [];
+    %
+    %
     beep; beep; pause(2); beep;
     %
 	% main loop
@@ -181,10 +194,10 @@ clear all
 		% If it is an even minute, provide time remaining in trial
 		%
         tocNow = toc;
-        if 0 == mod( tocNow, 60 )
+        if 0 == mod((maximumTime*60)-tocNow, 60 )
             %datestr(aa/(24*60*60),formatOut) % this is to format seconds
-            %into fractions of a day...
-			disp(['T-Minus ' datestr(tocNow/(24*60*60),formatOut) ' minutes until lift off'])
+            %into fractions of a day...  'HH:MM:SS'
+			disp(['T-Minus ' datestr((maximumTime*60)-tocNow/(24*60*60),'MM') ' minutes until lift off'])
 		end
 		%
 		% detect if any event records are dropped.
@@ -340,24 +353,30 @@ clear all
         %
         if ready
             totalRewards = totalRewards + 1;
-            disp('pellet awarded!')
+            tempStr = ['pellet awarded @ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ]
+            disp(tempStr);
+            eventHistory = [eventHistory ; cellstr(tempStr) ];
+    		eventHistoryTimesNlx(eventIdx) = 0;
+			eventHistoryTimesMatlab(eventIdx) = now();
+			eventIdx = eventIdx + 1;
+			totalRewards = totalRewards + 1;
             if left
                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-                pause(.5);
+                pause(.1);
                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
                 left=false;
             else
                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-                pause(.5);
+                pause(.1);
                 NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
                 left=true;
             end
             ready = false;
         end
             
-        
-        
-        if totalRewards > maxRewards 
+        if (totalRewards > 0) && (0 == mod(totalRewards, 10))
+            disp([ '@ '  datestr(tocNow/(24*60*60),'HH:MM:SS.FFF') ' total rewards : ' num2str(totalRewards)]);
+        elseif totalRewards > maxRewards 
             beep; beep; beep; beep;
             disp([ 'total rewards : ' num2str(totalRewards)]);
         end
@@ -383,20 +402,20 @@ clear all
 		videoTimeStamps = [ videoTimeStamps timeStampArray];
 		videoLocations = [ videoLocations extractedLocationArray];
         %calculate the speed of the rat
-        xx
-        yy
-        dx
-        ddx
+
         if length(videoLocations) > 100;
             figure(hud);
             % 2-D spatial location calculations for building plots
-            xx=videoLocations([1:2:length(videoLocations)]);
-            yy=videoLocations([2:2:length(videoLocations)]);
+            txx=extractedLocationArray([1:2:length(extractedLocationArray)]);
+            tyy=extractedLocationArray([2:2:length(extractedLocationArray)]);
+            xx = [ xx, txx ];
+            yy = [ yy, tyy ];
             % plot linear velocity
-            dx=sqrt(cast(((xx(2:length(xx))-xx(1:length(xx)-1))^2+(yy(2:length(yy))-yy(1:length(yy)-1))^2), 'double'));
+            tdx=sqrt(cast(((txx(2:length(txx))-txx(1:length(txx)-1))^2+(tyy(2:length(tyy))-tyy(1:length(tyy)-1))^2), 'double'));
             % zero out big jumps
             % 30 is a magic number; I think I got it by looking at a histogram.
-            dx(find((dx>30)))=0;
+            tdx(find((tdx>30)))=0;
+            dx=[dx, tdx];
             subplot(4,5,3:5)
             lookback=1000;
             if length(dx) > lookback+3
@@ -406,9 +425,9 @@ clear all
                 plot(dx, 'g')
                 axis([ 0 1.03*length(dx)  -1 1.03*max(dx) ]);
             end
-            ylabel('dx (px)')
             % plot linear acceleration
-            ddx=dx(2:length(dx))-dx(1:length(dx)-1);
+            tddx=tdx(2:length(tdx))-tdx(1:length(tdx)-1);
+            ddx=[ddx, tddx];
             subplot(4,5,8:10)
             if length(ddx) > lookback+3
                 plot(ddx(end-lookback:end), 'r');
@@ -421,17 +440,13 @@ clear all
                 plot(ddx, 'r');
                 %axis([ 0 1.03*length(ddx)  min(ddx) 1.03*max(ddx) ]);
             end
-            ylabel('ddx (px)')
-
-            %close all;
+            %
             % plot all locations occupied and then the last 512 locations occupied with
             % a black to white gradient of big circles
             %
             subplot(4,5,[1,2,6,7])
             hold off;
             lookback=512;
-            greyVector=1:1/(lookback-1):0;
-            greyArray=[greyVector;greyVector;greyVector];
             plot(xx,yy,'.')
             hold on;
             if length(xx) > lookback + 3
@@ -441,53 +456,60 @@ clear all
                 axis([ 150 620 0 470]);
                 title('recent XY (bk->wt; old->now)')
             end
-
+            %
+            % image of rat
+            %
+            subplot(4,5,[13 14 18 19])
+            image(imread('http://164.67.14.239/oneshotimage.jpg'));
             %
             % transition map for zones --> basically Bayseian transition probability of
             % motion.
             %
-            subplot(4,5,[14,15,19,20])
-            zoneNumberMinOffset = (1-min(zoneHistory) );
-            possibleZones = max(zoneHistory)+zoneNumberMinOffset;
-            trans = zeros(possibleZones,possibleZones);
-            for idx = 2 : length(zoneHistory);
-                trans(zoneHistory(idx-1)+zoneNumberMinOffset,zoneHistory(idx)+zoneNumberMinOffset) = 1 + trans(zoneHistory(idx-1)+zoneNumberMinOffset,zoneHistory(idx)+zoneNumberMinOffset);
-            end;
-            qq=colormap;
-            colormap([1 1 1; qq])
-            imagesc(trans/sum(sum(trans)))
-            colorbar()
-            %
-            % the nice version of the colormap for occupancy.
-            %
-            subplot(4,5,[11,12,16,17])
-            occupationHeat=zeros(max(yy)+1,max(xx)+1);
-            for idx=1:length(xx)
-                occupationHeat(yy(idx)+1,xx(idx)+1)=occupationHeat(yy(idx)+1,xx(idx)+1)+1;
+            if 0 == mod(round(tocNow),20);
+                subplot(4,5,20)
+                zoneNumberMinOffset = (1-min(zoneHistory(1:zoneHistoryIdx)) );
+                possibleZones = max(zoneHistory(1:zoneHistoryIdx))+zoneNumberMinOffset;
+                trans = zeros(possibleZones,possibleZones);
+                for idx = 2 : length(zoneHistory(1:zoneHistoryIdx));
+                    trans(zoneHistory(idx-1)+zoneNumberMinOffset,zoneHistory(idx)+zoneNumberMinOffset) = 1 + trans(zoneHistory(idx-1)+zoneNumberMinOffset,zoneHistory(idx)+zoneNumberMinOffset);
+                end;
+                qq=colormap;
+                colormap([1 1 1; qq])
+                imagesc(trans/sum(sum(trans)))
+                colorbar()
+                subplot(4,5,15)
+                imagesc(trans/sum(sum(trans)))
+                %
+                % the nice version of the colormap for occupancy.
+                %
+                subplot(4,5,[11,12,16,17])
+                occupationHeat=zeros(max(yy)+1,max(xx)+1);
+                for idx=1:length(xx)
+                    occupationHeat(yy(idx)+1,xx(idx)+1)=occupationHeat(yy(idx)+1,xx(idx)+1)+1;
+                end
+                hold off;
+                plot(xx,yy,'.k'); 
+                hold on;
+                markersize=4;
+                [rr,cc,vv]=find(occupationHeat>2);
+                plot(cc,rr,'.b','MarkerSize', markersize);
+                [rr,cc,vv]=find(occupationHeat>4);
+                plot(cc,rr,'.c','MarkerSize', markersize);
+                [rr,cc,vv]=find(occupationHeat>6);
+                plot(cc,rr,'.g','MarkerSize', markersize);
+                [rr,cc,vv]=find(occupationHeat>8);
+                plot(cc,rr,'.y','MarkerSize', markersize);
+                [rr,cc,vv]=find(occupationHeat>10);
+                plot(cc,rr,'.m','MarkerSize', markersize);
+                [rr,cc,vv]=find(occupationHeat>15);
+                plot(cc,rr,'.r','MarkerSize', markersize);
+                axis([ 150 620 0 470])
+                %title('Fig 8 Maze Occupancy','FontWeight','bold','FontName','Arial');
+                %xlabel('X coord. (px)','FontName','Arial');
+                %ylabel('Y coord. (px)','FontName','Arial');
+                %colormap([1 1 1; 0 0 0; 0 0 1; 0 1 1; 0 1 0; 1 1 0; 1 0 1; 1 0 0])
+                %colorbar('YTickLabel',{'0','1','2','4','6','8','10','15'});
             end
-            hold off;
-            plot(xx,yy,'.k'); 
-            hold on;
-            markersize=4;
-            [rr,cc,vv]=find(occupationHeat>2);
-            plot(cc,rr,'.b','MarkerSize', markersize);
-            [rr,cc,vv]=find(occupationHeat>4);
-            plot(cc,rr,'.c','MarkerSize', markersize);
-            [rr,cc,vv]=find(occupationHeat>6);
-            plot(cc,rr,'.g','MarkerSize', markersize);
-            [rr,cc,vv]=find(occupationHeat>8);
-            plot(cc,rr,'.y','MarkerSize', markersize);
-            [rr,cc,vv]=find(occupationHeat>10);
-            plot(cc,rr,'.m','MarkerSize', markersize);
-            [rr,cc,vv]=find(occupationHeat>15);
-            plot(cc,rr,'.r','MarkerSize', markersize);
-            axis([ 150 620 0 470])
-            %title('Fig 8 Maze Occupancy','FontWeight','bold','FontName','Arial');
-            %xlabel('X coord. (px)','FontName','Arial');
-            %ylabel('Y coord. (px)','FontName','Arial');
-            %colormap([1 1 1; 0 0 0; 0 0 1; 0 1 1; 0 1 0; 1 1 0; 1 0 1; 1 0 0])
-            %colorbar('YTickLabel',{'0','1','2','4','6','8','10','15'});
-
         end
     end
     %
