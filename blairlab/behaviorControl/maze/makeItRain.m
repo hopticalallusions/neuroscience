@@ -1,15 +1,15 @@
 function makeItRain_v2()
 
 	ratName = 'agh';
-	version = '4.1';
+	version = '5.2';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
 	videoTrackerName = 'VT1';	% name of the Video Tracker stream object in neuralynx cheetah
-	timeToRun = 2 ; % minutes
+	timeToRun = 32; % minutes
 	dispenseInitialReward = false;	% are we going to give an initial reward
 	totalRewards = 0;
 	% this needs the Neuralynx files in the include path. modify as needed.
-	path(path, 'C:\Documents and Settings\Dbuono\Desktop\NetComClientDevelopmentPackage_v211\Matlab_M-files');
+	%path(path, 'C:\Documents and Settings\Dbuono\Desktop\NetComClientDevelopmentPackage_v211\Matlab_M-files');
 	%
 	droppedEventRecords = 0;
 	droppedVideoRecords = 0;
@@ -28,6 +28,7 @@ function makeItRain_v2()
 	
 	disp('Starting makeItRain ...')
 	disp(['version ' version])
+	disp('This version alternates!!!')
 	disp(['rat = ' ratName])
 	% turn on OS warning sound
 	beep on;
@@ -143,15 +144,20 @@ function makeItRain_v2()
 			disp(['T-Minus ' num2str(round(((timeToRun*60)-pass)/60)) ' minutes until lift off'])
 			% get it? get it? we pick the rat up off the maze... (groan)
 			if round(((timeToRun*60)-pass)/60) < 3
+                beep
 				disp('!!!!')
 				disp('!!!!')
+                pause(.5)
+                beep
+                pause(.5)
+                beep
 			end
 		end
 		%
 		% detect if any event records are dropped.
 		%
 		if numRecordsDropped > 0
-			droppedEventRecords = droppedEventRecords + 1;
+			droppedEventRecords = droppedEventRecords + numRecordsDropped;
 			disp(['System Error! : ' num2str(numRecordsDropped) ' event records dropped'])
 			eventHistory = [eventHistory ; [num2str(numRecordsDropped) ' event records dropped!'] ];
 			eventHistoryTimesNlx(eventIdx) = 0;
@@ -172,7 +178,7 @@ function makeItRain_v2()
 			%
 			%
 			%
-			disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ' char(eventStringArray(idx))])
+			disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ' char(eventStringArray(idx))]) 
 			%
 			% Oh where, oh where can my dear rat be? Oh where can my dear ratsky beeee? (sing this comment for added fun.)
 			%
@@ -213,7 +219,7 @@ function makeItRain_v2()
 			elseif ( currentZone == 0 ) && zoneHistory(zoneHistoryIdx) == 2
 				centerError = centerError + 1;
 				disp('Behavior Error! : center zone exit error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : center zone exit error.' ];
+				eventHistory = [eventHistory; 'Behavior Error! : center zone exit error.' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
@@ -223,7 +229,7 @@ function makeItRain_v2()
 				% the invalid logic existed in the context of entering and exiting the same zone, e.g. 3 -> 3
 				jumpError = jumpError + 1;
 				disp('Behavior Error! : jump error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : jump error.' ];
+				eventHistory = [eventHistory; 'Behavior Error! : jump error.' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
@@ -237,7 +243,7 @@ function makeItRain_v2()
 			elseif currentZone == 4 && ( zoneHistory(zoneHistoryIdx) == 1 || zoneHistory(zoneHistoryIdx) == 3 )
 				cornerError = cornerError + 1;
 				disp('Behavior Error! : corner zone exit error.')
-				eventHistory = [eventHistory ; 'Behavior Error! : corner zone exit error.' ];
+				eventHistory = [eventHistory; 'Behavior Error! : corner zone exit error.' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
@@ -284,15 +290,15 @@ function makeItRain_v2()
 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
 				end
 				% log event
-				eventHistory = [eventHistory ; 'made it rain' ];
+				eventHistory = [eventHistory; 'made it rain' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
 				totalRewards = totalRewards + 1;
 			elseif ( zoneHistoryIdx > 2 ) && currentZone == 0 && ( isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 2 4 3 ] ) || isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 2 4 1 ] ) ) && isequal(lastRewardedSequence, zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx) )
 				alternationError = alternationError + 1;
-				disp('Alternation Error! : alternation error.')
-				eventHistory = [eventHistory ; 'Alternation Error! : alternation error.' ];
+				disp('Behavior Error! : alternation error.')
+				eventHistory = [eventHistory; 'Alternation Error! : alternation error.' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
@@ -310,7 +316,7 @@ function makeItRain_v2()
 		% detect if any video records are dropped.
 		%
 		if numRecordsDropped > 0
-			droppedVideoRecords = droppedVideoRecords + 1;
+			droppedVideoRecords = droppedVideoRecords + numRecordsDropped;
 			disp(['System Error! : ' num2str(numRecordsDropped) ' video records dropped'])
 			eventHistory = [eventHistory ; [num2str(numRecordsDropped) ' video records dropped!'] ];
 			eventHistoryTimesNlx(eventIdx) = 0;
@@ -328,43 +334,43 @@ function makeItRain_v2()
 	disp('-----------------------')
 	%
 	disp(['total rewards = ' num2str(totalRewards)])
-	eventHistory = [eventHistory ; ['total rewards = ' num2str(totalRewards)]];
+	eventHistory = [eventHistory; ['total rewards = ' num2str(totalRewards)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 	%
 	disp(['stable zone occupacies = ' num2str(zoneHistoryIdx)])
-	eventHistory = [eventHistory ; ['stable zone occupancies = ' num2str(zoneHistoryIdx)]];
+	eventHistory = [eventHistory; ['stable zone occupancies = ' num2str(zoneHistoryIdx)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 	%
 	disp(['reward exit errors = ' num2str(rewardExitError)])
-	eventHistory = [eventHistory ; ['rewardExitError = ' num2str(rewardExitError)]];
+	eventHistory = [eventHistory; ['rewardExitError = ' num2str(rewardExitError)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 	%
 	disp(['center errors = ' num2str(centerError)])
-	eventHistory = [eventHistory ; ['centerError = ' num2str(centerError)]];
+	eventHistory = [eventHistory; ['centerError = ' num2str(centerError)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 	%	
 	disp(['jump errors = ' num2str(jumpError)])
-	eventHistory = [eventHistory ; ['jumpError = ' num2str(jumpError)]];
+	eventHistory = [eventHistory; ['jumpError = ' num2str(jumpError)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 	%	
 	disp(['choice point error = ' num2str(choicePointError)])
-	eventHistory = [eventHistory ; ['choice Point Error = ' num2str(choicePointError)]];
+	eventHistory = [eventHistory; ['choice Point Error = ' num2str(choicePointError)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 	%	
 	disp(['corner errors = ' num2str(cornerError)])
-	eventHistory = [eventHistory ; ['corner Error = ' num2str(cornerError)]];
+	eventHistory = [eventHistory; ['corner Error = ' num2str(cornerError)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
@@ -372,20 +378,20 @@ function makeItRain_v2()
 	disp('-----------------------')
 	%	
 	disp(['dropped events = ' num2str(droppedEventRecords)])
-	eventHistory = [eventHistory ; ['dropped events = ' num2str(droppedEventRecords)]];
+	eventHistory = [eventHistory; ['dropped events = ' num2str(droppedEventRecords)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 	%	
 	disp(['dropped video records = ' num2str(droppedVideoRecords)])
-	eventHistory = [eventHistory ; ['dropped video records = ' num2str(droppedVideoRecords)]];
+	eventHistory = [eventHistory; ['dropped video records = ' num2str(droppedVideoRecords)]];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 	%
 	disp('-----------------------')
 	%
-	eventHistory = [eventHistory ; 'end of trial' ];
+	eventHistory = [eventHistory; 'end of trial' ];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
@@ -411,7 +417,7 @@ function makeItRain_v2()
 	runSummary.droppedVideoRecords = droppedVideoRecords;
 	runSummary.videoTimeStamps = videoTimeStamps;
 	runSummary.videoLocations = videoLocations;
-	
+	runSummary.ratName = ratName;
 	
 	save(['makeItRain_' ratName '_' startTimeString '.mat'], 'runSummary');
 	
