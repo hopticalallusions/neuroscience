@@ -3,12 +3,12 @@ function makeItRain_v2()
 % LEFTY 
 % LEFTY
 % LEFTY 
-	ratName = 'v2';
-	version = 'dual 2.0';
+	ratName = 'v1';
+	version = 'dual 2.1 lefty';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
 	videoTrackerName = 'VT1';	% name of the Video Tracker stream object in neuralynx cheetah
-	timeToRun = 25 ; % minutes
+	timeToRun = 20 ; % minutes
 	dispenseInitialReward = true;	% are we going to give an initial reward
 	totalRewards = 0;
 	% this needs the Neuralynx files in the include path. modify as needed.
