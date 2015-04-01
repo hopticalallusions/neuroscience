@@ -35,7 +35,7 @@ if ~openStreamResult
 end
 
 % make an initial attractive reward
-%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
 %pause(1);
 %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
 %pause(1);
@@ -48,46 +48,34 @@ end
 %currentZone = -1;
 %lastSequence = [ currentZone lastZone ];
 inAZone = false;
-% run from 2 -> 4 -> ( 1 | 3 ) -> 0 = reward
-% zone 2 = stepOne = True
-% zone 4 && stepOne = True
-% zone (1 | 3) && stepOne && stepTwo = True
-% zone 0 && stepOne && stepTwo && stepThree = Reward!
-stepOne = false;
-stepTwo = false;
-stepThree = false;
+ready = false;
 
 for pass = 1:(timeToRun*60)
 	pause(1);
 	[succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
 	if 0 == mod(pass, 60)
-		disp(['t Minus ' num2str(round(((timeToRun*60)-60)/60)) ' minutes'])
+		disp(['T-Minus ' num2str(round(((timeToRun*60)-pass)/60)) ' minutes until lift off'])
+		% get it? get it? we pick the rat up off the maze... (groan)
 	end
 	% process event stream
 	for idx = 1:length(eventStringArray)
 		%
-		disp([ 'Last Zone : ' num2str(zoneHistory(zoneEntryIdx)) ' ][ ' eventStringArray(idx)  ])
+		disp(eventStringArray(idx))
+		if zoneEntryIdx > 2
+			disp([ num2str(ready) ' * ready : last = ' num2str(zoneHistory(zoneEntryIdx-1)) ])
+		end
 		% Oh where, oh where can my dear rat be? Oh where can my dear ratsky beeee? (sing this comment for added fun.)
 		if strcmpi(eventStringArray(idx), 'Zoned Video: Zone0 Entered')
 			zoneHistory(zoneEntryIdx) = 0;
 		elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
 			zoneHistory(zoneEntryIdx) = 1;
-			if ( stepOne == true ) && ( stepTwo == true ) 
-				stepTwo = true;
-			end
 		elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
 			zoneHistory(zoneEntryIdx) = 2;
-			stepOne = true;
 		elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
 			zoneHistory(zoneEntryIdx) = 3;
-			if ( stepOne == true ) && ( stepTwo == true ) 
-				stepTwo = true;
-			end
 		elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
 			zoneHistory(zoneEntryIdx) = 4;
-			if stepOne == true
-				stepTwo = true;
-			end
+			ready = true;
 		elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
 			zoneHistory(zoneEntryIdx) = 5;
 		end
@@ -106,10 +94,8 @@ for pass = 1:(timeToRun*60)
 		%disp(lastSequence)
 		%disp(sum( lastSequence == [ currentZone lastZone ] ))
 		%disp(( sum( lastSequence == [ currentZone lastZone ] ) == length(lastSequence) ))
-		if zoneHistory(zoneEntryIdx) == 0 && stepThree
-			stepOne = false;
-			stepTwo = false;
-			stepThree = false;
+		if zoneHistory(zoneEntryIdx) == 0 && ready
+			ready = false;
 			NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
 			pause(.5);
 			NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
