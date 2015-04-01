@@ -1,17 +1,18 @@
 function makeItRain_v2()
 
-    readyForTakeoff = true;
 	ratName = 'v4';
-	version = 'dual 3.1';
+	version = 'dual 3.2 single zone';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
 	videoTrackerName = 'VT1';	% name of the Video Tracker stream object in neuralynx cheetah
 	timeToRun = 35; % minutes
-	dispenseInitialReward = true;	% are we going to give an initial reward
+	dispenseInitialReward = false;	% are we going to give an initial reward
 	totalRewards = 0;
     lastRewardedSequence = [];
 	% this needs the Neuralynx files in the include path. modify as needed.
     savePath = 'C:\Documents and Settings\Administrator\My Documents\ahowe\data\rhombus-maze\'
+    left = false;
+    readyForTakeoff = true;
     %
     maximumTime = 300; %minutes
 	%
@@ -113,7 +114,6 @@ function makeItRain_v2()
     %
     % holding pattern
     %
-
     for waitingCounter = 1:(maximumTime*60)
    		pause(1);
 		[succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
@@ -142,9 +142,11 @@ function makeItRain_v2()
 	if dispenseInitialReward
 		%pause(10);
 		disp('Dispensing an initial reward...')
-		%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
         pause(.5);
-		%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+		NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+        NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
     end
     %
     beep; beep; pause(2); beep;
@@ -215,6 +217,7 @@ function makeItRain_v2()
 				currentZone = 1;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
 				currentZone = 2;
+                ready = true;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
 				currentZone = 3;
 			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
@@ -285,7 +288,7 @@ function makeItRain_v2()
 				if zoneHistory(zoneHistoryIdx) ~= currentZone
 					zoneHistoryIdx = zoneHistoryIdx + 1;
 					zoneHistory(zoneHistoryIdx) = currentZone;
-                    disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
+                    %disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
 				end
 				currentZone = -1;
 			end
@@ -301,11 +304,11 @@ function makeItRain_v2()
             if ( zoneHistoryIdx > 2 ) && currentZone == 3 && isequal( zoneHistory(zoneHistoryIdx-2:zoneHistoryIdx), [ 4 2 0 ] ) && ~ isequal(lastRewardedSequence, [ 2 0 3 ] )
 				lastRewardedSequence = [ 2 0 3 ];
 				disp('lastRewardedSequence : ')
-				disp(lastRewardedSequence);
+				%disp(lastRewardedSequence);
                 disp('pulse')
-				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-                pause(.5);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+				%NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                %pause(.5);
+                %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
 				if mod(pass, 60) == 0
 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
@@ -325,9 +328,9 @@ function makeItRain_v2()
 				disp('lastRewardedSequence : ')
 				disp(lastRewardedSequence);
 				disp('pulse')
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-                pause(.5);
-                NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                %pause(.5);
+                %NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
 				% a fluffy logic block to fix the formating, because there doesn't seem to be a proper matlab solution to this
 				if mod(pass, 60) == 0
 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
@@ -352,35 +355,35 @@ function makeItRain_v2()
             end
             %
             %
-%             if  ready
-% 				ready = false;
-%                 if left
-%     				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                     pause(.5);
-%        				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
-%                     disp('LEFT (0)');
-%                     left = false;
-%                 else
-%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                     pause(.5);
-%                     NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
-%                     disp('RIGHT (2)');
-%                     left = true;
-%                 end;
-% 				if mod(pass, 60) == 0
-% 					disp([num2str(round(pass/60)) ':00 -- made it rain']);
-% 				elseif mod(pass, 60) < 10
-% 					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				else
-% 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
-% 				end
-% 				% log event
-% 				eventHistory = [eventHistory ; 'made it rain' ];
-% 				eventHistoryTimesNlx(eventIdx) = 0;
-% 				eventHistoryTimesMatlab(eventIdx) = now();
-% 				eventIdx = eventIdx + 1;
-% 				totalRewards = totalRewards + 1;
-% 			end
+            if  ready
+				ready = false;
+                if left
+    				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                    pause(.5);
+       				NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 0 High');
+                    disp('LEFT (0)');
+                    left = false;
+                else
+                    NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                    pause(.5);
+                    NlxSendCommand('-DigitalIOTtlPulse PCI-DIO24_0 2 2 High');
+                    disp('RIGHT (2)');
+                    left = true;
+                end;
+				if mod(pass, 60) == 0
+					disp([num2str(round(pass/60)) ':00 -- made it rain']);
+				elseif mod(pass, 60) < 10
+					disp([num2str(round(pass/60)) ':0' num2str(mod(pass, 60)) ' -- made it rain']);
+				else
+					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
+				end
+				% log event
+				eventHistory = [eventHistory ; 'made it rain' ];
+				eventHistoryTimesNlx(eventIdx) = 0;
+				eventHistoryTimesMatlab(eventIdx) = now();
+				eventIdx = eventIdx + 1;
+				totalRewards = totalRewards + 1;
+			end
         end
         if totalRewards > 75 
             beep; beep; beep; beep;
