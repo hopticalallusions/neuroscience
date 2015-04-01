@@ -19,6 +19,7 @@ clear all
 	% this needs the Neuralynx files in the include path. modify as needed.
     savePath = 'C:\Documents and Settings\Administrator\My Documents\ahowe\data\rhombus-maze\'
     left = false;
+    waitForReset = false;
     maximumTime = 300; %minutes
 	%
 	droppedEventRecords = 0;
@@ -228,11 +229,13 @@ clear all
 				currentZone = 0;
             elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
 				currentZone = 1;
+                waitForReset = false;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
 				currentZone = 2;
                 ready=true;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
 				currentZone = 3;
+                waitForReset = false;
 			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
 				currentZone = 4;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
