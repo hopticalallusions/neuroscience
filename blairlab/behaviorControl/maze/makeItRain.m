@@ -12,7 +12,8 @@ function makeItRain_v2()
 	% this needs the Neuralynx files in the include path. modify as needed.
     savePath = 'C:\Documents and Settings\Administrator\My Documents\ahowe\data\rhombus-maze\'
     left = false;
-    %
+    readyForTakeoff = false;
+       %
     maximumTime = 300; %minutes
 	%
 	droppedEventRecords = 0;
@@ -113,7 +114,7 @@ function makeItRain_v2()
     %
     % holding pattern
     %
-    readyForTakeoff = true;
+
     for waitingCounter = 1:(maximumTime*60)
    		pause(1);
 		[succeeded, timeStampArray, eventIDArray, ttlValueArray, eventStringArray, numRecordsReturned, numRecordsDropped ] = NlxGetNewEventData('Events');
