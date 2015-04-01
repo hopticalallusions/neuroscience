@@ -476,13 +476,13 @@ clear all
             subplot(4,5,[1,2,6,7])
             hold off;
             lookback=512;
-            plot(xx,yy,'.')
+            plot(xx,-1*yy,'.')
             hold on;
             if length(xx) > lookback + 3
                 for idx = 0:lookback-1
-                    plot(xx(length(xx)-idx),yy(length(xx)-idx),'*', 'MarkerFaceColor',greyArray(:,idx+1),'MarkerEdgeColor',greyArray(:,idx+1));
+                    plot(xx(length(xx)-idx),-1*yy(length(xx)-idx),'*', 'MarkerFaceColor',greyArray(:,idx+1),'MarkerEdgeColor',greyArray(:,idx+1));
                 end
-                axis([ 150 620 0 470]);
+                axis([ 150 620 0 -470]);
                 title('recent XY (bk->wt; old->now)')
             end
             %
@@ -519,21 +519,21 @@ clear all
                     occupationHeat(yy(idx)+1,xx(idx)+1)=occupationHeat(yy(idx)+1,xx(idx)+1)+1;
                 end
                 hold off;
-                plot(xx,yy,'.k'); 
+                plot(xx,-1*yy,'.k'); 
                 hold on;
                 markersize=4;
                 [rr,cc,vv]=find(occupationHeat>2);
-                plot(cc,rr,'.b','MarkerSize', markersize);
+                plot(cc,-1*rr,'.b','MarkerSize', markersize);
                 [rr,cc,vv]=find(occupationHeat>4);
-                plot(cc,rr,'.c','MarkerSize', markersize);
+                plot(cc,-1*rr,'.c','MarkerSize', markersize);
                 [rr,cc,vv]=find(occupationHeat>6);
-                plot(cc,rr,'.g','MarkerSize', markersize);
+                plot(cc,-1*rr,'.g','MarkerSize', markersize);
                 [rr,cc,vv]=find(occupationHeat>8);
-                plot(cc,rr,'.y','MarkerSize', markersize);
+                plot(cc,-1*rr,'.y','MarkerSize', markersize);
                 [rr,cc,vv]=find(occupationHeat>10);
-                plot(cc,rr,'.m','MarkerSize', markersize);
+                plot(cc,-1*rr,'.m','MarkerSize', markersize);
                 [rr,cc,vv]=find(occupationHeat>15);
-                plot(cc,rr,'.r','MarkerSize', markersize);
+                plot(cc,-1*rr,'.r','MarkerSize', markersize);
                 axis([ 150 620 0 470])
                 %title('Fig 8 Maze Occupancy','FontWeight','bold','FontName','Arial');
                 %xlabel('X coord. (px)','FontName','Arial');
