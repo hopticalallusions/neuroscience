@@ -4,6 +4,7 @@ function makeItRain_v2()
 	eventLogName = 'Events';	% name of the stream structure in neuralynx cheetah
 	timeToRun = 20 ;% minutes
 	dispenseInitialReward = true;	% are we going to give an initial reward
+	totalRewards = 0;
 	% this needs the Neuralynx files in the include path. modify as needed.
 	path(path, 'C:\Documents and Settings\Dbuono\Desktop\NetComClientDevelopmentPackage_v211\Matlab_M-files');
 
@@ -68,13 +69,13 @@ function makeItRain_v2()
 	% set up history variables
 	%
 	eventIdx = 1;
-	eventHistory = [];
+	% eventHistory = [];
 	eventHistoryTimesNlx = -1 * ones(1,10000);
 	eventHistoryTimesMatlab = -1 * ones(1,10000);
 	%
 	% initialize history
 	%
-	eventHistory(eventIdx) = cellstr(['starting trial']);
+	eventHistory = cellstr(['starting trial']);
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
@@ -115,7 +116,10 @@ function makeItRain_v2()
 			eventHistoryTimesNlx(eventIdx) = timeStampArray(idx);
 			eventHistoryTimesMatlab(eventIdx) = now();
 			eventIdx = eventIdx + 1;
-
+			%
+			%
+			%
+			disp(['ready ' num2str(ready) ' : inZone ' num2str(currentZone) ' : ' char(eventStringArray(idx))])
 			%
 			% Oh where, oh where can my dear rat be? Oh where can my dear ratsky beeee? (sing this comment for added fun.)
 			%
@@ -135,11 +139,11 @@ function makeItRain_v2()
 			end
 			% Are we in a zone?
 			if strcmpi(eventStringArray(idx),strrep(eventStringArray(idx),'Exited', 'Exit'))
+				% because if we were in a zone, we would not have exited, so the string would not have changed, so the compare is TRUE
+				inAZone = true;
+			else
 				inAZone = false;
 				currentZone = -1;
-				% because if we were in a zone, we would not have exited, so the string would not have changed, so the compare is TRUE
-			else
-				inAZone = true;
 			end
 			%
 			% Should sugar pellets rain from the sky?
@@ -155,6 +159,7 @@ function makeItRain_v2()
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
+				totalRewards = totalRewards + 1;
 			end
 		end
 	end
@@ -162,17 +167,23 @@ function makeItRain_v2()
 	%
 	% terminate event history
 	%
+	eventHistory = [eventHistory ; ['total rewards = ' num2str(totalRewards)]];
+	eventHistoryTimesNlx(eventIdx) = 0;
+	eventHistoryTimesMatlab(eventIdx) = now();
+	eventIdx = eventIdx + 1;
+	%
 	eventHistory = [eventHistory ; 'end of trial' ];
 	eventHistoryTimesNlx(eventIdx) = 0;
 	eventHistoryTimesMatlab(eventIdx) = now();
 	eventIdx = eventIdx + 1;
 
+	
 	%
 	% store data to disk
 	%
-	save(['makeItRain_eventHistory_' startTimeString], 'eventHistory');
-	save(['makeItRain_eventHistoryTimes_' startTimeString], 'eventHistoryTimesNlx');
-	save(['makeItRain_eventHistoryTimes_' startTimeString], 'eventHistoryTimesMatlab');
+	save(['makeItRain_eventHistory_' startTimeString '.mat'], 'eventHistory');
+	save(['makeItRain_eventHistoryTimes_' startTimeString '.mat'], 'eventHistoryTimesNlx');
+	save(['makeItRain_eventHistoryTimes_' startTimeString '.mat'], 'eventHistoryTimesMatlab');
 
 	disconnectResult = NlxDisconnectFromServer();
 	
