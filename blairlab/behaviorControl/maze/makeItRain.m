@@ -4,7 +4,7 @@ close all
 clear all
 
 	ratName = 'agh';
-	version = 'dual 3.3 triple zone';
+	version = 'dual 4.0 triple zone';
 	timeToRun = 44; % minutes
 	dispenseInitialReward = true;	% are we going to give an initial reward
 	readyForTakeoff = true;
