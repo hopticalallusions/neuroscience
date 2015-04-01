@@ -1,14 +1,11 @@
 function makeItRain_v2()
 
-% LEFTY 
-% LEFTY
-% LEFTY 
 	ratName = 'v1';
-	version = 'dual 2.1 lefty';
+	version = 'dual 2.1';
 	serverName = 'PHYSIO_RIG';	% neuralynx router server name 
 	eventLogName = 'Events';	% name of the Event stream object in neuralynx cheetah
 	videoTrackerName = 'VT1';	% name of the Video Tracker stream object in neuralynx cheetah
-	timeToRun = 25 ; % minutes
+	timeToRun = 20 ; % minutes
 	dispenseInitialReward = true;	% are we going to give an initial reward
 	totalRewards = 0;
 	% this needs the Neuralynx files in the include path. modify as needed.
@@ -204,12 +201,15 @@ function makeItRain_v2()
 			%
 			%
 			%
-			%disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
+			% disp([ 'lastZone ' num2str(zoneHistory(zoneHistoryIdx)) ' : inZone ' num2str(currentZone) ' : ready ' num2str(ready)  ' : ' char(eventStringArray(idx))])
 			%
 			% Oh where, oh where can my dear rat be? Oh where can my dear ratsky beeee? (sing this comment for added fun.)
 			%
 			if strcmpi(eventStringArray(idx), 'Zoned Video: Zone0 Entered')
 				currentZone = 0;
+                if zoneHistory(zoneHistoryIdx) == 2
+					ready = true;
+				end
             elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
 				currentZone = 1;
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
@@ -218,9 +218,6 @@ function makeItRain_v2()
 				currentZone = 3;
 			elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
 				currentZone = 4;
-                if zoneHistory(zoneHistoryIdx) == 2
-					ready = true;
-				end
 			elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone5 Entered')
 				% the OFF switch
                 trialOver = true;
@@ -231,6 +228,7 @@ function makeItRain_v2()
 			end
 			%
 			%
+						%
 			% online sequence error detector
 			%
 			% this style of detection works because zoneHistory isn't updated until the rat exits a zone.
@@ -240,7 +238,7 @@ function makeItRain_v2()
 			% TODO -- add comments about behavior error sequences.
 			%
 			%
-			if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx) == 4
+			if ( currentZone == 3 || currentZone == 1 ) && zoneHistory(zoneHistoryIdx) == 0
 				% 0 -> ( 3 | 1 ) is a reward exit error
 				rewardExitError = rewardExitError + 1;
 				disp('Behavior Error! : reward zone exit error.')
@@ -248,7 +246,7 @@ function makeItRain_v2()
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
-			elseif ( currentZone == 0 ) && zoneHistory(zoneHistoryIdx) == 2
+			elseif ( currentZone == 4 ) && zoneHistory(zoneHistoryIdx) == 2
 				centerError = centerError + 1;
 				disp('Behavior Error! : center zone exit error.')
 				eventHistory = [eventHistory ; 'Behavior Error! : center zone exit error.' ];
@@ -324,7 +322,7 @@ function makeItRain_v2()
 					disp([num2str(round(pass/60)) ':' num2str(mod(pass, 60)) ' -- made it rain']);
 				end
 				% log event
-				eventHistory = [eventHistory ; 'made it rain' ];
+				eventHistory = [ eventHistory ; 'made it rain' ];
 				eventHistoryTimesNlx(eventIdx) = 0;
 				eventHistoryTimesMatlab(eventIdx) = now();
 				eventIdx = eventIdx + 1;
@@ -333,7 +331,6 @@ function makeItRain_v2()
 		end
 		%
 		%%%% Video Data
-		%
 		%
 		% For future reference concerning video tracking :
 		% locations are [ x y x y x y x y ... x y ]
