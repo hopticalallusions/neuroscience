@@ -10,7 +10,7 @@ clear all
 %%%%%%%
 
 ratName = 'v4';                 % name of rat
-version = 'platter v1.01';         % version number for tracking which program used this; *manual*
+version = 'platter sequence v1.11';         % version number for tracking which program used this; *manual*
 timeToRun = 25;                 % minutes
 maximumTime = 65;               % minutes
 maxRewards = 100;                % pellets
@@ -197,6 +197,8 @@ unilateral = 0;
 %
 %%%%%%%
 
+photoIdx = 1;
+
 tic;
 startTime = toc;
 elapsedTime = toc - startTime; % seconds
@@ -209,7 +211,7 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
 
     elapsedTime = toc - startTime; % seconds
     
-    if 0 == mod( round(elapsedTime), 180 )
+    if 0 == mod( floor(elapsedTime), 180 )
         % datestr(aa/(24*60*60),formatOut) % this is to format seconds
         %     into fractions of a day...  'HH:MM:SS'
         disp(['Elapsed Time : ' datestr(elapsedTime/(24*60*60),'HH:MM:SS') ])
@@ -248,10 +250,10 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
             currentZone = 0;
         elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone1 Entered')
             currentZone = 1;
-            ready = true;
+            %ready = true;
         elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone2 Entered')
             currentZone = 2;
-            ready=true;
+            %ready=true;
         elseif strcmpi(eventStringArray(idx), 'Zoned Video: Zone3 Entered')
             currentZone = 3;
         elseif  strcmpi(eventStringArray(idx), 'Zoned Video: Zone4 Entered')
@@ -331,6 +333,8 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
                     left = true;
                 end
             end
+            ready = true;
+        elseif currentZone == 1 || currentZone == 2
             if ready
                 unilateral = unilateral + 1;
                 if left
@@ -347,8 +351,6 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
                 ready = false;
                 totalRewards = totalRewards + 1;
             end
-        elseif currentZone == 1 || currentZone == 2
-            ready = true;
         end
 
         
@@ -446,19 +448,20 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
             for idx = 0:lookback-1
                 plot(xx(length(xx)-idx),-1*yy(length(xx)-idx),'*', 'MarkerFaceColor',greyArray(:,idx+1),'MarkerEdgeColor',greyArray(:,idx+1));
             end
-            axis([ 150 620  -470 0]);
-            title('recent XY (bk->wt; old->now)')
         end
+        plot(xx(end),yy(end),'*r')
+        axis([ 150 620  -470 0]);
+        title('recent XY (bk->wt; old->now)')
         %
         % image of rat
         %
-        %subplot(4,5,[13 14 18 19])
-        %image(imread('http://164.67.14.239/oneshotimage.jpg'));
+        subplot(4,5,[13 14 18 19])
+        image(imread('http://164.67.14.239/oneshotimage.jpg'));
         %
         % transition map for zones --> basically Bayseian transition probability of
         % motion.
         %
-        if 0 == mod(round(elapsedTime),5);
+        if 0 == mod(floor(elapsedTime),5);
             subplot(4,5,20)
             zoneNumberMinOffset = (1-min(zoneHistory(1:zoneHistoryIdx)) );
             possibleZones = max(zoneHistory(1:zoneHistoryIdx))+zoneNumberMinOffset;
@@ -508,6 +511,7 @@ while (trialOver == false ) && ( elapsedTime < maximumTime*60 )
             %colormap([1 1 1; 0 0 0; 0 0 1; 0 1 1; 0 1 0; 1 1 0; 1 0 1; 1 0 0])
             %colorbar('YTickLabel',{'0','1','2','4','6','8','10','15'});
         end
+        print([savePath 'makeItRain_' ratName '_' startTimeString '.jpg'], )
     end
 end
 %
