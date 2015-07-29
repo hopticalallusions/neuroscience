@@ -30,7 +30,7 @@ if mod(length(data),512) ~= 0
 end
 
 recordsToRead = length(data)/512;
-data = reshape( data, length(data)/512, 512);
+data = reshape( data, 512, recordsToRead )';
 
 if length(channel) > 1 
     if sum(channel~=channel(1)) > 1 
