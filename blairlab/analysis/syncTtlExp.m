@@ -1,9 +1,12 @@
 %get first timestamp
 datadir = 'C:\CheetahData\eventTestSync\'
-[EventStamps, EventTTLs] = Nlx2MatEV_v3( [datadir, 'Events2.Nev'], [1 0 1 0 0], 0, 1); %get TTL data
-EV = [EventTTLs' (EventStamps-EventStamps(1))'/1000]; % millisecond universe; event 1 is "Start of recording" and last is "Stop recording"
+%[EventStamps, EventTTLs] = Nlx2MatEV_v3( [datadir, 'Events.Nev'], [1 0 1 0 0], 0, 1); %get TTL data
+%EV = [EventTTLs' (EventStamps-EventStamps(1))'/1000]; % millisecond universe; event 1 is "Start of recording" and last is "Stop recording"
 %EventStamps = EventStamps(find(EventTTLs==1)); %find TTLS timestamps
 %EventStamps = (EventStamps - FirstStamp)'/1000000;
+
+datadir = '/Users/andrewhowe/toSort/blairlab_data/giantsharpwaves/01. File Beginning To 5564929835/'
+[nlxEvents, nlxEvTimestamps, evHeader]=nev2mat('/Users/andrewhowe/toSort/blairlab_data/giantsharpwaves/01. File Beginning To 5564929835/Events.Nev');
 
 
 EV(:,1) = EV(:,1);

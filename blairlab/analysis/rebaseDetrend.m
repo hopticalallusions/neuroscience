@@ -2,7 +2,9 @@ figure;
 
 %function data = loadTarheelCsvData(filename)
 
-    dir='C:\Users\UCLA\Desktop\andrewhowe_blairlab\V4\3-10-2015\run\platterSimple\BATCH_PC\STACKED_PC\';
+    dir='C:\Users\toSort\Desktop\andrewhowe_blairlab\V4\3-10-2015\run\platterSimple\BATCH_PC\STACKED_PC\';
+    
+    dir = '~/toSort/blairlab_data/giantsharpwaves/3-20-2015/run/maze/BATCH_PC/STACKED_PC/';
     filename='Stacked_Cal';
 
 
@@ -67,15 +69,15 @@ figure;
    data = linearizedData - agAvg';
    
 
-   %plot([linearizedData';ravg;avg;agAvg;data']')
-%    figure;
-%    hold on;
-%    plot(linearizedData, 'Color', [ .6 .6 .6 ] )
-%    plot(ravg, '--', 'Color', [ .2 .2 .2 ] )
-%    plot(avg, '--', 'Color', [ .2 .2 .2 ] )
-%    plot(agAvg, 'Color', [ 1 0 0 ] )
-%    plot(data, 'Color', 'b' )
-%    legend('original','rev avg','fwd avg','avg avg','corrected')
+   plot([linearizedData';ravg;avg;agAvg;data']')
+   figure;
+   hold on;
+   plot(linearizedData, 'Color', [ .6 .6 .6 ] )
+   plot(ravg, '--', 'Color', [ .2 .2 .2 ] )
+   plot(avg, '--', 'Color', [ .2 .2 .2 ] )
+   plot(agAvg, 'Color', [ 1 0 0 ] )
+   plot(data, 'Color', 'b' )
+   legend('original','rev avg','fwd avg','avg avg','corrected')
 %end
 
 
