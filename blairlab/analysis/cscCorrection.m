@@ -1,4 +1,5 @@
-function [ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( pathToFile, fileName, saveFile)
+function [ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( cscLFP )
+%pathToFile, fileName, saveFile)
 %function [ correctedCsc, idxs, mxValues, meanCscWindow ]=cscCorrection( pathToFile, fileNum, saveFile)
 
 
@@ -11,7 +12,7 @@ function [ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( pathTo
 %fileNum = 7;
 %[ cscLFP, nlxCscTimestamps, cscHeader ] = csc2mat([pathToFile '/CSC' num2str(fileNum) '.ncs']);
 %[ cscLFP, nlxCscTimestamps, cscHeader ] = csc2mat([pathToFile '/CSC' num2str(fileNum) '.ncs']);
-[ cscLFP, nlxCscTimestamps, cscHeader, channel, sampFreq, nValSamp ] = csc2mat( fullfile( pathToFile, '/', fileName ) );
+%[ cscLFP, nlxCscTimestamps, cscHeader, channel, sampFreq, nValSamp ] = csc2mat( fullfile( pathToFile, '/', fileName ) );
 
 % check polarity
 % this step is important for being able to find the peaks of the signal
@@ -76,7 +77,7 @@ while idx + windowSize < length(cscLFP)
     % will be off for all subsequent noise signatures in the file. solve
     % this problem later.
     if (iterations > 10)
-        if ( mxRelativeIdx>(mean(mxRelIdxs)+std(mxRelIdxs)) | mxRelativeIdx < (mean(mxRelIdxs)-std(mxRelIdxs)) )
+        if ( mxRelativeIdx>(mean(mxRelIdxs)+std(mxRelIdxs)) || mxRelativeIdx < (mean(mxRelIdxs)-std(mxRelIdxs)) )
             disp('warning : deviation found in index position. attempting to fix.')
             tidx=mxRelIdxs(length(mxRelIdxs));
             tmx=max(snip(tidx-120:tidx+120));
@@ -111,6 +112,8 @@ while idx + windowSize < length(cscLFP)
         % in fact, this should be 4.25 ms or 136 because the up and back happens
         % in 2*(1.3 V- -0.4V)/400V/s = 8.5ms
        % plot(snip); plot(mxRelativeIdx,mx,'o'); % debug noise alignment
+       % TODO -- write a smart resizer datatype that exponentially
+       % increases the size of the data structure
         nlxFscvTimes = [ nlxFscvTimes nlxCscTimestamps(idx+idealPeakCenter-136) ];
         mxRelIdxs = [mxRelIdxs mxRelativeIdx]; % create list of relative index values (see above)
         mxValues=[mxValues mx];
@@ -127,16 +130,14 @@ end
 % divided by 1000 (us -> ms) * 100 (ms interval of FSCV)
 
 estimatedFscvEvents = (max(nlxCscTimestamps)-nlxCscTimestamps(1))/100000;
-if ( estimatedFscvEvents*1.01 < (length(nlxCscTimestamps)-max(find(nlxCscTimestamps))) )
+if ( estimatedFscvEvents*1.01 < (length(nlxCscTimestamps)-find(nlxCscTimestamps, 1, 'last' )) )
     warning(['The number of detected FSCV events is > 101% of the expected level! ' num2str(100*length(nlxFscvTimes)/estimatedFscvEvents) '% detected!'])
-elseif ( estimatedFscvEvents*0.99 > (length(nlxCscTimestamps)-max(find(nlxCscTimestamps))) )
+elseif ( estimatedFscvEvents*0.99 > (length(nlxCscTimestamps)-find(nlxCscTimestamps, 1, 'last' )) ) % matlab corrected max(find(var))) to this find(var, 1, 'last') thing
     warning(['The number of detected FSCV events is < 99% of the expected level! ' num2str(100*length(nlxFscvTimes)/estimatedFscvEvents) '% detected!'])
 end
 
 % this corrector seems to be pushing the curve a little too far to the
 % right
-idx = 1;
-iterations = 0;
 correctedCsc=cscLFP;
 idealIdxs=[]; %837  565  700    137; 135
 %while idx + windowSize < length(cscLFP)
@@ -169,10 +170,10 @@ for iandi=1:length(idxs)
     % idx = idx + windowSize;
 end
 
-if (saveFile == true)
-    %save( [pathToFile '/CSC' num2str(fileNum) '.mat'], 'correctedCsc')
-    mat2csc(fileList{fileIdx}, pathToFile, cscHeader, cscLFP, nlxCscTimestamps, channel, nValSamp, sampFreq );
-end
+% if (saveFile == true)
+%     %save( [pathToFile '/CSC' num2str(fileNum) '.mat'], 'correctedCsc')
+%     mat2csc(fileList{fileIdx}, pathToFile, cscHeader, cscLFP, nlxCscTimestamps, channel, nValSamp, sampFreq );
+% end
 
 return;
 
