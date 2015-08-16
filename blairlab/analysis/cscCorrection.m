@@ -1,4 +1,5 @@
-function [ correctedCsc, idxs, mxValues, meanCscWindow ]=cscCorrection( pathToFile, fileNum, saveFile)
+function [ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( pathToFile, fileName, saveFile)
+%function [ correctedCsc, idxs, mxValues, meanCscWindow ]=cscCorrection( pathToFile, fileNum, saveFile)
 
 
 % *** note : this needs to be made piecewise
@@ -9,8 +10,8 @@ function [ correctedCsc, idxs, mxValues, meanCscWindow ]=cscCorrection( pathToFi
 %pathToFile = '/Users/andrewhowe/toSort/blairlab_data/giantsharpwaves/02. 5564929835 To 7591955835/'
 %fileNum = 7;
 %[ cscLFP, nlxCscTimestamps, cscHeader ] = csc2mat([pathToFile '/CSC' num2str(fileNum) '.ncs']);
-[ cscLFP, nlxCscTimestamps, cscHeader ] = csc2mat([pathToFile '/CSC' num2str(fileNum) '.ncs']);
-
+%[ cscLFP, nlxCscTimestamps, cscHeader ] = csc2mat([pathToFile '/CSC' num2str(fileNum) '.ncs']);
+[ cscLFP, nlxCscTimestamps, cscHeader, channel, sampFreq, nValSamp ] = csc2mat( fullfile( pathToFile, '/', fileName ) );
 
 % check polarity
 % this step is important for being able to find the peaks of the signal
@@ -169,7 +170,8 @@ for iandi=1:length(idxs)
 end
 
 if (saveFile == true)
-    save( [pathToFile '/CSC' num2str(fileNum) '.mat'], 'correctedCsc')
+    %save( [pathToFile '/CSC' num2str(fileNum) '.mat'], 'correctedCsc')
+    mat2csc(fileList{fileIdx}, pathToFile, cscHeader, cscLFP, nlxCscTimestamps, channel, nValSamp, sampFreq );
 end
 
 return;

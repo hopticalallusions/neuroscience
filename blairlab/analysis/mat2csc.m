@@ -1,6 +1,6 @@
 function mat2csc( fname, path, header, data, timestamps, channel, nValSamp, sampFreq )
 
-% modified by ahowe April 2015
+% ahowe April 2015
 
 if nargin ~= 8
     disp('wrong number of input arguments!!!')

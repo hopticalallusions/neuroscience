@@ -1,3 +1,10 @@
+% I think the best way to do this ultimately will be to create a binary
+% square pulse signal with the various data sources resampled to an
+% appropriately useful timescale (like 10 hz from Nlx's 32 kHz ) and then
+% running MIC or Xcor on these. XCor should be able to suggest what the
+% best delay is. We'd be looking for a maximal correlation, rather than a
+% perfect one because of the way this is set up.
+
 %get first timestamp
 datadir = 'C:\CheetahData\eventTestSync\'
 %[EventStamps, EventTTLs] = Nlx2MatEV_v3( [datadir, 'Events.Nev'], [1 0 1 0 0], 0, 1); %get TTL data
