@@ -15,7 +15,7 @@ end
 %% let's do it recursively.
 
 % check that we haven't requested something silly like 
-if ( isempty( strfind( pathToFile, 'deartifacted' ) ) )
+if ( ~isempty( strfind( pathToFile, 'deartifacted' ) ) )
     warning('Sorry dude, I refuse to deartifact a deartifact folder!')
     return;
 end
@@ -24,15 +24,16 @@ end
 % or something due to bugs (which I clearly never write into code)
 fileList = dir( pathToFile );
 % Get a logical vector that tells which is a directory.
-dirFlags = [files.isdir]
+dirFlags = [fileList.isdir];
 if (~isempty(dirFlags))
     % Extract only those that are directories.
-    subFolders = files(dirFlags)
+    subFolders = fileList(dirFlags);
     % call the function on all the subfolders
     for k = 1 : length(subFolders)
         %fprintf('Sub folder #%d = %s\n', k, subFolders(k).name);
         % don't process existing subfolders of deartifacted data!
-        if ( isempty( strfind( subFolders(k).name, 'deartifacted' ) ) )
+        % also don't process this folder, and the folder above...
+        if ( isempty( strfind( subFolders(k).name, 'deartifacted' ) ) ) && ~strcmp( subFolders(k).name, '.' ) && ~strcmp( subFolders(k).name, '..' )
             deartifactData(fullfile( pathToFile, subFolders(k).name ));
         end
     end
@@ -49,7 +50,10 @@ end
 
 % not to be fooled by funny directory names, ignore directories, only
 % choose actual files here.
-fileList = { fileList.name( ~[fileList.isdir]) }';
+% TODO figure out how to fix this, in case it's a problem
+% matlab complains about this line for some reason
+%fileList = { fileList.name( ~[fileList.isdir]) }';
+fileList = { fileList.name }';
 
 if isempty(fileList) 
     warning(['There are no files I want to process in the path supplied! : ' pathToFile]);
@@ -64,7 +68,7 @@ end
 
 % now we're going to actually process the files in the directory
 for fileIdx = 1:numel(fileList)
-    filename = fileList(fileIdx);
+    filename = char(fileList(fileIdx));
     % check that the deartifacted file doesn't exist
     % if the file doesn't exist, process it.
     % OR
@@ -72,12 +76,12 @@ for fileIdx = 1:numel(fileList)
     if ~( exist( fullfile( pathToFile, '/deartifacted/', filename ), 'file' ) ) || ( ( exist( fullfile( pathToFile, '/deartifacted/', filename ), 'file' ) ) && overwrite )
             % set up some variables
             temp = strsplit( filename, '.' );
-            deartName = [temp(1) '_deart.ncs' ];
+            deartName = char(strcat(temp(1), '_deart.ncs' ));
             fullPathDearted = fullfile( pathToFile, '/deartifacted/' );
             % load the file
             [ cscLFP, nlxCscTimestamps, cscHeader, channel, sampFreq, nValSamp ] = csc2mat( fullfile( pathToFile, '/',filename ) );
             % deartifact the file
-            correctedCsc = cscCorrection( cscLFP );
+            correctedCsc = cscCorrection( cscLFP, nlxCscTimestamps );
             %[ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( pathToFile, fileName, saveFile)
             % save the file
             mat2csc( deartName, fullPathDearted, cscHeader, correctedCsc, nlxCscTimestamps, channel, nValSamp, sampFreq );

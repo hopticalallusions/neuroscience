@@ -1,9 +1,10 @@
-function [ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( cscLFP )
+function [ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( cscLFP, nlxCscTimestamps )
 %pathToFile, fileName, saveFile)
 %function [ correctedCsc, idxs, mxValues, meanCscWindow ]=cscCorrection( pathToFile, fileNum, saveFile)
 
 
-% *** note : this needs to be made piecewise
+% *** note : this needs to be made piecewise, or not. who knows. maybe it
+% should be an option. sigh.
 
 % load the data file
 % csc 7 is VTA
@@ -130,9 +131,9 @@ end
 % divided by 1000 (us -> ms) * 100 (ms interval of FSCV)
 
 estimatedFscvEvents = (max(nlxCscTimestamps)-nlxCscTimestamps(1))/100000;
-if ( estimatedFscvEvents*1.01 < (length(nlxCscTimestamps)-find(nlxCscTimestamps, 1, 'last' )) )
+if ( estimatedFscvEvents*1.01 < length(nlxFscvTimes)/estimatedFscvEvents )
     warning(['The number of detected FSCV events is > 101% of the expected level! ' num2str(100*length(nlxFscvTimes)/estimatedFscvEvents) '% detected!'])
-elseif ( estimatedFscvEvents*0.99 > (length(nlxCscTimestamps)-find(nlxCscTimestamps, 1, 'last' )) ) % matlab corrected max(find(var))) to this find(var, 1, 'last') thing
+elseif ( estimatedFscvEvents*0.99 > length(nlxFscvTimes)/estimatedFscvEvents ) % matlab corrected max(find(var))) to this find(var, 1, 'last') thing
     warning(['The number of detected FSCV events is < 99% of the expected level! ' num2str(100*length(nlxFscvTimes)/estimatedFscvEvents) '% detected!'])
 end
 
