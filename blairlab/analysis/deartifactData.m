@@ -69,6 +69,7 @@ end
 % now we're going to actually process the files in the directory
 for fileIdx = 1:numel(fileList)
     filename = char(fileList(fileIdx));
+    disp(['STARTING : ' filename ]);
     % check that the deartifacted file doesn't exist
     % if the file doesn't exist, process it.
     % OR
@@ -81,7 +82,7 @@ for fileIdx = 1:numel(fileList)
             % load the file
             [ cscLFP, nlxCscTimestamps, cscHeader, channel, sampFreq, nValSamp ] = csc2mat( fullfile( pathToFile, '/',filename ) );
             % deartifact the file
-            correctedCsc = cscCorrection( cscLFP, nlxCscTimestamps );
+            [ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( cscLFP, nlxCscTimestamps );
             %[ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( pathToFile, fileName, saveFile)
             % save the file
             mat2csc( deartName, fullPathDearted, cscHeader, correctedCsc, nlxCscTimestamps, channel, nValSamp, sampFreq );
@@ -89,6 +90,7 @@ for fileIdx = 1:numel(fileList)
     else
         disp(['SKIPPING : ' filename ]);
     end
+    disp([num2str(round(100*fileIdx/numel(fileList))) '% ( ' num2str(fileIdx) ' of ' num2str(numel(fileList)) ' )' ]);
 end
 
 

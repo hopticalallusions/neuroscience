@@ -2,6 +2,9 @@ function [ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( cscLFP
 %pathToFile, fileName, saveFile)
 %function [ correctedCsc, idxs, mxValues, meanCscWindow ]=cscCorrection( pathToFile, fileNum, saveFile)
 
+% TODO things that could be returned, if desired.
+%mxRelIdxs
+%nlxFscvTimes
 
 % *** note : this needs to be made piecewise, or not. who knows. maybe it
 % should be an option. sigh.
@@ -30,8 +33,8 @@ end
 % in a perfect world, the FSCV is the biggest noise in the signal for any 100 ms window
 %, so we just find a max and average that and then subtract those.
 % in the real world, there are problems :
-% 1) FSCV falls off, so no big noise signal (clean with max value standard
-% deviation threshold)
+% 1) FSCV board falls off, so no big noise signal (clean with max value 
+% standard deviation threshold)
 % 2) sharp waves can be bigger than FSCV noise (clean by time estimation)
 
 
@@ -61,8 +64,7 @@ while idx + windowSize < length(cscLFP)
         %connector popped off the headcap; we don't want mistakenly average
         %these into the signal, because the max finder would mistake ANY
         %max as the noise signal.
-         disp('max is low!')
-         disp(mx)
+         disp([ 'max is low!  ' num2str(mx) '  ' num2str(idx)])
          skip = true;
     end
     mxRelativeIdx=find(mx==snip); % find the location of the max value
@@ -81,12 +83,28 @@ while idx + windowSize < length(cscLFP)
         if ( mxRelativeIdx>(mean(mxRelIdxs)+std(mxRelIdxs)) || mxRelativeIdx < (mean(mxRelIdxs)-std(mxRelIdxs)) )
             disp('warning : deviation found in index position. attempting to fix.')
             tidx=mxRelIdxs(length(mxRelIdxs));
-            tmx=max(snip(tidx-120:tidx+120));
-            %plot(snip)
-            tmxRelativeIdx=find(tmx==snip(tidx-120:tidx+120))-120; % find the location of the max value
-            tmxRelativeIdx=tmxRelativeIdx(1); % in case there are more than 1
-            mxRelativeIdx=tidx+tmxRelativeIdx;
-            mx=tmx;
+            if (tidx-120 > 0) && (tidx+120 < 3200)  % keep maxes detected within bounds
+                tmx=max(snip(tidx-120:tidx+120));
+            end
+            % this is not really how one wants to solve special cases...
+            if (mx==tmx)
+                % in the event that a sharp wave lands right next to/inside/etc an
+                % FSCV pulse, this conditional should figure that out. It's
+                % just going to assume that adding 3200 is correct, because
+                % there's basically no easy way to figure it out that I can
+                % see.
+                disp('max problem; assuming a location.' )
+                 mxRelativeIdx=0;
+                 mx=max(snip(1600-round(std(mxRelIdxs)):1600+round(std(mxRelIdxs)))); % beacuase we're not moving it.
+            else
+                disp('trying to fix the location.')
+%                 if (tidx-120 > 0)
+%                     tmxRelativeIdx=find(tmx==snip(tidx-120:tidx+120))-120; % find the location of the max value
+%                     tmxRelativeIdx=tmxRelativeIdx(1); % in case there are more than 1
+%                 end
+%                 mxRelativeIdx=tidx+tmxRelativeIdx;
+%                 mx=tmx;
+            end
         end
         % in case we have a sharp wave during a period when the FSCV board
         % fell out.
@@ -97,15 +115,26 @@ while idx + windowSize < length(cscLFP)
             %connector popped off the headcap; we don't want mistakenly average
             %these into the signal, because the max finder would mistake ANY
             %max as the noise signal.
-             disp('max is low!')
-             disp(mx)
+             disp([ 'max is low!  ' num2str(mx) ' ' num2str(idx) ])
              skip = true;
         end
     end
     if ( ~skip ) 
         newOffset = idealPeakCenter - mxRelativeIdx;
         idx = idx - newOffset;
-        snip=cscLFP(idx:idx+windowSize-1); % re-window after finding the center
+        if ( idx < 1 )
+            paddingSize = abs(idx)+1;
+            idx = idx+paddingSize; % which should be 1...
+            pad = zeros( paddingSize, 1);
+            snip= [pad; cscLFP(idx:idx+windowSize-1-paddingSize)]; % re-window after finding the center
+            disp(['front padding required : ' num2str(paddingSize) ])
+        elseif (idx+windowSize-1 > length(cscLFP) )
+            paddingSize = ( idx+windowSize-1 ) - length(cscLFP);
+            pad = zeros( paddingSize, 1);
+            snip=[cscLFP(idx:length(cscLFP)); pad] ; % re-window after finding the center
+        else
+            snip=cscLFP(idx:idx+windowSize-1); % re-window after finding the center
+        end
         meanCscWindow = (iterations*meanCscWindow + snip)/(iterations+1);
         iterations = iterations + 1; % accounting
         % the 136 shifts from the peak back to somewhere pretty close to the
@@ -130,11 +159,12 @@ end
 % should be somewhat close to the number of microseconds in the record,
 % divided by 1000 (us -> ms) * 100 (ms interval of FSCV)
 
-estimatedFscvEvents = (max(nlxCscTimestamps)-nlxCscTimestamps(1))/100000;
-if ( estimatedFscvEvents*1.01 < length(nlxFscvTimes)/estimatedFscvEvents )
-    warning(['The number of detected FSCV events is > 101% of the expected level! ' num2str(100*length(nlxFscvTimes)/estimatedFscvEvents) '% detected!'])
-elseif ( estimatedFscvEvents*0.99 > length(nlxFscvTimes)/estimatedFscvEvents ) % matlab corrected max(find(var))) to this find(var, 1, 'last') thing
-    warning(['The number of detected FSCV events is < 99% of the expected level! ' num2str(100*length(nlxFscvTimes)/estimatedFscvEvents) '% detected!'])
+%estimatedFscvEvents = (max(nlxCscTimestamps)-nlxCscTimestamps(1))/100000;
+estimatedFscvEvents = length(cscLFP)/3200; 
+if ( 1.01 < length(idxs)/estimatedFscvEvents )
+    warning(['The number of detected FSCV events is > 101% of the expected level! ' num2str(100*length(idxs)/estimatedFscvEvents) '% detected!'])
+elseif ( 0.99 > length(idxs)/estimatedFscvEvents ) % matlab corrected max(find(var))) to this find(var, 1, 'last') thing
+    warning(['The number of detected FSCV events is < 99% of the expected level! ' num2str(100*length(idxs)/estimatedFscvEvents) '% detected!'])
 end
 
 % this corrector seems to be pushing the curve a little too far to the
@@ -144,42 +174,62 @@ idealIdxs=[]; %837  565  700    137; 135
 %while idx + windowSize < length(cscLFP)
 for iandi=1:length(idxs)
     idx = idxs(iandi);
-    % cut out a window of the data
+    % copy a window of the data
     snip=correctedCsc(idx:idx+windowSize-1);
-    % center on the max value
-    %mx=max(snip);
-    %mxRelativeIdx=find(mx==snip);
-    %mxRelativeIdx=mxRelativeIdx(1);
-    %newOffset = idealPeakCenter - mxRelativeIdx;
-    %idx = idx - newOffset;
-    scalingFactor=(max(meanCscWindow)-min(meanCscWindow))/(max(snip(idealPeakCenter-140:idealPeakCenter+140))-min(snip(idealPeakCenter-140:idealPeakCenter+140)));
-    %
-    signalNoise=1e6;
-    idealIdx=0;
-    for minFindingIdx = -5:5
-        snip = correctedCsc(idx+minFindingIdx:idx+windowSize-1+minFindingIdx);
-        tempCorrected = snip - (meanCscWindow/scalingFactor);
-        if signalNoise > std(tempCorrected)
-            signalNoise = std(tempCorrected);
-            idealIdx = minFindingIdx;
+    doMain = true;
+    % special edge case handling...
+    % if the artifact occurs before the middle of the first 100ms period of
+    % recording, just subtract the part that fits of the mean window
+    % otherwise, if 
+    if iandi == 1
+        if  min(find(max(snip)==snip)) < 1600
+            % unsafe scaling factor with sharp waves
+            scalingFactor=(max(meanCscWindow)-min(meanCscWindow))/(max(snip)-min(snip));
+            correctedCsc(idx:idx+windowSize-1-(1600-min(find(max(snip)==snip)))) = correctedCsc(idx:idx+windowSize-1-(1600-min(find(max(snip)==snip)))) - (meanCscWindow(1600-min(find(max(snip)==snip)-1):length(meanCscWindow))/scalingFactor);
+            doMain = false;
+        end
+    elseif iandi == length(idxs)
+        %handle cut-off recordings and also pop-outs and subthreshold things.
+        if  ( min(find(max(snip)==snip)) > 1600 ) && ~(mxRelativeIdx < (mean(mxRelIdxs)-std(mxRelIdxs)))
+            % unsafe scaling factor with sharp waves
+            scalingFactor=(max(meanCscWindow)-min(meanCscWindow))/(max(snip)-min(snip));
+            correctedCsc(idx:idx+windowSize-1-(1600-min(find(max(snip)==snip)))) = correctedCsc(idx:idx+windowSize-1-(1600-min(find(max(snip)==snip)))) - (meanCscWindow(1600-min(find(max(snip)==snip)-1):length(meanCscWindow))/scalingFactor);
+            doMain = false;
+        elseif mxRelativeIdx < (mean(mxRelIdxs)-std(mxRelIdxs))
+            doMain = false;
         end
     end
-    %
-    correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx) = correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx) - (meanCscWindow/scalingFactor);
-    idealIdxs=[idealIdxs idealIdx];
-    % close the loop
-    % idx = idx + windowSize;
+    if doMain
+        % TODO weird things will happen if a sharp wave or other large noise
+        % event occurs in this window...
+        scalingFactor=(max(meanCscWindow)-min(meanCscWindow))/(max(snip(idealPeakCenter-140:idealPeakCenter+140))-min(snip(idealPeakCenter-140:idealPeakCenter+140)));
+        %
+        signalNoise=1e6;
+        idealIdx=0;
+        for minFindingIdx = -5:5
+            snip = correctedCsc(idx+minFindingIdx:idx+windowSize-1+minFindingIdx);
+            tempCorrected = snip - (meanCscWindow/scalingFactor);
+            if signalNoise > std(tempCorrected)
+                signalNoise = std(tempCorrected);
+                idealIdx = minFindingIdx;
+            end
+        end
+        %
+        correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx) = correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx) - (meanCscWindow/scalingFactor);
+        idealIdxs=[idealIdxs idealIdx];
+    end
 end
-
-% if (saveFile == true)
-%     %save( [pathToFile '/CSC' num2str(fileNum) '.mat'], 'correctedCsc')
-%     mat2csc(fileList{fileIdx}, pathToFile, cscHeader, cscLFP, nlxCscTimestamps, channel, nValSamp, sampFreq );
-% end
 
 return;
 
 end
 
+
+
+% if (saveFile == true)
+%     %save( [pathToFile '/CSC' num2str(fileNum) '.mat'], 'correctedCsc')
+%     mat2csc(fileList{fileIdx}, pathToFile, cscHeader, cscLFP, nlxCscTimestamps, channel, nValSamp, sampFreq );
+% end
 
 %spectrogram(data, windowSize, windowOverlap, numberOfDfftPoints, sampleRate)
 %spectrogram(swrCSC,128,100,128,32*1e3)

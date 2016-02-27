@@ -5,6 +5,13 @@ function [data, fulltimestamps, header, channel, sampFreq, nValSamp ]=csc2mat(fn
 % 
 % modified by ahowe April 2015
 
+if nargin > 1
+    recordStart = floor(recordStart/512);
+end
+if nargin > 2
+    recordEnd = floor(recordEnd/512); % the records come in blocks of 512, so specifying how many samples in will cause problems.
+end
+
 if nargin < 2
     recordStart = 1;
 end
@@ -124,6 +131,7 @@ for idx = 1: (length( timestamps )-1)
     
 end
 
+fclose(fid);
 
 return;
 

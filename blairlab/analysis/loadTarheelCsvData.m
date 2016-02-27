@@ -1,38 +1,55 @@
-%function daConcData = rebaselineTarheelCsvData( folderpath, alpha )
+function daConcData = rebaselineTarheelCsvData( folderpath, alpha )
 
     %dir='B:\Users\UCLA\Desktop\andrewhowe_blairlab\V4\3-10-2015\run\platterSimple\BATCH_PC\STACKED_PC\';
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-23-2015\run\maze\BATCH_PC\STACKED_PC\';
-    
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-20-2015\run\maze\BATCH_PC\STACKED_PC';
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-20-2015\run\platterSync\BATCH_PC\STACKED_PC';
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-20-2015\run\platterNoSync\BATCH_PC\STACKED_PC';
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-23-2015\run\maze\BATCH_PC\STACKED_PC\';
+%     
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-20-2015\run\maze\BATCH_PC\STACKED_PC';
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-20-2015\run\platterSync\BATCH_PC\STACKED_PC';
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-20-2015\run\platterNoSync\BATCH_PC\STACKED_PC';
+% 
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-19-2015\run\BATCH_PC\STACKED_PC';
+%     % nice looking stuff here!
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-10-2015\run\maze\BATCH_PC\STACKED_PC';
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-10-2015\run\platterSimple\BATCH_PC\STACKED_PC';
+%     
+%     
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-6-2015\run\maze\BATCH_PC\STACKED_PC'; % board pop-out
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-6-2015\run\platterSimple\BATCH_PC\STACKED_PC'; % looks nice
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-6-2015\run\platterSequence\BATCH_PC\STACKED_PC'; % looks nice
+%     
+%     % might be good?
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-5-2015\run\maze\BATCH_PC\STACKED_PC'; % pop out but not terrible
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-5-2015\run\platter\BATCH_PC\STACKED_PC'; % pop out but not terrible
+%         
+%     % Something really weird happened here after about 35 minutes!!!
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\2-24-2015\run\BATCH_PC\STACKED_PC\'
+%     
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-11-2015\run\platter\BATCH_PC\STACKED_PC'; %%%
+%     folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-11-2015\run\maze\BATCH_PC\STACKED_PC';%%%
+% 
+%     getFscvNlxAlignmentLag(,'/Users/andrewhowe/blairLab/blairlab_data/v4/giantsharpwaves/nlx/maze/',7)
+% 
+%     folderpath = '/Users/andrewhowe/blairLab/blairlab_data/v4/giantsharpwaves/fscv/maze/';
+%     folderpath = '/Users/andrewhowe/blairLab/blairlab_data/v4/march5/fscv/platform/';
 
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-19-2015\run\BATCH_PC\STACKED_PC';
-    % nice looking stuff here!
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-10-2015\run\maze\BATCH_PC\STACKED_PC';
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-10-2015\run\platterSimple\BATCH_PC\STACKED_PC';
-    
-    
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-6-2015\run\maze\BATCH_PC\STACKED_PC'; % board pop-out
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-6-2015\run\platterSimple\BATCH_PC\STACKED_PC'; % looks nice
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-6-2015\run\platterSequence\BATCH_PC\STACKED_PC'; % looks nice
-    
-    % might be good?
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-5-2015\run\maze\BATCH_PC\STACKED_PC'; % pop out but not terrible
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-5-2015\run\platter\BATCH_PC\STACKED_PC'; % pop out but not terrible
-        
-    % Something really weird happened here after about 35 minutes!!!
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\2-24-2015\run\BATCH_PC\STACKED_PC\'
-    
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-11-2015\run\platter\BATCH_PC\STACKED_PC'; %%%
-    folderpath = 'B:\fscv\andrewhowe_blairlab\V4\3-11-2015\run\maze\BATCH_PC\STACKED_PC';%%%
-
-    
-    filename='\Stacked_Cal';
+    %filename='Stacked_Current';
+    filename='Stacked_Cal';
     %filename='\Stacked_pH';
     fullpath = [folderpath filename];
 
-    alpha = .997;
+    if nargin < 2
+        alpha = .997;
+    end
+    
+    % display the half life of the decay constant.
+    counter=1; 
+    value=1; 
+    while value > .5 ;
+        value=value*alpha;
+        counter = counter + 1;
+    end;
+    % assumes 10 Hz sampling
+    disp([ 'half life of alpha decay ' num2str(alpha) ' is ' num2str(counter/10) ' seconds with 10 Hz sampling']);
 
     stackedData=load(fullpath);
     % stacked data arrives in columnar form
@@ -51,7 +68,8 @@
     % this step produces continuous data without hard jumps
     % ("rebaselining" in Wassum lab terminology)
     for col = 2:dims(2) 
-        offset=mean(stackedData(dims(1)-9:dims(1),col-1)); % Kate recommends rebaselinging on the prior 10 samples.
+        offset=mean(stackedData(dims(1)-9:dims(1),col-1))- mean(stackedData(1:10,col)); % Kate recommends rebaselinging on the prior 10 samples.
+        %stackedData(:,col)=offset+stackedData(:,col); 
         for row=1:dims(1); 
             stackedData(row,col)=offset+stackedData(row,col); 
         end;
@@ -115,10 +133,12 @@
    axis(axisArgument);
    xlabel('time (minutes)');
    
+   %TODO check to see if this has already been done before repeating the
+   %work.
    % save data and print the figure   
    save( [ folderpath '\daConcData.mat' ],'daConcData')
-   print([ folderpath '\daConcData.fig' ]) ;
+   %print([ folderpath '\daConcData.fig' ]) ;
    
-%end
+end
 
 

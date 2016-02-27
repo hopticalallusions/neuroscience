@@ -65,6 +65,7 @@ for idx = 1:numberOfRecords
     events(idx)          = cellstr( fread( fid, 128, '*char')' );%%
 end
 
+fclose(fid);
 
 % for recX=1:numberOfRecords
 %    timestamps(recX)=fread(fid, 1, 'int64');
