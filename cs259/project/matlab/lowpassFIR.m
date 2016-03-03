@@ -10,7 +10,7 @@ lowpass_output = zeros(1, N_samples);
 % nested loop for filter difference equation
 for i=1:N_samples
     for k=1:min(i,N_coeffs)
-        lowpass_output(i-k+1) = lowpass_output(i-k+1) + ...
+        lowpass_output(i) = lowpass_output(i) + ...
             input_data(i-k+1)*filter_coeffs(k);
     end
 end
