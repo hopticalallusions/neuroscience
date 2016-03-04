@@ -140,7 +140,7 @@ hilbertNumeratorCoeffs = hilbertNumeratorCoeffs(41:61);
 lowpassNCoeff = min(length(lowpassDenominatorCoeffs),length(lowpassNumeratorCoeffs));
 bandpassNCoeff = min(length(bandpassDenominatorCoeffs),length(bandpassNumeratorCoeffs));
 hilbertNCoeffs = length(hilbertNumeratorCoeffs);
-delay_samples = downsampleRate/(6.95 * 4) ; % the 6.95 is the center frequency of the bandpass filter; need a bank of these values normally
+delay_samples = round(downsampleRate/(6.95 * 4)) ; % the 6.95 is the center frequency of the bandpass filter; need a bank of these values normally
 % for checking the results
 lowpassed = zeros(size(lfp));
 downsampled = zeros(size(lfp));
@@ -219,8 +219,8 @@ for idx=1: 320000 %length(lfp)
             %   a hilbert transform on the tightly bandpassed signal is
             %   approximately equal to the original signal delayed by 
             %   delay_samples = sample_rate/(center_freq * 4)
-            if dsIdx > 1
-                hilberted(dsIdx) =  5.3*(bandpassed(dsIdx-1) - bandpassed(dsIdx));
+            if dsIdx > delay_samples
+                hilberted(dsIdx) =  bandpassed(dsIdx-delay_samples);
             end
          end
          %% CORDIC
