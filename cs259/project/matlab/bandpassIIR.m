@@ -9,6 +9,7 @@ N_coeffs  = length(num_filter_coeffs); % no. filter coefficients
 
 bandpass_output = zeros(1, N_samples);
 
+
 for i=1:N_samples
    for k=1:min(i, N_coeffs)
         bandpass_output(i) = bandpass_output(i) - ...
