@@ -16,8 +16,9 @@ function [ angle, hypotenuse ] = cordicVector(xo,yo,n)
     if ( xo > 0 ) %&& ( yo > 0 )
         offset = 0;
     else
-        xo = abs(xo);
-        offset = 90;
+        xo = -xo;
+        yo = -yo;
+        offset = 180;
     end
     xx = zeros(1,n+1); xx(1) = xo;
     yy = zeros(1,n+1); yy(1) = yo;
@@ -77,11 +78,11 @@ function [ angle, hypotenuse ] = cordicVector(xo,yo,n)
     %
 
     hypotenuse = xx(n)*.6073;
-    if zz(n) < 0
-        angle = 360 - offset + zz(n)*180/pi ;
-    else
-        angle = offset + zz(n)*180/pi ;
-    end
+    %if zz(n) < 0
+        angle = 270 - offset + zz(n)*180/pi ;
+    %else
+    %    angle = 180 + offset - zz(n)*180/pi ;
+    %end
 
     return
 
