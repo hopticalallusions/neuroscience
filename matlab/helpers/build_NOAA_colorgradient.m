@@ -114,16 +114,18 @@ end
 
 
 %Error messages
-if ( (min(gradient)) < 0 ) 
-        error('ERROR: there is a negative value in the gradient')
+if ( min(min(gradient)) < 0 ) 
+        warning('ERROR: there is a negative value in the gradient; attempting to adjust')
+        gradient = abs(gradient);
 end
-if ( (max(gradient)) > 1 )
-    error('ERROR: there is a value larger than 1 in the gradient')
+if ( max(max(gradient)) > 1 )
+    warning('ERROR: there is a value larger than 1 in the gradient; normalizing to max')
+    gradient = gradient./max(max(gradient));
 end
 
 
 
-
+end
 
 %notes
 %blue to dark violet
