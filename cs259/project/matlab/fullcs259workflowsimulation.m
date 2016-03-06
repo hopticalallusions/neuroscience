@@ -71,6 +71,7 @@ digitized = zeros(1,ceil(length(lfp)/everyNthSample)); % what port is active? -1
 
 deltaEnvTemporal=.1;
 
+tic();
 %% simulate the arrival of data samples
 % cheat a little on the spool up
 for idx=1: 320000 %length(lfp)
@@ -175,6 +176,7 @@ for idx=1: 320000 %length(lfp)
          end
     end
 end
+toc()
 
 %% plot things
 %for ii=1:numberOfBbandsToPass
@@ -183,7 +185,7 @@ ii=8;
     figure;
     trueHilbert = hilbert(bandpassed(ii,:));
     subplot(4,1,1); plot(bandpassed(ii,1:2*downsampleRate)); hold on;  plot(enveloped(ii,1:2*downsampleRate)); legend('bandpassed','envelope'); title([ whatHilbert ' ' num2str(bandpassCenterFrequencies(ii)) ' Hz' ]);
-    subplot(4,1,2); plot(angled(ii,1:2*downsampleRate)); hold on;  plot(360/(2*pi)*atan2(real(trueHilbert(1:2*downsampleRate)),imag(trueHilbert(1:2*downsampleRate)))); legend('CORDIC','atan2');
+    subplot(4,1,2); plot(angled(ii,1:2*downsampleRate)); hold on;  plot(360/(2*pi)*(pi+angle(trueHilbert(1:2*downsampleRate)))); legend('CORDIC','mtlb_angle');
     subplot(4,1,3); hold off; plot(bandpassed(ii,1:2*downsampleRate)); hold on; plot(hilberted(ii,1:2*downsampleRate)); legend('bandpassed','hilberted');
     subplot(4,1,4); plot(bandpassed(ii,1:2*downsampleRate)); hold on; plot(imag(trueHilbert(1:2*downsampleRate))); legend('bandpassed','true hilbert');
 %end
