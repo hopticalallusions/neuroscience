@@ -6,6 +6,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <assert.h>
+#include <sys/time.h>
 
 #define DATA_SIZE 2048*128 //10886944
 #define DOWNSAMPLE_FACTOR 128
@@ -375,12 +376,20 @@ int main() {
         return -1;
     }
     
+    
+    struct timeval timevalStart;
+	struct timeval timevalEnd;
+	struct timezone tzhere;
+    
 	int elementsRetrieved = 1;
 	//while ( elementsRetrieved > 0) {
 		elementsRetrieved = fread(lfp, 4, DATA_SIZE, elfp);
 		//#pragma ACCEL task
 		//realtime_theta_phase_kernel( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, digitized, instantFrequency );
+		gettimeofday(&timevalStart,&timezone);
 		realtime_theta_phase_sw( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, digitized, instantFrequency);
+		gettimeofday(&timevalEnd,&timezone);
+		printf("%ld seconds, %d usec\n",  timevalEnd.tv_sec-timevalStart.tv_sec, timevalEnd.tv_usec-timevalStart.tv_usec);
 
 		// write data out to files.
 		fwrite( lowpassed, sizeof(lowpassed[0]), sizeof(lowpassed)/sizeof(lowpassed[0]), lpfp );
