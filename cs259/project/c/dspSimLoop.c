@@ -1,97 +1,20 @@
-/*
-//// obtain data
-clear all;
-load('~/Desktop/cs259demodata.mat')
-//// create data structures
-// constants
-//choose hilbert algorithm
-whatHilbert = 'delay'; // 'fir' 'diff' 'delay'
-bitvolts = 0.015624999960550667; // microvolts per bit
-powerThreshold = 60; // microvolts
-phaseSegmentsDesired = 10; // divisions of the phase of theta
-nativeSampleRate = 32000; // Hz
-downsampleRate = 250; // Hz
-everyNthSample = round(nativeSampleRate/downsampleRate); // 128 samples of each 32,000 (Hz) is 250 Hz
-lowpassNumeratorCoeffs =   [ 0.000000000006564694180131090961704897522  0.000000000039388165080786542539055117347  0.000000000098470412701966356347637793367  0.000000000131293883602621825696446486011  0.000000000098470412701966356347637793367  0.000000000039388165080786542539055117347  0.000000000006564694180131090961704897522  ];
-lowpassDenominatorCoeffs = [ 1 -5.893323981110579090625378739787265658379 14.472294910655531197107848129235208034515  -18.955749009589681008947081863880157470703  13.966721637745113326900536776520311832428  -5.488755923739796926952294597867876291275  0.898812366459551981279219035059213638306  ];
-lowpassNCoeff = min(length(lowpassDenominatorCoeffs),length(lowpassNumeratorCoeffs));
-//
-// be carfeul about changing this, because the matrix sizes are hard coded
-numberOfBandsToPass = 34;
-bandpassDenominatorCoeffs = zeros(numberOfBandsToPass,5);
-bandpassNumeratorCoeffs = zeros(numberOfBandsToPass,5);
-bandpassNCoeff = min(length(bandpassDenominatorCoeffs),5);
-bandpassCenterFrequencies = zeros(1,numberOfBandsToPass);
-delay_samples = zeros(1,numberOfBandsToPass);
-responsePoints = 1024;
-//// filter analysis
-wc = zeros(numberOfBandsToPass,responsePoints);
-zc = zeros(numberOfBandsToPass,responsePoints);
-pc = zeros(numberOfBandsToPass,responsePoints);
-oc = zeros(numberOfBandsToPass,responsePoints);
-for ii=1:numberOfBandsToPass
-    Fstop1 = 2;         // First Stopband Frequency
-    Fpass1 = 3.4 + ii/4;         // First Passband Frequency
-    Fpass2 = 3.8 + ii/4;         // Second Passband Frequency
-    Fstop2 = 18;        // Second Stopband Frequency
-    Astop1 = 30;          // First Stopband Attenuation (dB)
-    Apass  = 1;           // Passband Ripple (dB)
-    Astop2 = 30;          // Second Stopband Attenuation (dB)
-    match  = 'passband';  // Band to match exactly
-    // Construct an FDESIGN object and call its BUTTER method.
-    h  = fdesign.bandpass(Fstop1, Fpass1, Fpass2, Fstop2, Astop1, Apass, Astop2, downsampleRate);
-    thetaFilter = design(h, 'butter', 'MatchExactly', match);
-    // analyze the filter
-    [wc(ii,:),zc(ii,:)]=freqz(thetaFilter,responsePoints);
-    [pc(ii,:),oc(ii,:)]=phasez(thetaFilter,responsePoints);
-    // Get the transfer function values.
-    [b, a] = tf(thetaFilter);
-    // Convert to a singleton filter.
-    thetaFilter = dfilt.df2(b, a);
-    // extract the coefficients
-    bpcoefs = thetaFilter.coefficients; 
-    bandpassDenominatorCoeffs(ii,:) = bpcoefs{2};
-    bandpassNumeratorCoeffs(ii,:) = bpcoefs{1};
-    bandpassCenterFrequencies(ii) = mean([Fpass1 Fpass2]);
-    delay_samples(ii) = round(downsampleRate/(bandpassCenterFrequencies(ii) * 4)) ; // the 6.95 is the center frequency of the bandpass filter; need a bank of these values normally
-end
-bandpassGain = downsampleRate./(bandpassCenterFrequencies.^2);
-// for checking the results
-lowpassed = zeros(size(lfp));
-downsampled = zeros(size(lfp));
-bandpassed = zeros(numberOfBandsToPass,ceil(length(lfp)/everyNthSample));
-hilberted = zeros(numberOfBandsToPass,ceil(length(lfp)/everyNthSample));
-angled = zeros(numberOfBandsToPass,ceil(length(lfp)/everyNthSample));
-enveloped = zeros(numberOfBandsToPass,ceil(length(lfp)/everyNthSample));
-envelopeTemporalSmoothed = zeros(numberOfBandsToPass,ceil(length(lfp)/everyNthSample));
-envelopeTemporalBandSmoothed = zeros(numberOfBandsToPass,ceil(length(lfp)/everyNthSample));
-thresholded = zeros(numberOfBandsToPass,ceil(length(lfp)/everyNthSample));
-maxBandpassIdx = zeros(1,ceil(length(lfp)/everyNthSample));
-instantFrequency = zeros(1,ceil(length(lfp)/everyNthSample)); // what's the center frequency?
-digitized = zeros(1,ceil(length(lfp)/everyNthSample)); // what port is active? -1 == NULL
-
-deltaEnvTemporal=.1;
-*/
 
 //// simulate the arrival of data samples
 // cheat a little on the spool up
-
-
 
 #include <math.h>
 #include <stdio.h>
 #include <assert.h>
 
+#define DATA_SIZE 10886944
+#define DOWNSAMPLE_FACTOR 128
+#define DOWNSAMPLED_SIZE ((DATA_SIZE % DOWNSAMPLE_FACTOR == 0) ? (DATA_SIZE/DOWNSAMPLE_FACTOR) : (DATA_SIZE/DOWNSAMPLE_FACTOR+1))
+#define N_BANKS 34
 
+void realtime_theta_phase_kernel( int *lfp, int input_size, int *lowpassed, int *downsampled, float **bandpassed, float **hilberted, float **enveloped, float **angled, float **envelopeTemporalSmoothed, float **envelopeTemporalBandSmoothed, float *maxBandwidthIdx, float *digitized, float *instantFrequency );
 
-
-
-void logistic_regression_kernel( int n_samples, float * global_weights, float * global_data, float * global_gradient );
-
-
-void logistic_regression_sw( int n_samples, float * global_weights, float * global_data, float * global_gradient )
+void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *downsampled, float **bandpassed, float **hilberted, float **enveloped, float **angled, float **envelopeTemporalSmoothed, float **envelopeTemporalBandSmoothed, float *maxBandwidthIdx, float *digitized, float *instantFrequency )
 {
-
 	// CORDIC lookup table
 	// the following is a table of arctan values for the small steps used to
 	// binary search for the angle and hypotenuse of the provided coordinate
@@ -105,37 +28,29 @@ void logistic_regression_sw( int n_samples, float * global_weights, float * glob
 		0.00000005960464,   0.00000002980232,   0.00000001490116,   0.00000000745058 
 	};
 
-	int envThreshold = 3480; // 60 uV / 1.5625e-8 bits per volt
+	int envThreshold =	 3480; // 60 uV / 1.5625e-8 bits per volt
+	//
 	// working variables
-	int input_size 	= 0;
-	int dataIndex 	= 0;
-	int freqBandIdx = 0;
-	int k_limit 	= 0;
-	int tempMax 	= 0;
+	//
+	int dataIndex 		= 0;
+	int freqBandIdx 	= 0;
+	int k_limit 		= 0;
+	int tempMax 		= 0;
 	int tempMaxIdx 	= 0;
 	int k 			= 0;
 	int dsIdx		= 0;
 	int cordicX 	= 0;
-	int xordicY		= 0;
+	int cordicY		= 0;
 	int cordicZ		= 0;
 	int offset		= 0;
 	float pi		= 3.1415;
 	// accounting variables
-	int lfp[]
-	int lowpassed[]
-	int downsampled[]
-	int bandpassed[][] 
-	int hilberted[][]
-	int arctanLookup[]
-	int enveloped[][]
-	int angled[][]
-	int envelopeTemporalSmoothed[][]
-	int envelopeTemporalBandSmoothed[][]
-	int maxBandpassIdx[]
-	int digitized[]
-	int instantFrequency[]
+	
+       int everyNthSample 	= 128;
+	double deltaEnvTemporal = 0.1;
+
 	// parameters
-	int nLowpassCoeffs 		= 7;
+	const int nLowpassCoeffs 		= 7;
 	double lowpassNumeratorCoeffs[nLowpassCoeffs] =   { 
 		0.000000000006564694180131090961704897522,  0.000000000039388165080786542539055117347,  
 		0.000000000098470412701966356347637793367,  0.000000000131293883602621825696446486011,  
@@ -148,8 +63,8 @@ void logistic_regression_sw( int n_samples, float * global_weights, float * glob
 		13.966721637745113326900536776520311832428,  -5.488755923739796926952294597867876291275, 
 		 0.898812366459551981279219035059213638306 
 	};
-	int numberOfBandsToPass = 34;
-	int nBandpassCoeffs 	= 5;
+	const int numberOfBandsToPass = 34;
+	const int nBandpassCoeffs 	= 5;
 	double bandpassDenominatorCoeffs[numberOfBandsToPass][nBandpassCoeffs] = 
 		{
 			{1, -3.96150264904908, 5.90354242794449, -3.92222041251962, 0.980266823997447 },
@@ -228,33 +143,31 @@ void logistic_regression_sw( int n_samples, float * global_weights, float * glob
 		16, 15, 14, 14, 13, 12, 12, 11, 11, 10, 10, 9, 9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 7, 7, 
 		6, 6, 6, 6, 6, 6, 6, 5, 5, 5
 	};
-	int everyNthSample 		= 128;
-	double deltaEnvTemporal = 0.1;
-	double bandpassCenterFrequencies[numberOfBandsToPass] = {
+	
+    double bandpassCenterFrequencies[numberOfBandsToPass] = {
 		3.85, 4.10, 4.35, 4.60, 4.85, 5.10, 5.35, 5.60, 5.85, 6.10, 6.35, 6.60, 6.85, 7.10, 7.35, 
 		7.60, 7.85, 8.10, 8.35, 8.60, 8.85, 9.10, 9.35, 9.60, 9.85, 10.1, 10.35, 10.6, 10.85, 11.1,
 		11.35, 11.6, 11.85,	12.10
 	};
 
-	tempUp[]
-	tempDown[]
+	int tempUp[numberOfBandsToPass];
+	int tempDown[numberOfBandsToPass];
 
-
-
-
-
-	for ( dataIndex=0; dataIndex < input_size; dataIndex++ ) {
+	for ( dataIndex=0; dataIndex < input_size; dataIndex++ ) 
+	{
 
 		// LOW PASS FILTER
 
 		k_limit = (k < nLowpassCoeffs) ? dataIndex : nLowpassCoeffs;
-		for (k=0; k<k_limit; k++) {
-			lowpassed[i] += -lowpassDenomCoeffs[k]*lowpassed[i-k] + lowpassNumerCoeffs[k]*lfp[i-k];
+		for (k=0; k<k_limit; k++) 
+		{
+			lowpassed[dataIndex] += -lowpassDenominatorCoeffs[k]*lowpassed[dataIndex-k] + lowpassNumeratorCoeffs[k]*lfp[dataIndex-k];
 		}
 	
 	   // DOWN SAMPLE
    
-	   if ( 0 == dataIndex % everyNthSample )  {
+	   if ( 0 == dataIndex % everyNthSample )  
+	   {
    
 			 dsIdx = dataIndex/everyNthSample;
 			 downsampled[dsIdx] = lowpassed[dataIndex];
@@ -264,42 +177,50 @@ void logistic_regression_sw( int n_samples, float * global_weights, float * glob
 			//bandpassCache = [ bandpassCache(2:end) lowpassed(dataIndex) ]; // shift register
 			//bandpassed(dsIdx) = bandpassCache*bandpassNumeratorCoeffs' + bandpassCache*-bandpassDenominatorCoeffs';
 
-			for ( freqBandIdx = 0; freqBandIdx < numberOfBandsToPass; freqBandIdx++ ) {
+			for ( freqBandIdx = 0; freqBandIdx < numberOfBandsToPass; freqBandIdx++ ) 
+			{
 		
 				k_limit = (k < nBandpassCoeffs) ? dataIndex : nBandpassCoeffs;
-				for ( k = 0; k < k_limit; k++ ) {
+				for ( k = 0; k < k_limit; k++ ) 
+				{
 					bandpassed[freqBandIdx][dsIdx] += - bandpassed[freqBandIdx][dsIdx-k]*bandpassDenominatorCoeffs[freqBandIdx][k] + downsampled[dsIdx-k]*bandpassNumeratorCoeffs[freqBandIdx][k];
 				}
 
 				//  HILBERT TRANSFORM APPROXIMATION
 
-				if dsIdx > delaySamples[freqBandIdx] {
+				if ( dsIdx > delaySamples[freqBandIdx] ) 
+				{
 					hilberted[freqBandIdx][dsIdx] =  bandpassed[freqBandIdx][dsIdx-delaySamples[freqBandIdx]];
-				} else {
+				} else 
+				{
 					hilberted[freqBandIdx][dsIdx] = 0;
 				}
 			
 				//// BEGIN CORDIC
 			
 				cordicX = bandpassed[freqBandIdx][dsIdx]; 
-				xordicY = hilberted[freqBandIdx][dsIdx];
+				cordicY = hilberted[freqBandIdx][dsIdx];
 				cordicZ = 0;
 			
-				if ( cordicX > 0 )  {
+				if ( cordicX > 0 )  
+				{
 					offset = 0;
-				} else {
+				} else 
+				{
 					cordicX = -cordicX;
 					cordicY = -cordicY;
 					offset = 180;
 				}
 
-				for ( k=0; k < 25 ; k++ ) {
-
-					if ( cordicY < 0 ) {
+				for ( k=0; k < 25 ; k++ ) 
+				{
+					if ( cordicY < 0 ) 
+					{
 						cordicX = cordicX - ( cordicY >> k );
 						cordicY = cordicY + ( cordicX >> k );
 						cordicZ = cordicZ - ( arctanLookup[k] );
-					} else {
+					} else 
+					{
 						cordicX = cordicX + ( cordicY >> k );
 						cordicY = cordicY - ( cordicX >> k );
 						cordicZ = cordicZ + ( arctanLookup[k] );
@@ -317,10 +238,13 @@ void logistic_regression_sw( int n_samples, float * global_weights, float * glob
 
 			// temporal smoothing
 		
-			for ( k = 0; k < numberOfBandsToPass; k++ ) {
-				if dsIdx == 1 {
+			for ( k = 0; k < numberOfBandsToPass; k++ ) 
+			{
+				if ( dsIdx == 1 ) 
+				{
 					envelopeTemporalSmoothed[k][dsIdx] = enveloped[k][dsIdx];
-				} else {
+				} else 
+				{
 					// this may require modification to deal with integer only calculation?
 					envelopeTemporalSmoothed[k][dsIdx] = (1-deltaEnvTemporal)*envelopeTemporalSmoothed[k][dsIdx-1] + (deltaEnvTemporal)*enveloped[k][dsIdx];
 				}
@@ -335,15 +259,18 @@ void logistic_regression_sw( int n_samples, float * global_weights, float * glob
 			// TODO (2) instead of doing this bi-directional silliness, start at 1 and go to n-1 
 			//              with a m-1 m m+1 filter
 			//
-			for ( k = 0; k < numberOfBandsToPass; k++ ) {
+			for ( k = 0; k < numberOfBandsToPass; k++ ) 
+			{
 				tempUp[k] = envelopeTemporalSmoothed[k][dsIdx];
 				tempDown[k] = envelopeTemporalSmoothed[k][dsIdx];
 			}
-			for ( k=1; k<numberOfBandsToPass; k++ ) {
+			for ( k=1; k<numberOfBandsToPass; k++ ) 
+			{
 				tempUp[k] = (1-deltaEnvTemporal) * envelopeTemporalSmoothed[k-1][dsIdx] + deltaEnvTemporal * envelopeTemporalSmoothed[k][dsIdx];
-				tempDown(numberOfBandsToPass-k+1) = (1-deltaEnvTemporal)*envelopeTemporalSmoothed[numberOfBandsToPass-k+1][dsIdx] + (deltaEnvTemporal)*envelopeTemporalSmoothed[numberOfBandsToPass-k][dsIdx]);
+				tempDown[numberOfBandsToPass-k+1] = (1-deltaEnvTemporal)*envelopeTemporalSmoothed[numberOfBandsToPass-k+1][dsIdx] + (deltaEnvTemporal)*envelopeTemporalSmoothed[numberOfBandsToPass-k][dsIdx];
 			}
-			for ( k=0; k<numberOfBandsToPass; k++ ) {
+			for ( k=0; k<numberOfBandsToPass; k++ )
+			{
 				 envelopeTemporalBandSmoothed[k][dsIdx] = (tempUp[k]+tempDown[k]) >> 2 ; // can be replaced with a bitshift
 			}
 		 
@@ -351,83 +278,89 @@ void logistic_regression_sw( int n_samples, float * global_weights, float * glob
 
 			int tempMax = 0;
 			int tempMaxIdx = 0;
-			for ( k=0; k<numberOfBandsToPass; k++ ) {
-				if ( tempMax < envelopeTemporalBandSmoothed[k][dsIdx] ) {
+			for ( k=0; k<numberOfBandsToPass; k++ ) 
+			{
+				if ( tempMax < envelopeTemporalBandSmoothed[k][dsIdx] ) 
+				{
 					tempMax = envelopeTemporalBandSmoothed[k][dsIdx];
 					tempMaxIdx = k;
 				}
 			}
-
-			 maxBandpassIdx[dsIdx] = tempMaxIdx;    // accounting
-		 
-			 if ( tempMax < envThreshold ) {  // make this somehow integer-y
-				 digitized[bp][dsIdx] = NULL;
-			 } else {
-		 
+             // TODO make this more integer-y
+			 if ( tempMax < envThreshold ) 
+			 {
+				 digitized[dsIdx] = 0;
+			 } else 
+			 {
 				 //// DIGITAL OUTPUT
 				 // i.e. what TTL is currently on
-
 				 instantFrequency[dsIdx]= bandpassCenterFrequencies[tempMaxIdx];
-				 // m >>= n  // divide m by 2^n
-				 // m <<= n  // multiply m by 2^n
-				 digitized[dsIdx] = angled[tempMaxIdx][dsIdx] >> 5; // this really depends on both the output size of the CORDIC and the desired number of levels
+				 digitized[dsIdx] = 1 << ( (unsigned int)angled[tempMaxIdx][dsIdx] >> 5) ; // this really depends on both the output size of the CORDIC and the desired number of levels
 			 }
 		}
 	}
-}
-
-
-
-
+};
 
 
 
 int main()
 {   
-    int n_samples = TOTAL_SIZE;
-    float global_weights [WEIGHTS_SIZE];  // input  
-    float global_data    [DATA_SIZE   ];  // input 
-    float global_gradient[WEIGHTS_SIZE];  // output
-    float global_gradient_sw[WEIGHTS_SIZE];  // output
-    int i = 0; 
+    int lfp[DATA_SIZE];  // input
+    int i = 0;
 
+    int lowpassed[DATA_SIZE];
+    int downsampled[DOWNSAMPLED_SIZE];
+    float bandpassed[N_BANKS][DOWNSAMPLED_SIZE]; 
+    float hilberted[N_BANKS][DOWNSAMPLED_SIZE];
+    float enveloped[N_BANKS][DOWNSAMPLED_SIZE];
+    float angled[N_BANKS][DOWNSAMPLED_SIZE];
+    float envelopeTemporalSmoothed[N_BANKS][DOWNSAMPLED_SIZE];
+    float envelopeTemporalBandSmoothed[N_BANKS][DOWNSAMPLED_SIZE];
+    float maxBandpassIdx[DOWNSAMPLED_SIZE];
+    unsigned int digitized[DOWNSAMPLED_SIZE];
+    float instantFrequency[DOWNSAMPLED_SIZE];
+    
+    
     FILE * fp;
-//    if (!(fp = fopen("/fcs_common/noisy/pengzh/CURR/201601/cs259/logistic/original/global.dat", "rb"))) {
-    if (!(fp = fopen("/space/scratch/cs259_homework_jan27/logistic/merlin/src/global.dat", "rb"))) {
+    if (!(fp = fopen("lfp.dat", "rb"))) 
+    {
         printf("File can not be open for read.\n");
         return -1;
     }
-    fread(global_data, 4, DATA_SIZE, fp);
+    fread(lfp, 4, DATA_SIZE, fp);
     fclose(fp);
-    for (i = 0; i < WEIGHTS_SIZE; i++)
-    {
-        global_weights[i] = 0;
-        global_gradient[i] = 0;
-        global_gradient_sw[i] = 0;
-    }
 
     #pragma ACCEL task
-    logistic_regression_kernel( n_samples, global_weights, global_data, global_gradient );
+    realtime_theta_phase_kernel( lfp, DATA_SIZE, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, maxBandpassIdx, digitized, instantFrequency );
 
-    logistic_regression_sw( n_samples, global_weights, global_data, global_gradient_sw );
+    realtime_theta_phase_sw( lfp, DATA_SIZE, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, maxBandpassIdx, digitized, instantFrequency);
 
-    // Compare the resuls of global_gradient between FPGA and CPU
-    int err = 0;
-    for (i = 0; i < WEIGHTS_SIZE; i++)
+	// write data out to files.
+    if (!(fp = fopen("lowpassed.dat", "rb"))) 
     {
-        if (fabs(global_gradient[i] - global_gradient_sw[i]) > 1e-15) {
-            err++;
-            if (err < 10)
-            {
-                printf("%d: out=%lf, ref=%lf\n", i, global_gradient[i], global_gradient_sw[i]);
-            }
-        }
+        printf("File can not be open for read.\n");
+        return -1;
     }
+	fwrite(lowpassed, sizeof(lowpassed[0]), sizeof(lowpassed)/sizeof(lowpassed[0]), fp);
+	fclose(fp);
+    if (!(fp = fopen("downsampled.dat", "rb"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+	fwrite(downsampled, sizeof(downsampled[0]), sizeof(downsampled)/sizeof(downsampled[0]), fp);
+	fclose(fp);
 
-    if (err == 0)
-        printf("Finished successfully.\n");
-    else
-        printf("ERROR: %d errors.\n", err);
+
+    // TODO Compare the results of global_gradient between FPGA and CPU
+    printf("processing complete");
     return 0;
-}
+};
+
+
+
+
+
+
+
 

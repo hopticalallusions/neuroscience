@@ -167,7 +167,7 @@ for idx=1: 320000 %length(lfp)
          maxBandpassIdx(dsIdx) = pos;
          if ( mag * bitvolts < powerThreshold )
              % the output is NULL
-             digitized(bp,dsIdx) = -1;
+             digitized(dsIdx) = -1;
          else
              %% map to digital out
              % i.e. what TTL is currently on
