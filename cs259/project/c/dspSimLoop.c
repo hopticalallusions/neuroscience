@@ -1,4 +1,5 @@
 
+
 //// simulate the arrival of data samples
 // cheat a little on the spool up
 
@@ -6,14 +7,14 @@
 #include <stdio.h>
 #include <assert.h>
 
-#define DATA_SIZE 10886944
+#define DATA_SIZE 2048*128 //10886944
 #define DOWNSAMPLE_FACTOR 128
 #define DOWNSAMPLED_SIZE ((DATA_SIZE % DOWNSAMPLE_FACTOR == 0) ? (DATA_SIZE/DOWNSAMPLE_FACTOR) : (DATA_SIZE/DOWNSAMPLE_FACTOR+1))
 #define N_BANKS 34
 
-void realtime_theta_phase_kernel( int *lfp, int input_size, int *lowpassed, int *downsampled, float **bandpassed, float **hilberted, float **enveloped, float **angled, float **envelopeTemporalSmoothed, float **envelopeTemporalBandSmoothed, float *maxBandwidthIdx, float *digitized, float *instantFrequency );
+//void realtime_theta_phase_kernel( int *lfp, int input_size, int *lowpassed, int *downsampled, double *bandpassed, double *hilberted, double *enveloped, double *angled, double *envelopeTemporalSmoothed, double *envelopeTemporalBandSmoothed, unsigned int *digitized, double *instantFrequency );
 
-void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *downsampled, float **bandpassed, float **hilberted, float **enveloped, float **angled, float **envelopeTemporalSmoothed, float **envelopeTemporalBandSmoothed, float *maxBandwidthIdx, float *digitized, float *instantFrequency )
+void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, double *downsampled, double *bandpassed, double *hilberted, double *enveloped, double *angled, double *envelopeTemporalSmoothed, double *envelopeTemporalBandSmoothed, double *digitized, double *instantFrequency )
 {
 	// CORDIC lookup table
 	// the following is a table of arctan values for the small steps used to
@@ -32,25 +33,25 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
 	//
 	// working variables
 	//
-	int dataIndex 		= 0;
-	int freqBandIdx 	= 0;
-	int k_limit 		= 0;
-	int tempMax 		= 0;
+	int dataIndex 	= 0;
+	int freqBandIdx = 0;
+	int k_limit 	= 0;
+	int tempMax 	= 0;
 	int tempMaxIdx 	= 0;
 	int k 			= 0;
 	int dsIdx		= 0;
-	int cordicX 	= 0;
-	int cordicY		= 0;
-	int cordicZ		= 0;
-	int offset		= 0;
-	float pi		= 3.1415;
-	// accounting variables
-	
+	double cordicX 	= 0;
+	double cordicY		= 0;
+	double cordicZ		= 0;
+	double offset		= 0;
+	double pi		= 3.14159265359;
+
+	// accounting variables	
        int everyNthSample 	= 128;
 	double deltaEnvTemporal = 0.1;
 
 	// parameters
-	const int nLowpassCoeffs 		= 7;
+	const int nLowpassCoeffs = 7;
 	double lowpassNumeratorCoeffs[nLowpassCoeffs] =   { 
 		0.000000000006564694180131090961704897522,  0.000000000039388165080786542539055117347,  
 		0.000000000098470412701966356347637793367,  0.000000000131293883602621825696446486011,  
@@ -63,8 +64,8 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
 		13.966721637745113326900536776520311832428,  -5.488755923739796926952294597867876291275, 
 		 0.898812366459551981279219035059213638306 
 	};
-	const int numberOfBandsToPass = 34;
-	const int nBandpassCoeffs 	= 5;
+	const int numberOfBandsToPass	= 34;
+	const int nBandpassCoeffs 		= 5;
 	double bandpassDenominatorCoeffs[numberOfBandsToPass][nBandpassCoeffs] = 
 		{
 			{1, -3.96150264904908, 5.90354242794449, -3.92222041251962, 0.980266823997447 },
@@ -168,7 +169,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
    
 	   if ( 0 == dataIndex % everyNthSample )  
 	   {
-   
+
 			 dsIdx = dataIndex/everyNthSample;
 			 downsampled[dsIdx] = lowpassed[dataIndex];
 
@@ -183,23 +184,23 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
 				k_limit = (k < nBandpassCoeffs) ? dataIndex : nBandpassCoeffs;
 				for ( k = 0; k < k_limit; k++ ) 
 				{
-					bandpassed[freqBandIdx][dsIdx] += - bandpassed[freqBandIdx][dsIdx-k]*bandpassDenominatorCoeffs[freqBandIdx][k] + downsampled[dsIdx-k]*bandpassNumeratorCoeffs[freqBandIdx][k];
+					bandpassed[freqBandIdx+dsIdx*N_BANKS] += - bandpassed[freqBandIdx+N_BANKS*(dsIdx-k)]*bandpassDenominatorCoeffs[freqBandIdx][k] + downsampled[dsIdx-k]*bandpassNumeratorCoeffs[freqBandIdx][k];
 				}
 
 				//  HILBERT TRANSFORM APPROXIMATION
 
 				if ( dsIdx > delaySamples[freqBandIdx] ) 
 				{
-					hilberted[freqBandIdx][dsIdx] =  bandpassed[freqBandIdx][dsIdx-delaySamples[freqBandIdx]];
+					hilberted[freqBandIdx+dsIdx*N_BANKS] =  bandpassed[freqBandIdx+N_BANKS*(dsIdx-delaySamples[freqBandIdx])];
 				} else 
 				{
-					hilberted[freqBandIdx][dsIdx] = 0;
+					hilberted[freqBandIdx+dsIdx*N_BANKS] = 0;
 				}
 			
 				//// BEGIN CORDIC
 			
-				cordicX = bandpassed[freqBandIdx][dsIdx]; 
-				cordicY = hilberted[freqBandIdx][dsIdx];
+				cordicX = bandpassed[freqBandIdx+dsIdx*N_BANKS]; 
+				cordicY = hilberted[freqBandIdx+dsIdx*N_BANKS];
 				cordicZ = 0;
 			
 				if ( cordicX > 0 )  
@@ -212,24 +213,24 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
 					offset = 180;
 				}
 
-				for ( k=0; k < 25 ; k++ ) 
+				for ( k=1; k < 28 ; k++ ) 
 				{
 					if ( cordicY < 0 ) 
 					{
-						cordicX = cordicX - ( cordicY >> k );
-						cordicY = cordicY + ( cordicX >> k );
+						cordicX = cordicX - ( cordicY / ( 1 << k ));
+						cordicY = cordicY + ( cordicX / ( 1 << k ));
 						cordicZ = cordicZ - ( arctanLookup[k] );
 					} else 
 					{
-						cordicX = cordicX + ( cordicY >> k );
-						cordicY = cordicY - ( cordicX >> k );
+						cordicX = cordicX + ( cordicY / ( 1 << k ));
+						cordicY = cordicY - ( cordicX / ( 1 << k ));
 						cordicZ = cordicZ + ( arctanLookup[k] );
 					}
 				}
 
 				//    TODO  integers...
-				enveloped[freqBandIdx][dsIdx] = cordicX * 0.6073;
-				angled[freqBandIdx][dsIdx] = 270 - offset + cordicZ*180/pi ;
+				enveloped[freqBandIdx+dsIdx*N_BANKS] = cordicX ; //* 0.6073;
+				angled[freqBandIdx+dsIdx*N_BANKS] = 270.0f - offset + cordicZ*180/pi ;
 			
 				// END CORDIC
 			}    
@@ -242,11 +243,11 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
 			{
 				if ( dsIdx == 1 ) 
 				{
-					envelopeTemporalSmoothed[k][dsIdx] = enveloped[k][dsIdx];
+					envelopeTemporalSmoothed[k+dsIdx*N_BANKS] = enveloped[k+dsIdx*N_BANKS];
 				} else 
 				{
 					// this may require modification to deal with integer only calculation?
-					envelopeTemporalSmoothed[k][dsIdx] = (1-deltaEnvTemporal)*envelopeTemporalSmoothed[k][dsIdx-1] + (deltaEnvTemporal)*enveloped[k][dsIdx];
+					envelopeTemporalSmoothed[k+dsIdx*N_BANKS] = (1-deltaEnvTemporal)*envelopeTemporalSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*dsIdx];
 				}
 			 }
 		 
@@ -261,17 +262,17 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
 			//
 			for ( k = 0; k < numberOfBandsToPass; k++ ) 
 			{
-				tempUp[k] = envelopeTemporalSmoothed[k][dsIdx];
-				tempDown[k] = envelopeTemporalSmoothed[k][dsIdx];
+				tempUp[k] = envelopeTemporalSmoothed[k+N_BANKS*dsIdx];
+				tempDown[k] = envelopeTemporalSmoothed[k+N_BANKS*dsIdx];
 			}
 			for ( k=1; k<numberOfBandsToPass; k++ ) 
 			{
-				tempUp[k] = (1-deltaEnvTemporal) * envelopeTemporalSmoothed[k-1][dsIdx] + deltaEnvTemporal * envelopeTemporalSmoothed[k][dsIdx];
-				tempDown[numberOfBandsToPass-k+1] = (1-deltaEnvTemporal)*envelopeTemporalSmoothed[numberOfBandsToPass-k+1][dsIdx] + (deltaEnvTemporal)*envelopeTemporalSmoothed[numberOfBandsToPass-k][dsIdx];
+				tempUp[k] = (1-deltaEnvTemporal) * envelopeTemporalSmoothed[(k-1)+N_BANKS*dsIdx] + deltaEnvTemporal * envelopeTemporalSmoothed[k+N_BANKS*dsIdx];
+				tempDown[numberOfBandsToPass-k+1] = (1-deltaEnvTemporal)*envelopeTemporalSmoothed[(numberOfBandsToPass-k+1)+N_BANKS*dsIdx] + (deltaEnvTemporal)*envelopeTemporalSmoothed[(numberOfBandsToPass-k)+N_BANKS*dsIdx];
 			}
 			for ( k=0; k<numberOfBandsToPass; k++ )
 			{
-				 envelopeTemporalBandSmoothed[k][dsIdx] = (tempUp[k]+tempDown[k]) >> 2 ; // can be replaced with a bitshift
+				 envelopeTemporalBandSmoothed[k+N_BANKS*dsIdx] = (tempUp[k]+tempDown[k]) >> 2 ; // can be replaced with a bitshift
 			}
 		 
 			 // THRESHOLD CHECK
@@ -280,9 +281,9 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
 			int tempMaxIdx = 0;
 			for ( k=0; k<numberOfBandsToPass; k++ ) 
 			{
-				if ( tempMax < envelopeTemporalBandSmoothed[k][dsIdx] ) 
+				if ( tempMax < envelopeTemporalBandSmoothed[k+N_BANKS*dsIdx] ) 
 				{
-					tempMax = envelopeTemporalBandSmoothed[k][dsIdx];
+					tempMax = envelopeTemporalBandSmoothed[k+N_BANKS*dsIdx];
 					tempMaxIdx = k;
 				}
 			}
@@ -295,7 +296,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
 				 //// DIGITAL OUTPUT
 				 // i.e. what TTL is currently on
 				 instantFrequency[dsIdx]= bandpassCenterFrequencies[tempMaxIdx];
-				 digitized[dsIdx] = 1 << ( (unsigned int)angled[tempMaxIdx][dsIdx] >> 5) ; // this really depends on both the output size of the CORDIC and the desired number of levels
+				 digitized[dsIdx] = angled[tempMaxIdx+N_BANKS*dsIdx]/36; // this really depends on both the output size of the CORDIC and the desired number of levels
 			 }
 		}
 	}
@@ -303,64 +304,121 @@ void realtime_theta_phase_sw( int *lfp, int input_size, int *lowpassed, int *dow
 
 
 
-int main()
-{   
+int main() {
     int lfp[DATA_SIZE];  // input
     int i = 0;
-
-    int lowpassed[DATA_SIZE];
-    int downsampled[DOWNSAMPLED_SIZE];
-    float bandpassed[N_BANKS][DOWNSAMPLED_SIZE]; 
-    float hilberted[N_BANKS][DOWNSAMPLED_SIZE];
-    float enveloped[N_BANKS][DOWNSAMPLED_SIZE];
-    float angled[N_BANKS][DOWNSAMPLED_SIZE];
-    float envelopeTemporalSmoothed[N_BANKS][DOWNSAMPLED_SIZE];
-    float envelopeTemporalBandSmoothed[N_BANKS][DOWNSAMPLED_SIZE];
-    float maxBandpassIdx[DOWNSAMPLED_SIZE];
-    unsigned int digitized[DOWNSAMPLED_SIZE];
-    float instantFrequency[DOWNSAMPLED_SIZE];
+    double lowpassed[DATA_SIZE];
+    double downsampled[DOWNSAMPLED_SIZE];
+    double bandpassed[N_BANKS*DOWNSAMPLED_SIZE]; 
+    double hilberted[N_BANKS*DOWNSAMPLED_SIZE];
+    double enveloped[N_BANKS*DOWNSAMPLED_SIZE];
+    double angled[N_BANKS*DOWNSAMPLED_SIZE];
+    double envelopeTemporalSmoothed[N_BANKS*DOWNSAMPLED_SIZE];
+    double envelopeTemporalBandSmoothed[N_BANKS*DOWNSAMPLED_SIZE];
+    double digitized[DOWNSAMPLED_SIZE];
+    double instantFrequency[DOWNSAMPLED_SIZE];
     
+    FILE * elfp, * lpfp, * dsfp, * bpfp, * hfp, * efp, * afp, * etsfp, * etbsfp, * mbfp, * dfp, * iffp;
+    if (!(elfp = fopen("lfp.data", "rb"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(lpfp = fopen("lowpassed.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(dsfp = fopen("downsampled.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(bpfp = fopen("bandpassed.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(hfp = fopen("hilberted.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(efp = fopen("enveloped.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(afp = fopen("angled.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(etsfp = fopen("envelopeTemporalSmoothed.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(etbsfp = fopen("envelopeTemporalBandSmoothed.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(dfp = fopen("digitized.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(iffp = fopen("instantFrequency.dat", "wa"))) 
+    {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
     
-    FILE * fp;
-    if (!(fp = fopen("lfp.dat", "rb"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    fread(lfp, 4, DATA_SIZE, fp);
-    fclose(fp);
+	int elementsRetrieved = 1;
+	//while ( elementsRetrieved > 0) {
+		elementsRetrieved = fread(lfp, 4, DATA_SIZE, elfp);
+		//#pragma ACCEL task
+		//realtime_theta_phase_kernel( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, digitized, instantFrequency );
+		realtime_theta_phase_sw( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, digitized, instantFrequency);
 
-    #pragma ACCEL task
-    realtime_theta_phase_kernel( lfp, DATA_SIZE, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, maxBandpassIdx, digitized, instantFrequency );
+		// write data out to files.
+		fwrite( lowpassed, sizeof(lowpassed[0]), sizeof(lowpassed)/sizeof(lowpassed[0]), lpfp );
+		fwrite( downsampled, sizeof(downsampled[0]), sizeof(downsampled)/sizeof(downsampled[0]), dsfp );
+		fwrite( bandpassed, sizeof(bandpassed[0]), sizeof(bandpassed)/sizeof(bandpassed[0]), bpfp );
+		fwrite( hilberted, sizeof(hilberted[0]), sizeof(hilberted)/sizeof(hilberted[0]), hfp );
+		fwrite( enveloped, sizeof(enveloped[0]), sizeof(enveloped)/sizeof(enveloped[0]), efp );
+		fwrite( angled, sizeof(angled[0]), sizeof(angled)/sizeof(angled[0]), afp );
+		fwrite( envelopeTemporalSmoothed, sizeof(envelopeTemporalSmoothed[0]), sizeof(envelopeTemporalSmoothed)/sizeof(envelopeTemporalSmoothed[0]), etsfp );
+		fwrite( envelopeTemporalBandSmoothed, sizeof(envelopeTemporalBandSmoothed[0]), sizeof(envelopeTemporalBandSmoothed)/sizeof(envelopeTemporalBandSmoothed[0]), etbsfp );
+		fwrite( digitized, sizeof(digitized[0]), sizeof(digitized)/sizeof(digitized[0]), dfp );
+		fwrite( instantFrequency, sizeof(instantFrequency[0]), sizeof(instantFrequency)/sizeof(instantFrequency[0]), iffp );
+	//}
 
-    realtime_theta_phase_sw( lfp, DATA_SIZE, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, maxBandpassIdx, digitized, instantFrequency);
 
-	// write data out to files.
-    if (!(fp = fopen("lowpassed.dat", "rb"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-	fwrite(lowpassed, sizeof(lowpassed[0]), sizeof(lowpassed)/sizeof(lowpassed[0]), fp);
-	fclose(fp);
-    if (!(fp = fopen("downsampled.dat", "rb"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-	fwrite(downsampled, sizeof(downsampled[0]), sizeof(downsampled)/sizeof(downsampled[0]), fp);
-	fclose(fp);
+	fclose(elfp);
+	fclose(lpfp);
+	fclose(dsfp);
+	fclose(bpfp);
+	fclose(hfp);
+	fclose(efp);
+	fclose(afp);
+	fclose(etsfp);
+	fclose(etbsfp);
+	fclose(mbfp);
+	fclose(dfp);
+	fclose(iffp);
+
+	for ( i=0; i<64; i++ ) {
+		printf("%d ", lfp[i]);
+	}
+	printf("\n\n");
+	for ( i=1000; i<1064; i++ ) {
+		printf("%f ", lowpassed[i]);
+	}
 
 
     // TODO Compare the results of global_gradient between FPGA and CPU
-    printf("processing complete");
+    printf("processing complete\n");
     return 0;
 };
-
-
-
-
-
-
-
-
