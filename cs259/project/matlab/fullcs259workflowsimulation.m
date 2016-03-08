@@ -214,6 +214,6 @@ plot((0:1/downsampleRate:secondsToPlot),bandpassed(4,1:secondsToPlot*downsampleR
 %subplot(2,1,2); hold on; plot(enveloped(:,1200)); plot(envelopeTemporalSmoothed(:,1200)); plot(envelopeTemporalBandSmoothed(:,1200));
 %
 figure; colormap(build_NOAA_colorgradient); 
-subplot(3,1,1); imagesc(flipud(enveloped(:,1:9*downsampleRate))); colorbar; title('envelope'); ylabel('~4 <--> ~12 Hz');
-subplot(3,1,2); imagesc(flipud(envelopeTemporalSmoothed(:,1:9*downsampleRate))); colorbar; title('temporal smoothing');  ylabel('~4 <--> ~12 Hz');
-subplot(3,1,3); imagesc(flipud(envelopeTemporalBandSmoothed(:,1:9*downsampleRate))); colorbar; title('temporal & frequency smoothing');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
+subplot(3,1,1); imagesc(flipud(enveloped(:,1:9*downsampleRate))); colorbar; title('Matlab Envelopes'); ylabel('~4 <--> ~12 Hz');
+subplot(3,1,2); imagesc(flipud(envelopeTemporalSmoothed(:,1:9*downsampleRate))); colorbar; title('Matlab Envenlopes Temporal Smoothing');  ylabel('~4 <--> ~12 Hz');
+subplot(3,1,3); imagesc(flipud(envelopeTemporalBandSmoothed(:,1:9*downsampleRate))); colorbar; title('Matlab Env. Temporal & Freq Smoothing');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');

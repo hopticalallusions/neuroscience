@@ -41,10 +41,12 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 	int tempMaxIdx 	= 0;
 	int k 			= 0;
 	int dsIdx		= 0;
-	double cordicX 	= 0;
-	double cordicY		= 0;
-	double cordicZ		= 0;
-	double offset		= 0;
+	double pwr         = 0.0f;
+	int j           = 0;
+	double cordicX 	= 0.0f;
+	double cordicY		= 0.0f;
+	double cordicZ		= 0.0f;
+	double offset		= 0.0f;
 	double pi		= 3.14159265359;
 
 	// accounting variables	
@@ -206,33 +208,33 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 			
 				if ( cordicX > 0 )  
 				{
-					offset = 0;
+					offset = 0.0f;
 				} else 
 				{
 					cordicX = -cordicX;
 					cordicY = -cordicY;
-					offset = 180;
+					offset = 180.0f;
 				}
 
-				for ( k=1; k < 28 ; k++ ) 
+				for ( k=1; k < 29 ; k++ ) 
 				{
-					if ( cordicY < 0 ) 
-					{
-						cordicX = cordicX - ( cordicY / ( 1 << k ));
-						cordicY = cordicY + ( cordicX / ( 1 << k ));
-						cordicZ = cordicZ - ( arctanLookup[k] );
-					} else 
-					{
-						cordicX = cordicX + ( cordicY / ( 1 << k ));
-						cordicY = cordicY - ( cordicX / ( 1 << k ));
-						cordicZ = cordicZ + ( arctanLookup[k] );
+					pwr = 1.0f;
+					for ( j=1; j < k; j++ ) { pwr = pwr * 2.0f; } 
+					if ( cordicY < 0 ) {
+						cordicX = cordicX - ( cordicY / pwr );     // ( 1 << (k-1) )
+						cordicY = cordicY + ( cordicX / pwr );     // ( 1 << (k-1) )
+						cordicZ = cordicZ - ( arctanLookup[k-1] );
+					} else {
+						cordicX = cordicX + ( cordicY / pwr );     //( 1 << (k-1) )
+						cordicY = cordicY - ( cordicX / pwr );     //( 1 << (k-1) )
+						cordicZ = cordicZ + ( arctanLookup[k-1] );
 					}
 				}
 
 				//    TODO  integers...
-				enveloped[freqBandIdx+dsIdx*N_BANKS] = cordicX ; //* 0.6073;
-				angled[freqBandIdx+dsIdx*N_BANKS] = 270.0f - offset + cordicZ*180/pi ;
-			
+				enveloped[freqBandIdx+dsIdx*N_BANKS] = cordicX * 0.6073;
+				angled[freqBandIdx+dsIdx*N_BANKS] = 270.0f - offset + cordicZ*180.0f/pi ;
+ 			
 				// END CORDIC
 			}    
 

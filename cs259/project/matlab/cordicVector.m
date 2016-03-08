@@ -62,8 +62,11 @@ function [ angle, hypotenuse ] = cordicVector(xo,yo,n)
         % yy is the "y" (imaginary) coordinate of the signal from the
         %     Hilbert xform
         % zz is the angle, initialized to zero
-        xx(itr) = xx(ii+1) - ( dd * yy(ii+1) * 2^(-(ii)) );
-        yy(itr) = yy(ii+1) + ( dd * xx(ii+1) * 2^(-(ii)) );
+%        xx(itr) = xx(ii+1) - ( dd * yy(ii+1) * 2^(-(ii)) );
+%        yy(itr) = yy(ii+1) + ( dd * xx(ii+1) * 2^(-(ii)) );
+        pwr=1;for jj=1:ii; pwr=pwr*2; end;
+        xx(itr) = xx(ii+1) - ( dd * yy(ii+1) / pwr );
+        yy(itr) = yy(ii+1) + ( dd * xx(ii+1) / pwr  );
         zz(itr) = zz(ii+1) - ( dd * arctanLookup(ii+1) );
 
     end
@@ -71,6 +74,8 @@ function [ angle, hypotenuse ] = cordicVector(xo,yo,n)
     %
     % to calculate the exact correction term  
     % ww=sqrt(2); for ii=1:10; ww=ww*sqrt(1+(2^(-2*ii))); end; ww
+    % or
+    % 1/prod(sqrt(1+(2.^(-2.*(0:n)))))
     %
     % need to multiply by the scaling factor .6073 whatever for hypotenuse
     % return a psuedo-rotation corrected length for each step
