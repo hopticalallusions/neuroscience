@@ -64,7 +64,7 @@ angled = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 enveloped = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 envelopeTemporalSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 envelopeTemporalBandSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
-envelopeUniSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
+envelopeSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 thresholded = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 maxBandpassIdx = zeros(1,ceil(length(lfp)/everyNthSample));
 instantFrequency = zeros(1,ceil(length(lfp)/everyNthSample)); % what's the center frequency?
@@ -165,16 +165,16 @@ for idx=1: 320000 %length(lfp)
          envelopeTemporalBandSmoothed(:,dsIdx) = (tempUp+tempDown)/2;
          % unismooth
          if dsIdx > 1
-             envelopeUniSmoothed(1,dsIdx) = ( .9*envelopeUniSmoothed(1,dsIdx-1)) + (.05* enveloped(1,dsIdx)) + (.05* envelopeUniSmoothed(2,dsIdx));
+             envelopeSmoothed(1,dsIdx) = ( .9*envelopeSmoothed(1,dsIdx-1)) + (.05* enveloped(1,dsIdx)) + (.05* envelopeSmoothed(2,dsIdx));
              for ii = 2:numberOfBbandsToPass-1
-                 envelopeUniSmoothed(ii,dsIdx) = ( 0.8*envelopeUniSmoothed(ii,dsIdx-1)) + (0.1* enveloped(ii,dsIdx)) + (0.05* envelopeUniSmoothed(ii-1,dsIdx-1)) + (0.05* envelopeUniSmoothed(ii+1,dsIdx-1));
+                 envelopeSmoothed(ii,dsIdx) = ( 0.8*envelopeSmoothed(ii,dsIdx-1)) + (0.1* enveloped(ii,dsIdx)) + (0.05* envelopeSmoothed(ii-1,dsIdx-1)) + (0.05* envelopeSmoothed(ii+1,dsIdx-1));
              end
-             envelopeUniSmoothed(numberOfBbandsToPass,dsIdx) = ( .9*envelopeUniSmoothed(ii,dsIdx-1)) + (.05* enveloped(ii,dsIdx)) + (.05* envelopeUniSmoothed(ii-1,dsIdx));
+             envelopeSmoothed(numberOfBbandsToPass,dsIdx) = ( .9*envelopeSmoothed(ii,dsIdx-1)) + (.05* enveloped(ii,dsIdx)) + (.05* envelopeSmoothed(ii-1,dsIdx));
          else
-             envelopeUniSmoothed(:,dsIdx) = enveloped(:,dsIdx);
+             envelopeSmoothed(:,dsIdx) = enveloped(:,dsIdx);
          end
          %% threshold check
-         [mag,pos] = max(envelopeUniSmoothed(:,dsIdx));
+         [mag,pos] = max(envelopeSmoothed(:,dsIdx));
          maxBandpassIdx(dsIdx) = pos;
          if ( mag * bitvolts < powerThreshold )
              % the output is NULL
@@ -190,7 +190,7 @@ end
 toc()
 
 
-figure; hold on; plot(enveloped(16,1:2048));plot(envelopeUniSmoothed(16,1:2048)); 
+figure; hold on; plot(enveloped(16,1:2048));plot(envelopeSmoothed(16,1:2048)); 
 plot(envelopeTemporalBandSmoothed(16,1:2048)); plot(abs(hilbert(bandpassed(16,1:2048))));
 plot(envelopeTemporalSmoothed(16,1:2048));
 pp=hilbert(bandpassed(16,1:2048)); oo=zeros(1,2048); for ii = 1:2048; [aa, hh]=cordicVector(imag(pp(ii)),real(pp(ii)),25); oo(ii)=hh; end; plot(oo); 
@@ -210,7 +210,7 @@ ii=8;
 %end
 
 figure; 
-subplot(4,1,1); plot(envelopeUniSmoothed(:,1:5*downsampleRate)'); legend('envelopes'); %legend('4','5','6','7','8','9','10','11','12');
+subplot(4,1,1); plot(envelopeSmoothed(:,1:5*downsampleRate)'); legend('envelopes'); %legend('4','5','6','7','8','9','10','11','12');
 subplot(4,1,2); plot(instantFrequency(1:5*downsampleRate)); legend('instant freq');
 subplot(4,1,3); plot(digitized(1:5*downsampleRate)); legend('ttl');
 subplot(4,1,4); plot(bandpassed(15,1:5*downsampleRate)); legend([num2str(bandpassCenterFrequencies(15)) ' Hz']);
@@ -236,7 +236,7 @@ figure; colormap(build_NOAA_colorgradient);
 subplot(2,2,1); imagesc(flipud(enveloped(:,1:9*downsampleRate))); colorbar; title('Matlab Envelopes'); ylabel('~4 <--> ~12 Hz');
 subplot(2,2,2); imagesc(flipud(envelopeTemporalSmoothed(:,1:9*downsampleRate))); colorbar; title('Env Temp Smooth');  ylabel('~4 <--> ~12 Hz');
 subplot(2,2,3); imagesc(flipud(envelopeTemporalBandSmoothed(:,1:9*downsampleRate))); colorbar; title('Env. Temp,Freq Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
-subplot(2,2,4); imagesc(flipud(envelopeUniSmoothed(:,1:9*downsampleRate))); colorbar; title('Env Uni Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
+subplot(2,2,4); imagesc(flipud(envelopeSmoothed(:,1:9*downsampleRate))); colorbar; title('Env Uni Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
 
 
 

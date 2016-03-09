@@ -15,7 +15,7 @@
 
 //void realtime_theta_phase_kernel( int *lfp, int input_size, int *lowpassed, int *downsampled, double *bandpassed, double *hilberted, double *enveloped, double *angled, double *envelopeTemporalSmoothed, double *envelopeTemporalBandSmoothed, unsigned int *digitized, double *instantFrequency );
 
-void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, double *downsampled, double *bandpassed, double *hilberted, double *enveloped, double *angled, double *envelopeTemporalSmoothed, double *envelopeTemporalBandSmoothed, double *digitized, double *instantFrequency )
+void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, double *downsampled, double *bandpassed, double *hilberted, double *enveloped, double *angled, double *envelopeSmoothed, double *digitized, double *instantFrequency )
 {
 	// CORDIC lookup table
 	// the following is a table of arctan values for the small steps used to
@@ -156,9 +156,6 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 		11.35, 11.6, 11.85,	12.10
 	};
 
-	int tempUp[numberOfBandsToPass];
-	int tempDown[numberOfBandsToPass];
-
 	for ( dataIndex=0; dataIndex < input_size; dataIndex++ ) 
 	{
 
@@ -246,18 +243,20 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 
 			// temporal smoothing
 		
-			for ( k = 0; k < numberOfBandsToPass; k++ ) 
-			{
-				if ( dsIdx == 1 ) 
-				{
-					envelopeTemporalSmoothed[k+dsIdx*N_BANKS] = enveloped[k+dsIdx*N_BANKS];
-				} else 
-				{
-					// this may require modification to deal with integer only calculation?
-					envelopeTemporalSmoothed[k+dsIdx*N_BANKS] = (1.0f-deltaEnvTemporal)*envelopeTemporalSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*dsIdx];
+			if ( dsIdx == 1 ) {
+				for ( k = 0; k < numberOfBandsToPass-1; k++ ) {
+					envelopeSmoothed[k+dsIdx*N_BANKS] = enveloped[k+dsIdx*N_BANKS];
 				}
-			 }
-		 
+			} else {
+				// this may require modification to deal with integer only calculation?
+				k=0;
+				envelopeSmoothed[k+dsIdx*N_BANKS] = (1.0f-deltaEnvTemporal-deltaEnvTemporal)*envelopeSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*envelopeSmoothed[k+1+N_BANKS*(dsIdx-1)];
+				for ( k = 1; k < numberOfBandsToPass-2; k++ ) {
+					envelopeSmoothed[k+dsIdx*N_BANKS] = (1.0f-deltaEnvTemporal-deltaEnvTemporal)*envelopeSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal/2.0f)*envelopeSmoothed[k-1+N_BANKS*(dsIdx-1)]+ (deltaEnvTemporal/2.0f)*envelopeSmoothed[k+1+N_BANKS*(dsIdx-1)];
+				}
+				k=numberOfBandsToPass-1;
+				envelopeSmoothed[k+dsIdx*N_BANKS] = (1.0f-deltaEnvTemporal-deltaEnvTemporal)*envelopeSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*envelopeSmoothed[k-1+N_BANKS*(dsIdx-1)];
+			}		 
 			// frequency band smoothing
 			//
 			// TODO (1) to just use ints and bitshifts
@@ -266,21 +265,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 			//
 			// TODO (2) instead of doing this bi-directional silliness, start at 1 and go to n-1 
 			//              with a m-1 m m+1 filter
-			//
-			for ( k = 0; k < numberOfBandsToPass; k++ ) 
-			{
-				tempUp[k] = envelopeTemporalSmoothed[k+N_BANKS*dsIdx];
-				tempDown[k] = envelopeTemporalSmoothed[k+N_BANKS*dsIdx];
-			}
-			for ( k=1; k<numberOfBandsToPass; k++ ) 
-			{
-				tempUp[k] = (1.0f-deltaEnvTemporal) * envelopeTemporalSmoothed[(k-1)+N_BANKS*dsIdx] + deltaEnvTemporal * envelopeTemporalSmoothed[k+N_BANKS*dsIdx];
-				tempDown[numberOfBandsToPass-k+1] = (1.0f-deltaEnvTemporal)*envelopeTemporalSmoothed[(numberOfBandsToPass-k+1)+N_BANKS*dsIdx] + (deltaEnvTemporal)*envelopeTemporalSmoothed[(numberOfBandsToPass-k)+N_BANKS*dsIdx];
-			}
-			for ( k=0; k<numberOfBandsToPass; k++ )
-			{
-				 envelopeTemporalBandSmoothed[k+N_BANKS*dsIdx] = (tempUp[k]+tempDown[k]) >> 2 ; // can be replaced with a bitshift
-			}
+			//		 
 		 
 			 // THRESHOLD CHECK
 
@@ -288,9 +273,9 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 			int tempMaxIdx = 0;
 			for ( k=0; k<numberOfBandsToPass; k++ ) 
 			{
-				if ( tempMax < envelopeTemporalBandSmoothed[k+N_BANKS*dsIdx] ) 
+				if ( tempMax < envelopeSmoothed[k+N_BANKS*dsIdx] ) 
 				{
-					tempMax = envelopeTemporalBandSmoothed[k+N_BANKS*dsIdx];
+					tempMax = envelopeSmoothed[k+N_BANKS*dsIdx];
 					tempMaxIdx = k;
 				}
 			}
@@ -320,12 +305,11 @@ int main() {
     double hilberted[N_BANKS*DOWNSAMPLED_SIZE];
     double enveloped[N_BANKS*DOWNSAMPLED_SIZE];
     double angled[N_BANKS*DOWNSAMPLED_SIZE];
-    double envelopeTemporalSmoothed[N_BANKS*DOWNSAMPLED_SIZE];
-    double envelopeTemporalBandSmoothed[N_BANKS*DOWNSAMPLED_SIZE];
+    double envelopeSmoothed[N_BANKS*DOWNSAMPLED_SIZE];
     double digitized[DOWNSAMPLED_SIZE];
     double instantFrequency[DOWNSAMPLED_SIZE];
     
-    FILE * elfp, * lpfp, * dsfp, * bpfp, * hfp, * efp, * afp, * etsfp, * etbsfp, * mbfp, * dfp, * iffp;
+    FILE * elfp, * lpfp, * dsfp, * bpfp, * hfp, * efp, * afp, * esfp, * mbfp, * dfp, * iffp;
     if (!(elfp = fopen("lfp.data", "rb"))) 
     {
         printf("File can not be open for read.\n");
@@ -361,12 +345,7 @@ int main() {
         printf("File can not be open for read.\n");
         return -1;
     }
-    if (!(etsfp = fopen("envelopeTemporalSmoothed.dat", "wa"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    if (!(etbsfp = fopen("envelopeTemporalBandSmoothed.dat", "wa"))) 
+    if (!(esfp = fopen("envelopeSmoothed.dat", "wa"))) 
     {
         printf("File can not be open for read.\n");
         return -1;
@@ -393,7 +372,7 @@ int main() {
 		//#pragma ACCEL task
 		//realtime_theta_phase_kernel( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, digitized, instantFrequency );
 		gettimeofday(&timevalStart,&timezone);
-		realtime_theta_phase_sw( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, digitized, instantFrequency);
+		realtime_theta_phase_sw( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeSmoothed, digitized, instantFrequency);
 		gettimeofday(&timevalEnd,&timezone);
 		printf("%ld seconds, %d usec\n",  timevalEnd.tv_sec-timevalStart.tv_sec, timevalEnd.tv_usec-timevalStart.tv_usec);
 
@@ -404,8 +383,7 @@ int main() {
 		fwrite( hilberted, sizeof(hilberted[0]), sizeof(hilberted)/sizeof(hilberted[0]), hfp );
 		fwrite( enveloped, sizeof(enveloped[0]), sizeof(enveloped)/sizeof(enveloped[0]), efp );
 		fwrite( angled, sizeof(angled[0]), sizeof(angled)/sizeof(angled[0]), afp );
-		fwrite( envelopeTemporalSmoothed, sizeof(envelopeTemporalSmoothed[0]), sizeof(envelopeTemporalSmoothed)/sizeof(envelopeTemporalSmoothed[0]), etsfp );
-		fwrite( envelopeTemporalBandSmoothed, sizeof(envelopeTemporalBandSmoothed[0]), sizeof(envelopeTemporalBandSmoothed)/sizeof(envelopeTemporalBandSmoothed[0]), etbsfp );
+		fwrite( envelopeSmoothed, sizeof(envelopeSmoothed[0]), sizeof(envelopeSmoothed)/sizeof(envelopeSmoothed[0]), esfp );
 		fwrite( digitized, sizeof(digitized[0]), sizeof(digitized)/sizeof(digitized[0]), dfp );
 		fwrite( instantFrequency, sizeof(instantFrequency[0]), sizeof(instantFrequency)/sizeof(instantFrequency[0]), iffp );
 	//}
@@ -418,8 +396,7 @@ int main() {
 	fclose(hfp);
 	fclose(efp);
 	fclose(afp);
-	fclose(etsfp);
-	fclose(etbsfp);
+	fclose(esfp);
 	fclose(mbfp);
 	fclose(dfp);
 	fclose(iffp);
