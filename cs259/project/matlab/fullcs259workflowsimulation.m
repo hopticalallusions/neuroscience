@@ -70,7 +70,7 @@ maxBandpassIdx = zeros(1,ceil(length(lfp)/everyNthSample));
 instantFrequency = zeros(1,ceil(length(lfp)/everyNthSample)); % what's the center frequency?
 digitized = zeros(1,ceil(length(lfp)/everyNthSample)); % what port is active? -1 == NULL
 
-deltaEnvTemporal=.1;
+deltaEnvTemporal=.01;
 
 tic();
 %% simulate the arrival of data samples
@@ -165,11 +165,13 @@ for idx=1: 320000 %length(lfp)
          envelopeTemporalBandSmoothed(:,dsIdx) = (tempUp+tempDown)/2;
          % unismooth
          if dsIdx > 1
-             envelopeUniSmoothed(1,dsIdx) = ( .6*enveloped(1,dsIdx-1)) + (.1* enveloped(1,dsIdx)) + (.15* enveloped(1,dsIdx)) + (.15* enveloped(2,dsIdx));
+             envelopeUniSmoothed(1,dsIdx) = ( .9*envelopeUniSmoothed(1,dsIdx-1)) + (.05* enveloped(1,dsIdx)) + (.05* envelopeUniSmoothed(2,dsIdx));
              for ii = 2:numberOfBbandsToPass-1
-                 envelopeUniSmoothed(ii,dsIdx) = ( .6*enveloped(ii,dsIdx-1)) + (.1* enveloped(ii,dsIdx)) + (.15* enveloped(ii-1,dsIdx)) + (.15* enveloped(ii+1,dsIdx));
+                 envelopeUniSmoothed(ii,dsIdx) = ( 0.8*envelopeUniSmoothed(ii,dsIdx-1)) + (0.1* enveloped(ii,dsIdx)) + (0.05* envelopeUniSmoothed(ii-1,dsIdx-1)) + (0.05* envelopeUniSmoothed(ii+1,dsIdx-1));
              end
-             envelopeUniSmoothed(numberOfBbandsToPass,dsIdx) = ( .6*enveloped(ii,dsIdx-1)) + (.1* enveloped(ii,dsIdx)) + (.15* enveloped(ii-1,dsIdx)) + (.15* enveloped(ii,dsIdx));
+             envelopeUniSmoothed(numberOfBbandsToPass,dsIdx) = ( .9*envelopeUniSmoothed(ii,dsIdx-1)) + (.05* enveloped(ii,dsIdx)) + (.05* envelopeUniSmoothed(ii-1,dsIdx));
+         else
+             envelopeUniSmoothed(:,dsIdx) = enveloped(:,dsIdx);
          end
          %% threshold check
          [mag,pos] = max(envelopeUniSmoothed(:,dsIdx));
@@ -187,6 +189,14 @@ for idx=1: 320000 %length(lfp)
 end
 toc()
 
+
+figure; hold on; plot(enveloped(16,1:2048));plot(envelopeUniSmoothed(16,1:2048)); 
+plot(envelopeTemporalBandSmoothed(16,1:2048)); plot(abs(hilbert(bandpassed(16,1:2048))));
+plot(envelopeTemporalSmoothed(16,1:2048));
+pp=hilbert(bandpassed(16,1:2048)); oo=zeros(1,2048); for ii = 1:2048; [aa, hh]=cordicVector(imag(pp(ii)),real(pp(ii)),25); oo(ii)=hh; end; plot(oo); 
+legend('env','uni smooth','t&b smooth','tru hilb env','CORDIC on tru hilbert');
+
+
 %% plot things
 %for ii=1:numberOfBbandsToPass
 %e.g.
@@ -200,7 +210,7 @@ ii=8;
 %end
 
 figure; 
-subplot(4,1,1); plot(envelopeTemporalBandSmoothed(:,1:5*downsampleRate)'); legend('envelopes'); %legend('4','5','6','7','8','9','10','11','12');
+subplot(4,1,1); plot(envelopeUniSmoothed(:,1:5*downsampleRate)'); legend('envelopes'); %legend('4','5','6','7','8','9','10','11','12');
 subplot(4,1,2); plot(instantFrequency(1:5*downsampleRate)); legend('instant freq');
 subplot(4,1,3); plot(digitized(1:5*downsampleRate)); legend('ttl');
 subplot(4,1,4); plot(bandpassed(15,1:5*downsampleRate)); legend([num2str(bandpassCenterFrequencies(15)) ' Hz']);
@@ -229,9 +239,6 @@ subplot(2,2,3); imagesc(flipud(envelopeTemporalBandSmoothed(:,1:9*downsampleRate
 subplot(2,2,4); imagesc(flipud(envelopeUniSmoothed(:,1:9*downsampleRate))); colorbar; title('Env Uni Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
 
 
-figure; hold on; plot(enveloped(16,1:2048));plot(envelopeUniSmoothed(16,1:2048)); plot(envelopeTemporalBandSmoothed(16,1:2048)); plot(abs(hilbert(bandpassed(16,1:2048))));
-legend('env','uni smooth','t&b smooth','tru hilb env','CORDIC on tru hilbert'); pp=hilbert(bandpassed(16,1:2048));
-oo=zeros(1,2048); for ii = 1:2048; [aa, hh]=cordicVector(imag(pp(ii)),real(pp(ii)),25); oo(ii)=hh; end; plot(oo)
 
 figure; subplot(4,1,1:2); tt=(1:2048)/250; hold on; plot(tt,bitvolts*enveloped(16,1:2048), 'r', 'LineWidth', 2); plot(tt,bitvolts*abs(hilbert(bandpassed(16,1:2048))),'Color', [.4 .4 .4] ,'LineWidth', 4); plot(tt,bitvolts*oo, 'Color', [ .1 .9 .2 ],'LineWidth', 1); 
 title('C/FPGA Algorithm Approximations vs True');ylabel('\muV'); axis([ 0 8 0 120]); legend('alg env','true env','CORDIC env(true hilbert)')

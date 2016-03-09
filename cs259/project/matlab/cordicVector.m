@@ -96,4 +96,15 @@ function [ angle, hypotenuse ] = cordicVector(xo,yo,n)
 
     return
 
+    %% more references 
+%     http://dspguru.com/dsp/faqs/cordic
+%     http://www.drdobbs.com/architecture-and-design/software-implementation-of-trigonometric/196700769?pgno=3
+%     http://www.drdobbs.com/the-cordic-method-for-faster-sin-and-cos/184402614
+%     http://www.drdobbs.com/architecture-and-design/software-implementation-of-trigonometric/196700769
+%     http://www.drdobbs.com/architecture-and-design/software-implementation-of-trigonometric/196700769?pgno=2
+%     http://www.eetimes.com/document.asp?doc_id=1271838
+%     http://www.infineon.com/dgdl/AP1610510_CORDIC_Algorithm.pdf?fileId=db3a304313719f4f011372b47428008b
+%     http://nonagon.org/ExLibris/sites/default/files/pdf/MikesCordicArticle.pdf
+    
+    
 endfunction
