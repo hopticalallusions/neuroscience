@@ -34,20 +34,22 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 	//
 	// working variables
 	//
-	int dataIndex 	= 0;
-	int freqBandIdx = 0;
-	int k_limit 	= 0;
-	int tempMax 	= 0;
-	int tempMaxIdx 	= 0;
-	int k 			= 0;
-	int dsIdx		= 0;
-	double pwr         = 0.0f;
-	int j           = 0;
-	double cordicX 	= 0.0f;
+	int dataIndex 		= 0;
+	int freqBandIdx 	= 0;
+	int k_limit 		= 0;
+	int tempMax 		= 0;
+	int tempMaxIdx 		= 0;
+	int k 				= 0;
+	int dsIdx			= 0;
+	double pwr   	  	= 0.0f;
+	int j         	  	= 0;
+	double cordicX	 	= 0.0f;
 	double cordicY		= 0.0f;
+	double cordicXLast 	= 0.0f;
+	double cordicYLast	= 0.0f;
 	double cordicZ		= 0.0f;
 	double offset		= 0.0f;
-	double pi		= 3.14159265359;
+	double pi			= 3.14159265359;
 
 	// accounting variables	
        int everyNthSample 	= 128;
@@ -218,15 +220,17 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 
 				for ( k=1; k < 29 ; k++ ) 
 				{
+					cordicXLast = cordicX;
+					cordicYLast = cordicY;
 					pwr = 1.0f;
 					for ( j=1; j < k; j++ ) { pwr = pwr * 2.0f; } 
 					if ( cordicY < 0 ) {
-						cordicX = cordicX - ( cordicY / pwr );     // ( 1 << (k-1) )
-						cordicY = cordicY + ( cordicX / pwr );     // ( 1 << (k-1) )
+						cordicX = cordicX - ( cordicYLast / pwr );     // ( 1 << (k-1) )
+						cordicY = cordicY + ( cordicXLast / pwr );     // ( 1 << (k-1) )
 						cordicZ = cordicZ - ( arctanLookup[k-1] );
 					} else {
-						cordicX = cordicX + ( cordicY / pwr );     //( 1 << (k-1) )
-						cordicY = cordicY - ( cordicX / pwr );     //( 1 << (k-1) )
+						cordicX = cordicX + ( cordicYLast / pwr );     //( 1 << (k-1) )
+						cordicY = cordicY - ( cordicXLast / pwr );     //( 1 << (k-1) )
 						cordicZ = cordicZ + ( arctanLookup[k-1] );
 					}
 				}
@@ -250,7 +254,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 				} else 
 				{
 					// this may require modification to deal with integer only calculation?
-					envelopeTemporalSmoothed[k+dsIdx*N_BANKS] = (1-deltaEnvTemporal)*envelopeTemporalSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*dsIdx];
+					envelopeTemporalSmoothed[k+dsIdx*N_BANKS] = (1.0f-deltaEnvTemporal)*envelopeTemporalSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*dsIdx];
 				}
 			 }
 		 
@@ -270,8 +274,8 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 			}
 			for ( k=1; k<numberOfBandsToPass; k++ ) 
 			{
-				tempUp[k] = (1-deltaEnvTemporal) * envelopeTemporalSmoothed[(k-1)+N_BANKS*dsIdx] + deltaEnvTemporal * envelopeTemporalSmoothed[k+N_BANKS*dsIdx];
-				tempDown[numberOfBandsToPass-k+1] = (1-deltaEnvTemporal)*envelopeTemporalSmoothed[(numberOfBandsToPass-k+1)+N_BANKS*dsIdx] + (deltaEnvTemporal)*envelopeTemporalSmoothed[(numberOfBandsToPass-k)+N_BANKS*dsIdx];
+				tempUp[k] = (1.0f-deltaEnvTemporal) * envelopeTemporalSmoothed[(k-1)+N_BANKS*dsIdx] + deltaEnvTemporal * envelopeTemporalSmoothed[k+N_BANKS*dsIdx];
+				tempDown[numberOfBandsToPass-k+1] = (1.0f-deltaEnvTemporal)*envelopeTemporalSmoothed[(numberOfBandsToPass-k+1)+N_BANKS*dsIdx] + (deltaEnvTemporal)*envelopeTemporalSmoothed[(numberOfBandsToPass-k)+N_BANKS*dsIdx];
 			}
 			for ( k=0; k<numberOfBandsToPass; k++ )
 			{

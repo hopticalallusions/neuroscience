@@ -82,10 +82,10 @@ function [ angle, hypotenuse ] = cordicVector(xo,yo,n)
     % xx(2:end)=xx(2:end)*0.6073;
     %
 
-    figure;
-    subplot(3,1,1); plot(zz*180/pi,'o-k');
-    subplot(3,1,2); plot(yy,'o-r');
-    subplot(3,1,3); plot(xx,'o-b');
+%     figure;
+%     subplot(3,1,1); plot(zz*180/pi,'o-k');
+%     subplot(3,1,2); plot(yy,'o-r');
+%     subplot(3,1,3); plot(xx,'o-b');
     
     hypotenuse = xx(n)*.6073;
     %if zz(n) < 0

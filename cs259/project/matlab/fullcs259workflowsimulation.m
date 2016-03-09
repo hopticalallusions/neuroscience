@@ -64,6 +64,7 @@ angled = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 enveloped = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 envelopeTemporalSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 envelopeTemporalBandSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
+envelopeUniSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 thresholded = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 maxBandpassIdx = zeros(1,ceil(length(lfp)/everyNthSample));
 instantFrequency = zeros(1,ceil(length(lfp)/everyNthSample)); % what's the center frequency?
@@ -162,8 +163,16 @@ for idx=1: 320000 %length(lfp)
              tempDown(numberOfBbandsToPass-ii+1) = (1-deltaEnvTemporal)*envelopeTemporalSmoothed(numberOfBbandsToPass-ii+2,dsIdx) + (deltaEnvTemporal)*envelopeTemporalSmoothed(numberOfBbandsToPass-ii+1,dsIdx);
          end
          envelopeTemporalBandSmoothed(:,dsIdx) = (tempUp+tempDown)/2;
+         % unismooth
+         if dsIdx > 1
+             envelopeUniSmoothed(1,dsIdx) = ( .6*enveloped(1,dsIdx-1)) + (.1* enveloped(1,dsIdx)) + (.15* enveloped(1,dsIdx)) + (.15* enveloped(2,dsIdx));
+             for ii = 2:numberOfBbandsToPass-1
+                 envelopeUniSmoothed(ii,dsIdx) = ( .6*enveloped(ii,dsIdx-1)) + (.1* enveloped(ii,dsIdx)) + (.15* enveloped(ii-1,dsIdx)) + (.15* enveloped(ii+1,dsIdx));
+             end
+             envelopeUniSmoothed(numberOfBbandsToPass,dsIdx) = ( .6*enveloped(ii,dsIdx-1)) + (.1* enveloped(ii,dsIdx)) + (.15* enveloped(ii-1,dsIdx)) + (.15* enveloped(ii,dsIdx));
+         end
          %% threshold check
-         [mag,pos] = max(envelopeTemporalBandSmoothed(:,dsIdx));
+         [mag,pos] = max(envelopeUniSmoothed(:,dsIdx));
          maxBandpassIdx(dsIdx) = pos;
          if ( mag * bitvolts < powerThreshold )
              % the output is NULL
@@ -214,6 +223,18 @@ plot((0:1/downsampleRate:secondsToPlot),bandpassed(4,1:secondsToPlot*downsampleR
 %subplot(2,1,2); hold on; plot(enveloped(:,1200)); plot(envelopeTemporalSmoothed(:,1200)); plot(envelopeTemporalBandSmoothed(:,1200));
 %
 figure; colormap(build_NOAA_colorgradient); 
-subplot(3,1,1); imagesc(flipud(enveloped(:,1:9*downsampleRate))); colorbar; title('Matlab Envelopes'); ylabel('~4 <--> ~12 Hz');
-subplot(3,1,2); imagesc(flipud(envelopeTemporalSmoothed(:,1:9*downsampleRate))); colorbar; title('Matlab Envenlopes Temporal Smoothing');  ylabel('~4 <--> ~12 Hz');
-subplot(3,1,3); imagesc(flipud(envelopeTemporalBandSmoothed(:,1:9*downsampleRate))); colorbar; title('Matlab Env. Temporal & Freq Smoothing');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
+subplot(2,2,1); imagesc(flipud(enveloped(:,1:9*downsampleRate))); colorbar; title('Matlab Envelopes'); ylabel('~4 <--> ~12 Hz');
+subplot(2,2,2); imagesc(flipud(envelopeTemporalSmoothed(:,1:9*downsampleRate))); colorbar; title('Env Temp Smooth');  ylabel('~4 <--> ~12 Hz');
+subplot(2,2,3); imagesc(flipud(envelopeTemporalBandSmoothed(:,1:9*downsampleRate))); colorbar; title('Env. Temp,Freq Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
+subplot(2,2,4); imagesc(flipud(envelopeUniSmoothed(:,1:9*downsampleRate))); colorbar; title('Env Uni Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
+
+
+figure; hold on; plot(enveloped(16,1:2048));plot(envelopeUniSmoothed(16,1:2048)); plot(envelopeTemporalBandSmoothed(16,1:2048)); plot(abs(hilbert(bandpassed(16,1:2048))));
+legend('env','uni smooth','t&b smooth','tru hilb env','CORDIC on tru hilbert'); pp=hilbert(bandpassed(16,1:2048));
+oo=zeros(1,2048); for ii = 1:2048; [aa, hh]=cordicVector(imag(pp(ii)),real(pp(ii)),25); oo(ii)=hh; end; plot(oo)
+
+figure; subplot(4,1,1:2); tt=(1:2048)/250; hold on; plot(tt,bitvolts*enveloped(16,1:2048), 'r', 'LineWidth', 2); plot(tt,bitvolts*abs(hilbert(bandpassed(16,1:2048))),'Color', [.4 .4 .4] ,'LineWidth', 4); plot(tt,bitvolts*oo, 'Color', [ .1 .9 .2 ],'LineWidth', 1); 
+title('C/FPGA Algorithm Approximations vs True');ylabel('\muV'); axis([ 0 8 0 120]); legend('alg env','true env','CORDIC env(true hilbert)')
+subplot(4,1,3); plot(tt,bitvolts*(abs(hilbert(bandpassed(16,1:2048)))-oo));ylabel('\muV'); axis([ 0 8 -0.01 0 ]); legend('env. error true-CORDIC'); % true hilbert xform, error of env vs. CORDIC
+subplot(4,1,4); plot(tt,bitvolts*(abs(hilbert(bandpassed(16,1:2048)))-enveloped(16,1:2048)));ylabel('\muV'); legend('env. true-est '); % error of true hilbert vs alg. est.
+xlabel('time (s)'); ylabel('\muV'); axis([ 0 8 -7 7 ]); 
