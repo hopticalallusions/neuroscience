@@ -95,11 +95,11 @@ for idx=1: 128*2048 %320000 %length(lfp)
     %% downsample
     if ( 0 == mod(idx, everyNthSample) )
         dsIdx = idx/everyNthSample;
-        downsampled(dsIdx) = lowpassed(idx);
+        downsampled(dsIdx) = lowPassOut;  % accounting
         %% bandpass  
         for bp=1:numberOfBbandsToPass
             % shift register version of bandpass filtering
-            bandpassNumeratorCache(bp,:) = [ downsampled(dsIdx) bandpassNumeratorCache(bp,1:bandpassNCoeff-1) ]; % shift register  
+            bandpassNumeratorCache(bp,:) = [ lowPassOut bandpassNumeratorCache(bp,1:bandpassNCoeff-1) ]; % shift register  
             bandPassOut = 0;
             bandpassDenominatorCache(bp,:) = [ bandPassOut bandpassDenominatorCache(bp,1:bandpassNCoeff-1)  ];
             for k=1:bandpassNCoeff
@@ -145,7 +145,7 @@ for idx=1: 128*2048 %320000 %length(lfp)
                 end
             end
             enveloped(bp,dsIdx) = xx*cordicGainCorrection;  % accounting
-            angled(bp,dsIdx) = zz;
+            angled(bp,dsIdx) = zz;  % accounting
             envelopeCache(bp,2) = xx*cordicGainCorrection;
         end    
         %% envelope smoothing
@@ -154,15 +154,15 @@ for idx=1: 128*2048 %320000 %length(lfp)
             for ii = 2:numberOfBbandsToPass-1
                 envelopeSmoothTemp(ii) = ( 0.8*envelopeCache(ii,1)) + (0.1* envelopeCache(ii,2)) + (0.05* envelopeCache(ii-1,1)) + (0.05* envelopeCache(ii+1,1));
             end
-            envelopeSmoothTemp(numberOfBbandsToPass) = ( .9*envelopeSmoothed(ii,1)) + (.05* enveloped(ii,2)) + (.05* envelopeCache(ii-1,2));
+            envelopeSmoothTemp(numberOfBbandsToPass) = ( .9*envelopeCache(ii,1)) + (.05* envelopeCache(ii,2)) + (.05* envelopeCache(ii-1,2));
         else
             envelopeSmoothTemp = envelopeCache(:,2);
         end
         envelopeSmoothed(:,dsIdx) = envelopeSmoothTemp; % accounting
         envelopeCache(:,1) = envelopeSmoothTemp;
         %% threshold check
-        [mag,pos] = max(envelopeSmoothed(:,dsIdx));
-        maxBandpassIdx(dsIdx) = pos;
+        [mag,pos] = max(envelopeSmoothTemp);
+        maxBandpassIdx(dsIdx) = pos; % accounting
         if ( mag < powerThreshold )
             % the output is NULL
             digitized(dsIdx) = -1;
