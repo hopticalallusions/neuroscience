@@ -3,7 +3,6 @@ clear all;
 load('~/Desktop/cs259demodata.mat')
 %% create data structures
 % constants
-whatHilbert = 'delay';
 bitvolts = 0.015624999960550667; % microvolts per bit
 powerThreshold = round(60/bitvolts); % A-to-D Values  ( 60 microvolts / bitvolts )
 phaseSegmentsDesired = 10; % divisions of the phase of theta
@@ -118,44 +117,12 @@ for idx=1: 128*2048 %320000 %length(lfp)
 %                     - bandpassed(bp,dsIdx-k+1)*bandpassDenominatorCoeffs(bp,k)...
 %                     + downsampled(dsIdx-k+1)*bandpassNumeratorCoeffs(bp,k);
 %             end
-            %% hilbert
-            %
-            if strcmp( whatHilbert, 'fir')
-                % Andrew's version
-                %hilbertCache = [ bandpassed(idx/everyNthSample) hilbertCache(1:end-1)  ];
-                %hilberted(dsIdx)= sum(hilbertCache.*hilbertNumeratorCoeffs);
-                %
-                % Colin's Version
-                for k=1:min(dsIdx,hilbertNCoeffs)
-                    hilberted(bp,dsIdx)= hilberted(bp,dsIdx) + bandpassed(bp,dsIdx-k+1)*hilbertNumeratorCoeffs(k);
-                end
-            elseif strcmp( whatHilbert, 'diff' )
-                % differentiation version with empirical gain factor
-                %   * this works because hilbert(sin(t)) == -cos(t) 
-                %     and sin'(t) = cos(t)
-                %     therefore, especially inside a very tight bandpass filter
-                %     hilbert(sin(t)) is roughly equivalent to - dv/dt (signal)
-                if dsIdx > 1
-                    hilberted(bp,dsIdx) =  bandpassGain(bp)*(bandpassed(bp,dsIdx-1) - bandpassed(bp,dsIdx));
-                end
-            elseif strcmp( whatHilbert, 'delay' )
-                % delay approximation
-                % given :
-                %   a tightly bandpassed signal 
-                %   a hilbert is a 90 degree phase shift of a signal
-                % then, it follows that
-                %   a hilbert transform on the tightly bandpassed signal is
-                %   approximately equal to the original signal delayed by 
-                %   delay_samples = sample_rate/(center_freq * 4)
-                if dsIdx > delay_samples(bp)
-                    hilberted(bp,dsIdx) =  bandpassed(bp,dsIdx-delay_samples(bp));
-                end
-            else
-                disp('no such algorithm')
-                return;
-             end
-             %% CORDIC
-             [ angled(bp,dsIdx) , enveloped(bp,dsIdx)] = cordicVector(bandpassed(bp,dsIdx),hilberted(bp,dsIdx),20);
+            %% hilbert -- delay approximation
+            if dsIdx > delay_samples(bp)
+                hilberted(bp,dsIdx) =  bandpassed(bp,dsIdx-delay_samples(bp));
+            end
+         %% CORDIC
+         [ angled(bp,dsIdx) , enveloped(bp,dsIdx)] = cordicVector(bandpassed(bp,dsIdx),hilberted(bp,dsIdx),20);
         end    
          %% envelope smoothing
          if dsIdx == 1
@@ -211,7 +178,7 @@ legend('env','uni smooth','t&b smooth','tru hilb env','CORDIC on tru hilbert');
 ii=8;
     figure;
     trueHilbert = hilbert(bandpassed(ii,:));
-    subplot(4,1,1); plot(bandpassed(ii,1:2*downsampleRate)); hold on;  plot(enveloped(ii,1:2*downsampleRate)); legend('bandpassed','envelope'); title([ whatHilbert ' ' num2str(bandpassCenterFrequencies(ii)) ' Hz' ]);
+    subplot(4,1,1); plot(bandpassed(ii,1:2*downsampleRate)); hold on;  plot(enveloped(ii,1:2*downsampleRate)); legend('bandpassed','envelope'); title([  num2str(bandpassCenterFrequencies(ii)) ' Hz' ]);
     subplot(4,1,2); plot(angled(ii,1:2*downsampleRate)); hold on;  plot(360/(2*pi)*(pi+angle(trueHilbert(1:2*downsampleRate)))); legend('CORDIC','mtlb_angle');
     subplot(4,1,3); hold off; plot(bandpassed(ii,1:2*downsampleRate)); hold on; plot(hilberted(ii,1:2*downsampleRate)); legend('bandpassed','hilberted');
     subplot(4,1,4); plot(bandpassed(ii,1:2*downsampleRate)); hold on; plot(imag(trueHilbert(1:2*downsampleRate))); legend('bandpassed','true hilbert');
