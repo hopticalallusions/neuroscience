@@ -11,10 +11,11 @@ downsampleRate = 250; % Hz
 everyNthSample = round(nativeSampleRate/downsampleRate); % 128 samples of each 32,000 (Hz) is 250 Hz
 lowpassNumeratorCoeffs =   [ 0.000000000006564694180131090961704897522  0.000000000039388165080786542539055117347  0.000000000098470412701966356347637793367  0.000000000131293883602621825696446486011  0.000000000098470412701966356347637793367  0.000000000039388165080786542539055117347  0.000000000006564694180131090961704897522  ];
 lowpassDenominatorCoeffs = [ 1 -5.893323981110579090625378739787265658379 14.472294910655531197107848129235208034515  -18.955749009589681008947081863880157470703  13.966721637745113326900536776520311832428  -5.488755923739796926952294597867876291275  0.898812366459551981279219035059213638306  ];
-lowpassDenominatorCoeffsB = [ 0 -5.893323981110579090625378739787265658379 14.472294910655531197107848129235208034515  -18.955749009589681008947081863880157470703  13.966721637745113326900536776520311832428  -5.488755923739796926952294597867876291275  0.898812366459551981279219035059213638306  ];
 lowpassNCoeff = min(length(lowpassDenominatorCoeffs),length(lowpassNumeratorCoeffs));
 %
-% be carfeul about changing this, because the matrix sizes are hard coded
+% be carfeul about changing this. pay attention to the automated filter
+% band coefficient genetator loop below and the size of the coefficients.
+% the matrices are currently fixed for 5 coefficients per bank
 numberOfBbandsToPass = 34;
 bandpassDenominatorCoeffs = zeros(numberOfBbandsToPass,5);
 bandpassNumeratorCoeffs = zeros(numberOfBbandsToPass,5);
@@ -61,46 +62,36 @@ bandpassed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 hilberted = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 angled = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 enveloped = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
-envelopeTemporalSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
-envelopeTemporalBandSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 envelopeSmoothed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 thresholded = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 maxBandpassIdx = zeros(1,ceil(length(lfp)/everyNthSample));
 instantFrequency = zeros(1,ceil(length(lfp)/everyNthSample)); % what's the center frequency?
 digitized = zeros(1,ceil(length(lfp)/everyNthSample)); % what port is active? -1 == NULL
-
+% for averaging the envelopes 
 deltaEnvTemporal=.01;
-
+% shift buffers
 lowpassNumeratorCache=zeros(1,lowpassNCoeff);
 lowpassDenominatorCache=zeros(1,lowpassNCoeff);
 bandpassNumeratorCache=zeros(numberOfBbandsToPass,bandpassNCoeff);
 bandpassDenominatorCache=zeros(numberOfBbandsToPass,bandpassNCoeff);
 
-
-lp=lowpassed;
-
 tic();
 %% simulate the arrival of data samples
-% cheat a little on the spool up
 for idx=1: 128*2048 %320000 %length(lfp)
-    
     %% lowpass
     lowpassNumeratorCache = [ lfp(idx) lowpassNumeratorCache(1:end-1) ]; % shift register  
     lowPassOut = 0;
     lowpassDenominatorCache = [ lowPassOut lowpassDenominatorCache(1:end-1)  ];
-     for k=1:lowpassNCoeff
-         lowPassOut = lowPassOut - lowpassDenominatorCache(k)*lowpassDenominatorCoeffs(k) + lowpassNumeratorCache(k)*lowpassNumeratorCoeffs(k);
-     end
-    lowpassed(idx) = lowPassOut; % accounting
+    for k=1:lowpassNCoeff
+        lowPassOut = lowPassOut - lowpassDenominatorCache(k)*lowpassDenominatorCoeffs(k) + lowpassNumeratorCache(k)*lowpassNumeratorCoeffs(k);
+    end
     lowpassDenominatorCache(1) = lowPassOut;
-    
-    
-   %% downsample
-    
-     if ( 0 == mod(idx, everyNthSample) )
-         dsIdx = idx/everyNthSample;
-         downsampled(dsIdx) = lowpassed(idx);
-         %% bandpass  
+    lowpassed(idx) = lowPassOut; % accounting
+    %% downsample
+    if ( 0 == mod(idx, everyNthSample) )
+        dsIdx = idx/everyNthSample;
+        downsampled(dsIdx) = lowpassed(idx);
+        %% bandpass  
         for bp=1:numberOfBbandsToPass
             % shift register version of bandpass filtering
             bandpassNumeratorCache(bp,:) = [ downsampled(dsIdx) bandpassNumeratorCache(bp,1:bandpassNCoeff-1) ]; % shift register  
@@ -109,70 +100,46 @@ for idx=1: 128*2048 %320000 %length(lfp)
             for k=1:bandpassNCoeff
                 bandPassOut = bandPassOut - bandpassDenominatorCache(bp,k)*bandpassDenominatorCoeffs(bp,k) + bandpassNumeratorCache(bp,k)*bandpassNumeratorCoeffs(bp,k);
             end
-            bandpassed(bp,dsIdx) = bandPassOut; % accounting
             bandpassDenominatorCache(bp,1) = bandPassOut;
-            
-%             for k=1:min(dsIdx,bandpassNCoeff) 
-%                 bandpassed(bp,dsIdx) = bandpassed(bp,dsIdx) ...
-%                     - bandpassed(bp,dsIdx-k+1)*bandpassDenominatorCoeffs(bp,k)...
-%                     + downsampled(dsIdx-k+1)*bandpassNumeratorCoeffs(bp,k);
-%             end
+            bandpassed(bp,dsIdx) = bandPassOut; % accounting
             %% hilbert -- delay approximation
             if dsIdx > delay_samples(bp)
                 hilberted(bp,dsIdx) =  bandpassed(bp,dsIdx-delay_samples(bp));
             end
-         %% CORDIC
-         [ angled(bp,dsIdx) , enveloped(bp,dsIdx)] = cordicVector(bandpassed(bp,dsIdx),hilberted(bp,dsIdx),20);
+            %% CORDIC
+            [ angled(bp,dsIdx) , enveloped(bp,dsIdx)] = cordicVector(bandpassed(bp,dsIdx),hilberted(bp,dsIdx),20);
         end    
-         %% envelope smoothing
-         if dsIdx == 1
-             envelopeTemporalSmoothed(:,dsIdx) = enveloped(:,dsIdx);
-         else
-             envelopeTemporalSmoothed(:,dsIdx) = (1-deltaEnvTemporal)*envelopeTemporalSmoothed(:,dsIdx-1) + (deltaEnvTemporal)*enveloped(:,dsIdx);
-         end
-         tempUp = envelopeTemporalSmoothed(:,dsIdx);
-         tempDown = tempUp;
-         for ii=2:numberOfBbandsToPass
-             tempUp(ii) = (1-deltaEnvTemporal)*envelopeTemporalSmoothed(ii-1,dsIdx) + (deltaEnvTemporal)*envelopeTemporalSmoothed(ii,dsIdx);
-             tempDown(numberOfBbandsToPass-ii+1) = (1-deltaEnvTemporal)*envelopeTemporalSmoothed(numberOfBbandsToPass-ii+2,dsIdx) + (deltaEnvTemporal)*envelopeTemporalSmoothed(numberOfBbandsToPass-ii+1,dsIdx);
-         end
-         envelopeTemporalBandSmoothed(:,dsIdx) = (tempUp+tempDown)/2;
-         % unismooth
-         if dsIdx > 1
-             envelopeSmoothed(1,dsIdx) = ( .9*envelopeSmoothed(1,dsIdx-1)) + (.05* enveloped(1,dsIdx)) + (.05* envelopeSmoothed(2,dsIdx));
-             for ii = 2:numberOfBbandsToPass-1
-                 envelopeSmoothed(ii,dsIdx) = ( 0.8*envelopeSmoothed(ii,dsIdx-1)) + (0.1* enveloped(ii,dsIdx)) + (0.05* envelopeSmoothed(ii-1,dsIdx-1)) + (0.05* envelopeSmoothed(ii+1,dsIdx-1));
-             end
-             envelopeSmoothed(numberOfBbandsToPass,dsIdx) = ( .9*envelopeSmoothed(ii,dsIdx-1)) + (.05* enveloped(ii,dsIdx)) + (.05* envelopeSmoothed(ii-1,dsIdx));
-         else
-             envelopeSmoothed(:,dsIdx) = enveloped(:,dsIdx);
-         end
-         %% threshold check
-         [mag,pos] = max(envelopeSmoothed(:,dsIdx));
-         maxBandpassIdx(dsIdx) = pos;
-         if ( mag < powerThreshold )
-             % the output is NULL
-             digitized(dsIdx) = -1;
-         else
-             %% map to digital out
-             % i.e. what TTL is currently on
-             instantFrequency(dsIdx)= bandpassCenterFrequencies(pos);
-             digitized(dsIdx) = floor(angled(pos,dsIdx)/(359/phaseSegmentsDesired));
-         end
+        %% envelope smoothing
+        if dsIdx > 1
+            envelopeSmoothed(1,dsIdx) = ( .9*envelopeSmoothed(1,dsIdx-1)) + (.05* enveloped(1,dsIdx)) + (.05* envelopeSmoothed(2,dsIdx));
+            for ii = 2:numberOfBbandsToPass-1
+                envelopeSmoothed(ii,dsIdx) = ( 0.8*envelopeSmoothed(ii,dsIdx-1)) + (0.1* enveloped(ii,dsIdx)) + (0.05* envelopeSmoothed(ii-1,dsIdx-1)) + (0.05* envelopeSmoothed(ii+1,dsIdx-1));
+            end
+            envelopeSmoothed(numberOfBbandsToPass,dsIdx) = ( .9*envelopeSmoothed(ii,dsIdx-1)) + (.05* enveloped(ii,dsIdx)) + (.05* envelopeSmoothed(ii-1,dsIdx));
+        else
+            envelopeSmoothed(:,dsIdx) = enveloped(:,dsIdx);
+        end
+        %% threshold check
+        [mag,pos] = max(envelopeSmoothed(:,dsIdx));
+        maxBandpassIdx(dsIdx) = pos;
+        if ( mag < powerThreshold )
+            % the output is NULL
+            digitized(dsIdx) = -1;
+        else
+            %% map to digital out
+            % i.e. what TTL is currently on
+            instantFrequency(dsIdx)= bandpassCenterFrequencies(pos);
+            digitized(dsIdx) = floor(angled(pos,dsIdx)/(359/phaseSegmentsDesired));
+        end
     end
 end
 toc()
 
-
-
-figure; hold on; plot(enveloped(16,1:2048));plot(envelopeSmoothed(16,1:2048)); 
-plot(envelopeTemporalBandSmoothed(16,1:2048)); plot(abs(hilbert(bandpassed(16,1:2048))));
-plot(envelopeTemporalSmoothed(16,1:2048));
-pp=hilbert(bandpassed(16,1:2048)); oo=zeros(1,2048); for ii = 1:2048; [aa, hh]=cordicVector(imag(pp(ii)),real(pp(ii)),25); oo(ii)=hh; end; plot(oo); 
-legend('env','uni smooth','t&b smooth','tru hilb env','CORDIC on tru hilbert');
-
-
 %% plot things
+figure; hold on; plot(enveloped(16,1:2048));plot(envelopeSmoothed(16,1:2048)); plot(abs(hilbert(bandpassed(16,1:2048))));
+pp=hilbert(bandpassed(16,1:2048)); oo=zeros(1,2048); for ii = 1:2048; [aa, hh]=cordicVector(imag(pp(ii)),real(pp(ii)),25); oo(ii)=hh; end; plot(oo); 
+legend('env','env smooth','tru hilb env','CORDIC on tru hilbert');
+
 %for ii=1:numberOfBbandsToPass
 %e.g.
 ii=8;
@@ -196,27 +163,30 @@ plot((0:1/nativeSampleRate:secondsToPlot),lfp(1:secondsToPlot*nativeSampleRate+1
 plot((0:1/nativeSampleRate:secondsToPlot),lowpassed(1:secondsToPlot*nativeSampleRate+1))
 plot((0:1/downsampleRate:secondsToPlot),downsampled(1:secondsToPlot*downsampleRate+1))
 plot((0:1/downsampleRate:secondsToPlot),bandpassed(4,1:secondsToPlot*downsampleRate+1))
-% this is annoying.
-% bpo=zeros(1,100000);
-% for ii=1:secondsToPlot*downsampleRate+1;
-%     bpo(ii) = bandpassed(maxBandpassIdx(ii),ii);
-% end
-% plot((0:1/downsampleRate:secondsToPlot),bandpassed(maxBandpassIdx(1:secondsToPlot*downsampleRate+1),1:secondsToPlot*downsampleRate+1))
-% figure; plot(bpo(1:secondsToPlot*downsampleRate+1))
 
-%figure; subplot(2,1,1); hold on; plot(enveloped(16,1:9*downsampleRate)); plot(envelopeTemporalSmoothed(16,1:9*downsampleRate)); plot(envelopeTemporalBandSmoothed(16,1:9*downsampleRate));
-%subplot(2,1,2); hold on; plot(enveloped(:,1200)); plot(envelopeTemporalSmoothed(:,1200)); plot(envelopeTemporalBandSmoothed(:,1200));
-%
+
 figure; colormap(build_NOAA_colorgradient); 
-subplot(2,2,1); imagesc(flipud(enveloped(:,1:9*downsampleRate))); colorbar; title('Matlab Envelopes'); ylabel('~4 <--> ~12 Hz');
-subplot(2,2,2); imagesc(flipud(envelopeTemporalSmoothed(:,1:9*downsampleRate))); colorbar; title('Env Temp Smooth');  ylabel('~4 <--> ~12 Hz');
-subplot(2,2,3); imagesc(flipud(envelopeTemporalBandSmoothed(:,1:9*downsampleRate))); colorbar; title('Env. Temp,Freq Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
-subplot(2,2,4); imagesc(flipud(envelopeSmoothed(:,1:9*downsampleRate))); colorbar; title('Env Uni Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
-
-
+subplot(2,1,1); imagesc(flipud(enveloped(:,1:9*downsampleRate))); colorbar; title('Matlab Envelopes'); ylabel('~4 <--> ~12 Hz');
+subplot(2,1,2); imagesc(flipud(envelopeSmoothed(:,1:9*downsampleRate))); colorbar; title('Env. Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
 
 figure; subplot(4,1,1:2); tt=(1:2048)/250; hold on; plot(tt,bitvolts*enveloped(16,1:2048), 'r', 'LineWidth', 2); plot(tt,bitvolts*abs(hilbert(bandpassed(16,1:2048))),'Color', [.4 .4 .4] ,'LineWidth', 4); plot(tt,bitvolts*oo, 'Color', [ .1 .9 .2 ],'LineWidth', 1); 
 title('C/FPGA Algorithm Approximations vs True');ylabel('\muV'); axis([ 0 8 0 120]); legend('alg env','true env','CORDIC env(true hilbert)')
 subplot(4,1,3); plot(tt,bitvolts*(abs(hilbert(bandpassed(16,1:2048)))-oo));ylabel('\muV'); axis([ 0 8 -0.01 0 ]); legend('env. error true-CORDIC'); % true hilbert xform, error of env vs. CORDIC
 subplot(4,1,4); plot(tt,bitvolts*(abs(hilbert(bandpassed(16,1:2048)))-enveloped(16,1:2048)));ylabel('\muV'); legend('env. true-est '); % error of true hilbert vs alg. est.
 xlabel('time (s)'); ylabel('\muV'); axis([ 0 8 -7 7 ]); 
+
+figure;
+for ii=1:numberOfBbandsToPass
+    subplot(4,1,1);
+    hold on;
+    plot(zc(ii,:)*(downsampleRate/2)/pi,20*log10(abs(wc(ii,:))/1))
+    axis([ 2 14 -5 1 ])
+    title('Frequency Response Plot');
+    ylabel('attenuation (db, logrithmic)');
+    subplot(4,1,2:4);
+    hold on;
+    plot(zc(ii,:)*(downsampleRate/2)/pi,20*log10(abs(wc(ii,:))/1))
+    xlabel('frequency (hz)');
+    ylabel('attenuation (db, logrithmic)');
+    axis([ 0 (downsampleRate/2) -100 1 ])
+end
