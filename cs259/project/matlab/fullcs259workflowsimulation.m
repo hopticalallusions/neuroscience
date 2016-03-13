@@ -13,6 +13,7 @@ downsampleRate = 250; % Hz
 everyNthSample = round(nativeSampleRate/downsampleRate); % 128 samples of each 32,000 (Hz) is 250 Hz
 lowpassNumeratorCoeffs =   [ 0.000000000006564694180131090961704897522  0.000000000039388165080786542539055117347  0.000000000098470412701966356347637793367  0.000000000131293883602621825696446486011  0.000000000098470412701966356347637793367  0.000000000039388165080786542539055117347  0.000000000006564694180131090961704897522  ];
 lowpassDenominatorCoeffs = [ 1 -5.893323981110579090625378739787265658379 14.472294910655531197107848129235208034515  -18.955749009589681008947081863880157470703  13.966721637745113326900536776520311832428  -5.488755923739796926952294597867876291275  0.898812366459551981279219035059213638306  ];
+lowpassDenominatorCoeffsB = [ 0 -5.893323981110579090625378739787265658379 14.472294910655531197107848129235208034515  -18.955749009589681008947081863880157470703  13.966721637745113326900536776520311832428  -5.488755923739796926952294597867876291275  0.898812366459551981279219035059213638306  ];
 lowpassNCoeff = min(length(lowpassDenominatorCoeffs),length(lowpassNumeratorCoeffs));
 %
 % be carfeul about changing this, because the matrix sizes are hard coded
@@ -72,31 +73,27 @@ digitized = zeros(1,ceil(length(lfp)/everyNthSample)); % what port is active? -1
 
 deltaEnvTemporal=.01;
 
+lowpassNumeratorCache=zeros(1,lowpassNCoeff);
+lowpassDenominatorCache=zeros(1,lowpassNCoeff);
+
+lp=lowpassed;
+
 tic();
 %% simulate the arrival of data samples
 % cheat a little on the spool up
-for idx=1: 320000 %length(lfp)
+for idx=1: 128*2048 %320000 %length(lfp)
     
     %% lowpass
-    % from http://www.ee.ic.ac.uk/pcheung/teaching/ee3_Study_Project/iir_lab2.pdf
-    % iir xfer function : (might have errors...)
-    % H(z) = ( b_0 + b_1 * z^-1 ... + b_n * z^-n ) / ( 1 + a_1 * z^-1 ... + a_n * z^-n )
-    % becomes :
-    % y(n)= b_0*x(n) + b_1*x(n-1) ...  + b_m*x(n-m) - a_1*y(n-1) ...  - a_m*y(n-m)
-    % so basically, the result of the last calculation feeds into this one.
-    % this means we can convert the calculation into linear algebra,
-    % but we need to flip the coefficient order (better above than here,
-    % really) because coef 0 should be multiplied by the current data, and
-    % that will not happen in the normal orientations in matlab's dot
-    % product  
-    %lowpassed(idx) = sum(lowpassNumeratorCache.*lowpassNumeratorCoeffs) - sum(lowpassDenominatorCache.*lowpassDenominatorCoeffs);
-    %lowpassNumeratorCache = [ lfp(idx) lowpassNumeratorCache(1:end-1) ]; % shift register  
-    %lowpassDenominatorCache = [ lowpassed(idx) lowpassDenominatorCache(1:end-1) ];
-    for k=1:min(idx,lowpassNCoeff) 
-        lowpassed(idx) = lowpassed(idx) ...
-            - lowpassed(idx-k+1)*lowpassDenominatorCoeffs(k)...
-            + lfp(idx-k+1)*lowpassNumeratorCoeffs(k);
-    end
+    lowpassNumeratorCache = [ lfp(idx) lowpassNumeratorCache(1:end-1) ]; % shift register  
+    lowPassOut = 0;
+    lowpassDenominatorCache = [ lowPassOut lowpassDenominatorCache(1:end-1)  ];
+     for k=1:lowpassNCoeff
+         lowPassOut = lowPassOut - lowpassDenominatorCache(k)*lowpassDenominatorCoeffs(k) + lowpassNumeratorCache(k)*lowpassNumeratorCoeffs(k);
+     end
+    lowpassed(idx) = lowPassOut;
+    lowpassDenominatorCache(1) = lowPassOut;
+    
+    
    %% downsample
     
      if ( 0 == mod(idx, everyNthSample) )
@@ -188,6 +185,7 @@ for idx=1: 320000 %length(lfp)
     end
 end
 toc()
+
 
 
 figure; hold on; plot(enveloped(16,1:2048));plot(envelopeSmoothed(16,1:2048)); 
