@@ -75,6 +75,9 @@ deltaEnvTemporal=.01;
 
 lowpassNumeratorCache=zeros(1,lowpassNCoeff);
 lowpassDenominatorCache=zeros(1,lowpassNCoeff);
+bandpassNumeratorCache=zeros(numberOfBbandsToPass,bandpassNCoeff);
+bandpassDenominatorCache=zeros(numberOfBbandsToPass,bandpassNCoeff);
+
 
 lp=lowpassed;
 
@@ -100,14 +103,22 @@ for idx=1: 128*2048 %320000 %length(lfp)
          dsIdx = idx/everyNthSample;
          downsampled(dsIdx) = lowpassed(idx);
          %% bandpass  
-        %bandpassCache = [ bandpassCache(2:end) lowpassed(idx) ]; % shift register
-        %bandpassed(dsIdx) = bandpassCache*bandpassNumeratorCoeffs' + bandpassCache*-bandpassDenominatorCoeffs';
         for bp=1:numberOfBbandsToPass
-            for k=1:min(dsIdx,bandpassNCoeff) 
-                bandpassed(bp,dsIdx) = bandpassed(bp,dsIdx) ...
-                    - bandpassed(bp,dsIdx-k+1)*bandpassDenominatorCoeffs(bp,k)...
-                    + downsampled(dsIdx-k+1)*bandpassNumeratorCoeffs(bp,k);
+            % shift register version of bandpass filtering
+            bandpassNumeratorCache(bp,:) = [ downsampled(dsIdx) bandpassNumeratorCache(bp,1:bandpassNCoeff-1) ]; % shift register  
+            bandPassOut = 0;
+            bandpassDenominatorCache(bp,:) = [ bandPassOut bandpassDenominatorCache(bp,1:bandpassNCoeff-1)  ];
+            for k=1:bandpassNCoeff
+                bandPassOut = bandPassOut - bandpassDenominatorCache(bp,k)*bandpassDenominatorCoeffs(bp,k) + bandpassNumeratorCache(bp,k)*bandpassNumeratorCoeffs(bp,k);
             end
+            bandpassed(bp,dsIdx) = bandPassOut;
+            bandpassDenominatorCache(bp,1) = bandPassOut;
+            
+%             for k=1:min(dsIdx,bandpassNCoeff) 
+%                 bandpassed(bp,dsIdx) = bandpassed(bp,dsIdx) ...
+%                     - bandpassed(bp,dsIdx-k+1)*bandpassDenominatorCoeffs(bp,k)...
+%                     + downsampled(dsIdx-k+1)*bandpassNumeratorCoeffs(bp,k);
+%             end
             %% hilbert
             %
             if strcmp( whatHilbert, 'fir')
