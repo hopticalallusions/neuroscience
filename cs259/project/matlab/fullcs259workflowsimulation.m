@@ -3,10 +3,9 @@ clear all;
 load('~/Desktop/cs259demodata.mat')
 %% create data structures
 % constants
-%choose hilbert algorithm
-whatHilbert = 'delay'; % 'fir' 'diff' 'delay'
+whatHilbert = 'delay';
 bitvolts = 0.015624999960550667; % microvolts per bit
-powerThreshold = 60; % microvolts
+powerThreshold = round(60/bitvolts); % A-to-D Values  ( 60 microvolts / bitvolts )
 phaseSegmentsDesired = 10; % divisions of the phase of theta
 nativeSampleRate = 32000; % Hz
 downsampleRate = 250; % Hz
@@ -93,7 +92,7 @@ for idx=1: 128*2048 %320000 %length(lfp)
      for k=1:lowpassNCoeff
          lowPassOut = lowPassOut - lowpassDenominatorCache(k)*lowpassDenominatorCoeffs(k) + lowpassNumeratorCache(k)*lowpassNumeratorCoeffs(k);
      end
-    lowpassed(idx) = lowPassOut;
+    lowpassed(idx) = lowPassOut; % accounting
     lowpassDenominatorCache(1) = lowPassOut;
     
     
@@ -111,7 +110,7 @@ for idx=1: 128*2048 %320000 %length(lfp)
             for k=1:bandpassNCoeff
                 bandPassOut = bandPassOut - bandpassDenominatorCache(bp,k)*bandpassDenominatorCoeffs(bp,k) + bandpassNumeratorCache(bp,k)*bandpassNumeratorCoeffs(bp,k);
             end
-            bandpassed(bp,dsIdx) = bandPassOut;
+            bandpassed(bp,dsIdx) = bandPassOut; % accounting
             bandpassDenominatorCache(bp,1) = bandPassOut;
             
 %             for k=1:min(dsIdx,bandpassNCoeff) 
@@ -184,7 +183,7 @@ for idx=1: 128*2048 %320000 %length(lfp)
          %% threshold check
          [mag,pos] = max(envelopeSmoothed(:,dsIdx));
          maxBandpassIdx(dsIdx) = pos;
-         if ( mag * bitvolts < powerThreshold )
+         if ( mag < powerThreshold )
              % the output is NULL
              digitized(dsIdx) = -1;
          else
