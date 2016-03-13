@@ -14,7 +14,6 @@ lowpassDenominatorCoeffs = [ 1 -5.893323981110579090625378739787265658379 14.472
 lowpassNCoeff = min(length(lowpassDenominatorCoeffs),length(lowpassNumeratorCoeffs));
 cordicItr=25;
 cordicGainCorrection = 1/prod(sqrt(1+(2.^(-2.*(0:cordicItr)))));
-%cordicArctanLookup = atan(2.^-(0:cordicItr));
 cordicArctanLookup = 45.*(2.^-(0:cordicItr));
 %
 % be carfeul about changing this. pay attention to the automated filter
@@ -78,7 +77,9 @@ lowpassNumeratorCache=zeros(1,lowpassNCoeff);
 lowpassDenominatorCache=zeros(1,lowpassNCoeff);
 bandpassNumeratorCache=zeros(numberOfBbandsToPass,bandpassNCoeff);
 bandpassDenominatorCache=zeros(numberOfBbandsToPass,bandpassNCoeff);
-
+hilbertCache=zeros( numberOfBbandsToPass, max(delay_samples) );
+envelopeCache=zeros( numberOfBbandsToPass, 2);
+envelopeSmoothTemp=zeros( numberOfBbandsToPass, 1);
 tic();
 %% simulate the arrival of data samples
 for idx=1: 128*2048 %320000 %length(lfp)
@@ -145,17 +146,21 @@ for idx=1: 128*2048 %320000 %length(lfp)
             end
             enveloped(bp,dsIdx) = xx*cordicGainCorrection;
             angled(bp,dsIdx) = zz;
+            envelopeCache(bp,2) = xx*cordicGainCorrection;
         end    
         %% envelope smoothing
         if dsIdx > 1
-            envelopeSmoothed(1,dsIdx) = ( .9*envelopeSmoothed(1,dsIdx-1)) + (.05* enveloped(1,dsIdx)) + (.05* envelopeSmoothed(2,dsIdx));
+            envelopeSmoothTemp(1) = ( .9*envelopeCache(1,1)) + (.05* envelopeCache(1,2)) + (.05* envelopeCache(2,2));
             for ii = 2:numberOfBbandsToPass-1
-                envelopeSmoothed(ii,dsIdx) = ( 0.8*envelopeSmoothed(ii,dsIdx-1)) + (0.1* enveloped(ii,dsIdx)) + (0.05* envelopeSmoothed(ii-1,dsIdx-1)) + (0.05* envelopeSmoothed(ii+1,dsIdx-1));
+                envelopeSmoothTemp(ii) = ( 0.8*envelopeCache(ii,1)) + (0.1* envelopeCache(ii,2)) + (0.05* envelopeCache(ii-1,1)) + (0.05* envelopeCache(ii+1,1));
             end
-            envelopeSmoothed(numberOfBbandsToPass,dsIdx) = ( .9*envelopeSmoothed(ii,dsIdx-1)) + (.05* enveloped(ii,dsIdx)) + (.05* envelopeSmoothed(ii-1,dsIdx));
+            envelopeSmoothTemp(numberOfBbandsToPass) = ( .9*envelopeSmoothed(ii,1)) + (.05* enveloped(ii,2)) + (.05* envelopeCache(ii-1,2));
         else
-            envelopeSmoothed(:,dsIdx) = enveloped(:,dsIdx);
+            envelopeSmoothTemp = enveloped(:,dsIdx);
+            envelopeSmoothed(:,dsIdx) = enveloped(:,dsIdx); % accounting
         end
+        envelopeSmoothed(:,dsIdx) = envelopeSmoothTemp; % accounting
+        envelopeCache(:,1) = envelopeSmoothTemp;
         %% threshold check
         [mag,pos] = max(envelopeSmoothed(:,dsIdx));
         maxBandpassIdx(dsIdx) = pos;
