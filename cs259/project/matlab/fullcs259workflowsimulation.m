@@ -12,6 +12,10 @@ everyNthSample = round(nativeSampleRate/downsampleRate); % 128 samples of each 3
 lowpassNumeratorCoeffs =   [ 0.000000000006564694180131090961704897522  0.000000000039388165080786542539055117347  0.000000000098470412701966356347637793367  0.000000000131293883602621825696446486011  0.000000000098470412701966356347637793367  0.000000000039388165080786542539055117347  0.000000000006564694180131090961704897522  ];
 lowpassDenominatorCoeffs = [ 1 -5.893323981110579090625378739787265658379 14.472294910655531197107848129235208034515  -18.955749009589681008947081863880157470703  13.966721637745113326900536776520311832428  -5.488755923739796926952294597867876291275  0.898812366459551981279219035059213638306  ];
 lowpassNCoeff = min(length(lowpassDenominatorCoeffs),length(lowpassNumeratorCoeffs));
+cordicItr=25;
+cordicGainCorrection = 1/prod(sqrt(1+(2.^(-2.*(0:cordicItr)))));
+%cordicArctanLookup = atan(2.^-(0:cordicItr));
+cordicArctanLookup = 45.*(2.^-(0:cordicItr));
 %
 % be carfeul about changing this. pay attention to the automated filter
 % band coefficient genetator loop below and the size of the coefficients.
@@ -107,7 +111,40 @@ for idx=1: 128*2048 %320000 %length(lfp)
                 hilberted(bp,dsIdx) =  bandpassed(bp,dsIdx-delay_samples(bp));
             end
             %% CORDIC
-            [ angled(bp,dsIdx) , enveloped(bp,dsIdx)] = cordicVector(bandpassed(bp,dsIdx),hilberted(bp,dsIdx),20);
+            %[ angled(bp,dsIdx) , enveloped(bp,dsIdx)] = cordicVector(bandpassed(bp,dsIdx),hilberted(bp,dsIdx),20);
+            xo = bandpassed(bp,dsIdx);
+            yo = hilberted(bp,dsIdx);
+            if ( xo > 0 ) %&& ( yo > 0 )
+                xx = xo;
+                yy = yo;
+                zz = 180;  %offset pi
+            else 
+                if ( yo < 0 )
+                    xx = -yo;
+                    yy = xo;
+                    zz = 90; %offset pi/2
+                else
+                    xx = yo;
+                    yy = -xo;
+                    zz = 270; %offset  3*pi/2
+                end
+            end
+            for ii = 0:cordicItr-1
+                ih = ii+2;
+                yLast = yy;
+                xLast = xx;
+                if ( yy < 0 )
+                    xx = xx - ( yLast / bitshift(1,ii) );
+                    yy = yy + ( xLast / bitshift(1,ii) );
+                    zz = zz - ( cordicArctanLookup(ii+1) );
+                else
+                    xx = xx + ( yLast / bitshift(1,ii) );
+                    yy = yy - ( xLast / bitshift(1,ii) );
+                    zz = zz + ( cordicArctanLookup(ii+1)  );
+                end
+            end
+            enveloped(bp,dsIdx) = xx*cordicGainCorrection;
+            angled(bp,dsIdx) = zz;
         end    
         %% envelope smoothing
         if dsIdx > 1
