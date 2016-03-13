@@ -144,7 +144,7 @@ for idx=1: 128*2048 %320000 %length(lfp)
                     zz = zz + ( cordicArctanLookup(ii+1)  );
                 end
             end
-            enveloped(bp,dsIdx) = xx*cordicGainCorrection;
+            enveloped(bp,dsIdx) = xx*cordicGainCorrection;  % accounting
             angled(bp,dsIdx) = zz;
             envelopeCache(bp,2) = xx*cordicGainCorrection;
         end    
@@ -156,8 +156,7 @@ for idx=1: 128*2048 %320000 %length(lfp)
             end
             envelopeSmoothTemp(numberOfBbandsToPass) = ( .9*envelopeSmoothed(ii,1)) + (.05* enveloped(ii,2)) + (.05* envelopeCache(ii-1,2));
         else
-            envelopeSmoothTemp = enveloped(:,dsIdx);
-            envelopeSmoothed(:,dsIdx) = enveloped(:,dsIdx); % accounting
+            envelopeSmoothTemp = envelopeCache(:,2);
         end
         envelopeSmoothed(:,dsIdx) = envelopeSmoothTemp; % accounting
         envelopeCache(:,1) = envelopeSmoothTemp;
