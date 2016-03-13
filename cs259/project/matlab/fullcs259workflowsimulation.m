@@ -151,30 +151,35 @@ ii=8;
     subplot(4,1,4); plot(bandpassed(ii,1:2*downsampleRate)); hold on; plot(imag(trueHilbert(1:2*downsampleRate))); legend('bandpassed','true hilbert');
 %end
 
-figure; 
-subplot(4,1,1); plot(envelopeSmoothed(:,1:5*downsampleRate)'); legend('envelopes'); %legend('4','5','6','7','8','9','10','11','12');
-subplot(4,1,2); plot(instantFrequency(1:5*downsampleRate)); legend('instant freq');
-subplot(4,1,3); plot(digitized(1:5*downsampleRate)); legend('ttl');
-subplot(4,1,4); plot(bandpassed(15,1:5*downsampleRate)); legend([num2str(bandpassCenterFrequencies(15)) ' Hz']);
+% example visualization of algorithm behavior
+secondsToPlot=5; figure; tt=(0:1/downsampleRate:secondsToPlot);
+subplot(4,1,1); plot(tt,envelopeSmoothed(:,1:secondsToPlot*downsampleRate+1)'); legend('envelopes'); %legend('4','5','6','7','8','9','10','11','12');
+subplot(4,1,2); plot(tt,instantFrequency(1:secondsToPlot*downsampleRate+1)); legend('instant freq');
+subplot(4,1,3); plot(tt,digitized(1:secondsToPlot*downsampleRate+1)); legend('ttl');
+subplot(4,1,4); plot(tt,bandpassed(15,1:secondsToPlot*downsampleRate+1)); legend([num2str(bandpassCenterFrequencies(15)) ' Hz']);
 
+% example data at various stages of processing
 secondsToPlot=5;
 figure; hold on;
-plot((0:1/nativeSampleRate:secondsToPlot),lfp(1:secondsToPlot*nativeSampleRate+1))
-plot((0:1/nativeSampleRate:secondsToPlot),lowpassed(1:secondsToPlot*nativeSampleRate+1))
-plot((0:1/downsampleRate:secondsToPlot),downsampled(1:secondsToPlot*downsampleRate+1))
-plot((0:1/downsampleRate:secondsToPlot),bandpassed(4,1:secondsToPlot*downsampleRate+1))
+plot((0:1/nativeSampleRate:secondsToPlot),lfp(1:secondsToPlot*nativeSampleRate+1)*bitvolts);
+plot((0:1/nativeSampleRate:secondsToPlot),lowpassed(1:secondsToPlot*nativeSampleRate+1)*bitvolts);
+plot((0:1/downsampleRate:secondsToPlot),downsampled(1:secondsToPlot*downsampleRate+1)*bitvolts);
+plot((0:1/downsampleRate:secondsToPlot),bandpassed(4,1:secondsToPlot*downsampleRate+1)*bitvolts);
+legend('raw lfp','lowpass','downsample','bandpass'); title('Example Data After Different Stages'); xlabel('time (s)'); ylabel('potential (\muV)')
 
-
+% compare the envelope before and after smoothing
 figure; colormap(build_NOAA_colorgradient); 
 subplot(2,1,1); imagesc(flipud(enveloped(:,1:9*downsampleRate))); colorbar; title('Matlab Envelopes'); ylabel('~4 <--> ~12 Hz');
 subplot(2,1,2); imagesc(flipud(envelopeSmoothed(:,1:9*downsampleRate))); colorbar; title('Env. Smooth');  ylabel('~4 <--> ~12 Hz'); xlabel('time (9 s)');
 
+% compare the delay approximation hilbert to the actual hilbert
 figure; subplot(4,1,1:2); tt=(1:2048)/250; hold on; plot(tt,bitvolts*enveloped(16,1:2048), 'r', 'LineWidth', 2); plot(tt,bitvolts*abs(hilbert(bandpassed(16,1:2048))),'Color', [.4 .4 .4] ,'LineWidth', 4); plot(tt,bitvolts*oo, 'Color', [ .1 .9 .2 ],'LineWidth', 1); 
 title('C/FPGA Algorithm Approximations vs True');ylabel('\muV'); axis([ 0 8 0 120]); legend('alg env','true env','CORDIC env(true hilbert)')
 subplot(4,1,3); plot(tt,bitvolts*(abs(hilbert(bandpassed(16,1:2048)))-oo));ylabel('\muV'); axis([ 0 8 -0.01 0 ]); legend('env. error true-CORDIC'); % true hilbert xform, error of env vs. CORDIC
 subplot(4,1,4); plot(tt,bitvolts*(abs(hilbert(bandpassed(16,1:2048)))-enveloped(16,1:2048)));ylabel('\muV'); legend('env. true-est '); % error of true hilbert vs alg. est.
 xlabel('time (s)'); ylabel('\muV'); axis([ 0 8 -7 7 ]); 
 
+% plot the filterbank
 figure;
 for ii=1:numberOfBbandsToPass
     subplot(4,1,1);
