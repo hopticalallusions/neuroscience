@@ -107,14 +107,10 @@ for idx=1: 128*2048 %320000 %length(lfp)
             end
             bandpassDenominatorCache(bp,1) = bandPassOut;
             bandpassed(bp,dsIdx) = bandPassOut; % accounting
-            %% hilbert -- delay approximation
-            if dsIdx > delay_samples(bp)
-                hilberted(bp,dsIdx) =  bandpassed(bp,dsIdx-delay_samples(bp));
-            end
             %% CORDIC
             %[ angled(bp,dsIdx) , enveloped(bp,dsIdx)] = cordicVector(bandpassed(bp,dsIdx),hilberted(bp,dsIdx),20);
-            xo = bandpassed(bp,dsIdx);
-            yo = hilberted(bp,dsIdx);
+            xo = bandPassOut;
+            yo = hilbertCache(bp,delay_samples(bp)); %hilberted(bp,dsIdx);
             if ( xo > 0 ) %&& ( yo > 0 )
                 xx = xo;
                 yy = yo;
@@ -147,6 +143,10 @@ for idx=1: 128*2048 %320000 %length(lfp)
             enveloped(bp,dsIdx) = xx*cordicGainCorrection;  % accounting
             angled(bp,dsIdx) = zz;  % accounting
             envelopeCache(bp,2) = xx*cordicGainCorrection;
+            %% hilbert -- delay approximation
+            hilberted(bp,dsIdx) =  hilbertCache(bp,delay_samples(bp));  % accounting
+            hilbertCache(bp,2:max(delay_samples)) = hilbertCache(bp,1:max(delay_samples)-1);
+            hilbertCache(bp,1) = bandPassOut;
         end    
         %% envelope smoothing
         if dsIdx > 1
