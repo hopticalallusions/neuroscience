@@ -211,19 +211,10 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 				}
 				bandpassDenominatorCache[freqBandIdx][0] = bandPassOut;
 			    bandpassed[freqBandIdx+dsIdx*N_BANKS] = bandPassOut;			
-				//  HILBERT TRANSFORM APPROXIMATION
-				if ( dsIdx > delaySamples[freqBandIdx] ) 
-				{
-					hilberted[freqBandIdx+dsIdx*N_BANKS] =  bandpassed[freqBandIdx+N_BANKS*(dsIdx-delaySamples[freqBandIdx])];
-				} else 
-				{
-					hilberted[freqBandIdx+dsIdx*N_BANKS] = 0;
-				}
 				//// BEGIN CORDIC
 				cordicX = bandpassed[freqBandIdx+dsIdx*N_BANKS]; 
 				cordicY = hilberted[freqBandIdx+dsIdx*N_BANKS];
 				cordicZ = 0;
-			
 				if ( cordicX > 0 )  
 				{
 					offset = 0.0f;
@@ -233,7 +224,6 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 					cordicY = -cordicY;
 					offset = 180.0f;
 				}
-
 				for ( k=1; k < 29 ; k++ ) 
 				{
 					cordicXLast = cordicX;
@@ -256,6 +246,14 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 				angled[freqBandIdx+dsIdx*N_BANKS] = 270.0f - offset + cordicZ*180.0f/pi ;
  			
 				// END CORDIC
+				//  HILBERT TRANSFORM DELAY APPROXIMATION
+				if ( dsIdx > delaySamples[freqBandIdx] ) 
+				{
+					hilberted[freqBandIdx+dsIdx*N_BANKS] =  bandpassed[freqBandIdx+N_BANKS*(dsIdx-delaySamples[freqBandIdx])];
+				} else 
+				{
+					hilberted[freqBandIdx+dsIdx*N_BANKS] = 0;
+				}
 			}    
 
 			 //// SMOOTH ENVELOPE
