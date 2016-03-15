@@ -216,7 +216,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 				bandpassDenominatorCache[freqBandIdx][0] = bandPassOut;
 			    bandpassed[freqBandIdx+dsIdx*N_BANKS] = bandPassOut;			
 				//  HILBERT TRANSFORM DELAY APPROXIMATION
-				for ( k=15; k>0; k-- ) {  // ahhhhh it's backwards
+				for ( k=15; k>0; k-- ) {  // DANGEROUS! relace the hard-coded "15" with something intelligent.
 					hilbertCache[freqBandIdx][k]=hilbertCache[freqBandIdx][k-1];
 				}
 				hilbertCache[freqBandIdx][0]=bandPassOut;
@@ -268,22 +268,21 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 			printf("\n");
 			*/
 			//// SMOOTH ENVELOPE
-			// temporal smoothing
-		
-			if ( dsIdx == 1 ) {
-				for ( k = 0; k < numberOfBandsToPass-1; k++ ) {
-					envelopeSmoothed[k+dsIdx*N_BANKS] = enveloped[k+dsIdx*N_BANKS];
+	        if ( dsIdx > 1 ) {
+	            envelopeSmoothTemp[0] = ( .9*envelopeCache[0][0]) + (.05* envelopeCache[0][1]) + (.05* envelopeCache[1][1]);
+	            for ( k=1; k<numberOfBandsToPass-1 ; k++ ) {
+	                envelopeSmoothTemp[k] = ( 0.8*envelopeCache[k][0]) + (0.1* envelopeCache[k][1]) + (0.05* envelopeCache[k-1][0]) + (0.05*envelopeCache[k+1][0]);
+	            }
+	            envelopeSmoothTemp[numberOfBandsToPass-1] = ( .9*envelopeCache[k][0]) + (.05* envelopeCache[k][1]) + (.05* envelopeCache[k-1][1]);
+	        } else {
+	            for ( k=0; k<numberOfBandsToPass-1 ; k++ ) {
+		            envelopeSmoothTemp[k] = envelopeCache[k][1];
 				}
-			} else {
-				// this may require modification to deal with integer only calculation?
-				k=0;
-				envelopeSmoothed[k+dsIdx*N_BANKS] = (1.0f-deltaEnvTemporal-deltaEnvTemporal)*envelopeSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*envelopeSmoothed[k+1+N_BANKS*(dsIdx-1)];
-				for ( k = 1; k < numberOfBandsToPass-2; k++ ) {
-					envelopeSmoothed[k+dsIdx*N_BANKS] = (1.0f-deltaEnvTemporal-deltaEnvTemporal)*envelopeSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal/2.0f)*envelopeSmoothed[k-1+N_BANKS*(dsIdx-1)]+ (deltaEnvTemporal/2.0f)*envelopeSmoothed[k+1+N_BANKS*(dsIdx-1)];
-				}
-				k=numberOfBandsToPass-1;
-				envelopeSmoothed[k+dsIdx*N_BANKS] = (1.0f-deltaEnvTemporal-deltaEnvTemporal)*envelopeSmoothed[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*enveloped[k+N_BANKS*(dsIdx-1)] + (deltaEnvTemporal)*envelopeSmoothed[k-1+N_BANKS*(dsIdx-1)];
-			}		 
+	        }
+	        for ( k=0; k<numberOfBandsToPass-1 ; k++ ) {
+	        	envelopeSmoothed[k+dsIdx*N_BANKS] = envelopeSmoothTemp[k]; // accounting
+	        	envelopeCache[k][0] = envelopeSmoothTemp[k];		
+			}
 			// frequency band smoothing
 			//
 			// TODO (1) to just use ints and bitshifts

@@ -148,7 +148,6 @@ for idx=1: 20 %128*2048 %320000 %length(lfp)
             hilbertCache(bp,2:max(delay_samples)) = hilbertCache(bp,1:max(delay_samples)-1);
             hilbertCache(bp,1) = bandPassOut;
         end
-        disp(hilbertCache(32,:))
         %% envelope smoothing
         if dsIdx > 1
             envelopeSmoothTemp(1) = ( .9*envelopeCache(1,1)) + (.05* envelopeCache(1,2)) + (.05* envelopeCache(2,2));
