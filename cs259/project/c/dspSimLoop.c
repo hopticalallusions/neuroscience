@@ -20,6 +20,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 	// CORDIC lookup table
 	// the following is a table of arctan values for the small steps used to
 	// binary search for the angle and hypotenuse of the provided coordinate
+	/*
 	double arctanLookup[] = {
 		0.78539816339745,   0.46364760900081,   0.24497866312686,	0.12435499454676,	
 		0.06241880999596,   0.03123983343027,   0.01562372862048,   0.00781234106010, 	
@@ -29,6 +30,9 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 		0.00000095367432,   0.00000047683716,   0.00000023841858,   0.00000011920929, 	
 		0.00000005960464,   0.00000002980232,   0.00000001490116,   0.00000000745058 
 	};
+	*/
+
+	double arctanLookup[] = { 45.0, 22.5, 11.25, 5.625, 2.8125, 1.40625, 0.703125, 0.3515625, 0.17578125, 0.087890625, 0.0439453125, 0.02197265625, 0.010986328125, 0.0054931640625, 0.00274658203125, 0.001373291015625, 0.0006866455078125, 0.00034332275390625, 0.000171661376953125, 8.58306884765625e-05, 4.29153442382813e-05, 2.14576721191406e-05, 1.07288360595703e-05, 5.36441802978516e-06, 2.68220901489258e-06, 1.34110450744629e-06 };
 
 	int envThreshold =	 3480; // 60 uV / 1.5625e-8 bits per volt
 	//
@@ -171,7 +175,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 	double bandpassNumeratorCache[numberOfBandsToPass][nBandpassCoeffs] = { };
 	double bandpassDenominatorCache[numberOfBandsToPass][nBandpassCoeffs] = { };
 	double hilbertCache[numberOfBandsToPass][16] = { };
-	double envelopeCache[numberOfBandsToPass*2] = { };
+	double envelopeCache[numberOfBandsToPass][2] = { };
 	double envelopeSmoothTemp[numberOfBandsToPass] = { };
 	double lowPassOut=0.0f;
 	double bandPassOut=0.0f;
@@ -212,39 +216,44 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 				bandpassDenominatorCache[freqBandIdx][0] = bandPassOut;
 			    bandpassed[freqBandIdx+dsIdx*N_BANKS] = bandPassOut;			
 				//// BEGIN CORDIC
-				cordicX = bandpassed[freqBandIdx+dsIdx*N_BANKS]; 
-				cordicY = hilberted[freqBandIdx+dsIdx*N_BANKS];
-				cordicZ = 0;
+				cordicX = bandPassOut; 
+				cordicY = hilbertCache[freqBandIdx][delaySamples[freqBandIdx]];
 				if ( cordicX > 0 )  
 				{
-					offset = 0.0f;
-				} else 
-				{
-					cordicX = -cordicX;
-					cordicY = -cordicY;
-					offset = 180.0f;
+					cordicZ = 180.0f;				
+				} else {
+					if ( cordicY < 0.0f ) {
+						// swap x and y
+						cordicX = -hilbertCache[freqBandIdx][delaySamples[freqBandIdx]];
+						cordicY = bandPassOut;
+						cordicZ = 90.0f;
+					} else {
+						cordicX = hilbertCache[freqBandIdx][delaySamples[freqBandIdx]];
+						cordicY = -bandPassOut;
+						cordicZ = 180.0f;
+					}
 				}
-				for ( k=1; k < 29 ; k++ ) 
+				for ( k=0; k < 28 ; k++ ) 
 				{
 					cordicXLast = cordicX;
 					cordicYLast = cordicY;
-					pwr = 1.0f;
-					for ( j=1; j < k; j++ ) { pwr = pwr * 2.0f; } 
+					//pwr = 1.0f;
+					//for ( j=1; j < k; j++ ) { pwr = pwr * 2.0f; } 
 					if ( cordicY < 0 ) {
-						cordicX = cordicX - ( cordicYLast / pwr );     // ( 1 << (k-1) )
-						cordicY = cordicY + ( cordicXLast / pwr );     // ( 1 << (k-1) )
-						cordicZ = cordicZ - ( arctanLookup[k-1] );
+						cordicX = cordicX - ( cordicYLast / (1<<k) );     // ( 1 << (k-1) )
+						cordicY = cordicY + ( cordicXLast / (1<<k) );     // ( 1 << (k-1) )
+						cordicZ = cordicZ - ( arctanLookup[k] );
 					} else {
-						cordicX = cordicX + ( cordicYLast / pwr );     //( 1 << (k-1) )
-						cordicY = cordicY - ( cordicXLast / pwr );     //( 1 << (k-1) )
-						cordicZ = cordicZ + ( arctanLookup[k-1] );
+						cordicX = cordicX + ( cordicYLast / (1<<k) );     //( 1 << (k-1) )
+						cordicY = cordicY - ( cordicXLast / (1<<k) );     //( 1 << (k-1) )
+						cordicZ = cordicZ + ( arctanLookup[k] );
 					}
 				}
 
 				//    TODO  integers...
 				enveloped[freqBandIdx+dsIdx*N_BANKS] = cordicX * 0.6073;
-				angled[freqBandIdx+dsIdx*N_BANKS] = 270.0f - offset + cordicZ*180.0f/pi ;
- 			
+				angled[freqBandIdx+dsIdx*N_BANKS] = cordicZ;
+ 				envelopeCache[freqBandIdx][1] = cordicX * 0.6073;
 				// END CORDIC
 				//  HILBERT TRANSFORM DELAY APPROXIMATION
 				if ( dsIdx > delaySamples[freqBandIdx] ) 
