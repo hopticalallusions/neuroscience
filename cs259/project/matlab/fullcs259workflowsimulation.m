@@ -82,7 +82,7 @@ envelopeCache=zeros( numberOfBbandsToPass, 2);
 envelopeSmoothTemp=zeros( numberOfBbandsToPass, 1);
 tic();
 %% simulate the arrival of data samples
-for idx=1: 128*2048 %320000 %length(lfp)
+for idx=1: 20 %128*2048 %320000 %length(lfp)
     %% lowpass
     lowpassNumeratorCache = [ lfp(idx) lowpassNumeratorCache(1:end-1) ]; % shift register  
     lowPassOut = 0;
@@ -147,7 +147,8 @@ for idx=1: 128*2048 %320000 %length(lfp)
             hilberted(bp,dsIdx) =  hilbertCache(bp,delay_samples(bp));  % accounting
             hilbertCache(bp,2:max(delay_samples)) = hilbertCache(bp,1:max(delay_samples)-1);
             hilbertCache(bp,1) = bandPassOut;
-        end    
+        end
+        disp(hilbertCache(32,:))
         %% envelope smoothing
         if dsIdx > 1
             envelopeSmoothTemp(1) = ( .9*envelopeCache(1,1)) + (.05* envelopeCache(1,2)) + (.05* envelopeCache(2,2));

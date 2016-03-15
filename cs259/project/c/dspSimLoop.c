@@ -180,7 +180,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 	double lowPassOut=0.0f;
 	double bandPassOut=0.0f;
 
-//input_size = 5;
+//input_size = 128*20;
 	for ( dataIndex=0; dataIndex < input_size; dataIndex++ ) 
 	{
 		// LOW PASS FILTER
@@ -215,6 +215,12 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 				}
 				bandpassDenominatorCache[freqBandIdx][0] = bandPassOut;
 			    bandpassed[freqBandIdx+dsIdx*N_BANKS] = bandPassOut;			
+				//  HILBERT TRANSFORM DELAY APPROXIMATION
+				for ( k=15; k>0; k-- ) {  // ahhhhh it's backwards
+					hilbertCache[freqBandIdx][k]=hilbertCache[freqBandIdx][k-1];
+				}
+				hilbertCache[freqBandIdx][0]=bandPassOut;
+				hilberted[freqBandIdx+dsIdx*N_BANKS] = hilbertCache[freqBandIdx][delaySamples[freqBandIdx]];  // accounting
 				//// BEGIN CORDIC
 				cordicX = bandPassOut; 
 				cordicY = hilbertCache[freqBandIdx][delaySamples[freqBandIdx]];
@@ -230,10 +236,10 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 					} else {
 						cordicX = hilbertCache[freqBandIdx][delaySamples[freqBandIdx]];
 						cordicY = -bandPassOut;
-						cordicZ = 180.0f;
+						cordicZ = 270.0f;
 					}
 				}
-				for ( k=0; k < 28 ; k++ ) 
+				for ( k=0; k < 25 ; k++ ) 
 				{
 					cordicXLast = cordicX;
 					cordicYLast = cordicY;
@@ -251,19 +257,17 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 				}
 
 				//    TODO  integers...
-				enveloped[freqBandIdx+dsIdx*N_BANKS] = cordicX * 0.6073; // acounting
-				angled[freqBandIdx+dsIdx*N_BANKS] = cordicZ; // acounting
+				enveloped[freqBandIdx+dsIdx*N_BANKS] = cordicX * 0.6073; // accounting
+				angled[freqBandIdx+dsIdx*N_BANKS] = cordicZ; // accounting
  				envelopeCache[freqBandIdx][1] = cordicX * 0.6073;
 				// END CORDIC
-				//  HILBERT TRANSFORM DELAY APPROXIMATION
-				for ( k=nBandpassCoeffs-1; k>0; k-- ) {  // ahhhhh it's backwards
-					hilbertCache[freqBandIdx][k]=hilbertCache[freqBandIdx][k-1];
-				}
-				hilbertCache[freqBandIdx][0]=bandPassOut;
 			}    
-
-			 //// SMOOTH ENVELOPE
-
+			/*
+			printf("dataIdx = %d \n",dataIndex);
+			for ( k=0; k<16; k++ ) { printf("%f ",hilbertCache[30][k]);}
+			printf("\n");
+			*/
+			//// SMOOTH ENVELOPE
 			// temporal smoothing
 		
 			if ( dsIdx == 1 ) {
@@ -424,6 +428,7 @@ int main() {
 	fclose(dfp);
 	fclose(iffp);
 
+	/*
 	for ( i=0; i<64; i++ ) {
 		printf("%d ", lfp[i]);
 	}
@@ -431,6 +436,7 @@ int main() {
 	for ( i=1000; i<1064; i++ ) {
 		printf("%f ", lowpassed[i]);
 	}
+	*/
 
 
     // TODO Compare the results of global_gradient between FPGA and CPU
