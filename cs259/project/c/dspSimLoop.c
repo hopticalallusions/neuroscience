@@ -251,18 +251,15 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 				}
 
 				//    TODO  integers...
-				enveloped[freqBandIdx+dsIdx*N_BANKS] = cordicX * 0.6073;
-				angled[freqBandIdx+dsIdx*N_BANKS] = cordicZ;
+				enveloped[freqBandIdx+dsIdx*N_BANKS] = cordicX * 0.6073; // acounting
+				angled[freqBandIdx+dsIdx*N_BANKS] = cordicZ; // acounting
  				envelopeCache[freqBandIdx][1] = cordicX * 0.6073;
 				// END CORDIC
 				//  HILBERT TRANSFORM DELAY APPROXIMATION
-				if ( dsIdx > delaySamples[freqBandIdx] ) 
-				{
-					hilberted[freqBandIdx+dsIdx*N_BANKS] =  bandpassed[freqBandIdx+N_BANKS*(dsIdx-delaySamples[freqBandIdx])];
-				} else 
-				{
-					hilberted[freqBandIdx+dsIdx*N_BANKS] = 0;
+				for ( k=nBandpassCoeffs-1; k>0; k-- ) {  // ahhhhh it's backwards
+					hilbertCache[freqBandIdx][k]=hilbertCache[freqBandIdx][k-1];
 				}
+				hilbertCache[freqBandIdx][0]=bandPassOut;
 			}    
 
 			 //// SMOOTH ENVELOPE
