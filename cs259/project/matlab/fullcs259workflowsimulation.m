@@ -14,7 +14,9 @@ lowpassDenominatorCoeffs = [ 1 -5.893323981110579090625378739787265658379 14.472
 lowpassNCoeff = min(length(lowpassDenominatorCoeffs),length(lowpassNumeratorCoeffs));
 cordicItr=25;
 cordicGainCorrection = 1/prod(sqrt(1+(2.^(-2.*(0:cordicItr)))));
-cordicArctanLookup = 45.*(2.^-(0:cordicItr));
+%cordicArctanLookup = 45.*(2.^-(0:cordicItr));
+cordicArctanLookup = 180/pi*atan(2.^-(0:cordicItr));
+
 %
 % be carfeul about changing this. pay attention to the automated filter
 % band coefficient genetator loop below and the size of the coefficients.
@@ -82,7 +84,7 @@ envelopeCache=zeros( numberOfBbandsToPass, 2);
 envelopeSmoothTemp=zeros( numberOfBbandsToPass, 1);
 tic();
 %% simulate the arrival of data samples
-for idx=1: 20 %128*2048 %320000 %length(lfp)
+for idx=1: 128*2048 %320000 %length(lfp)
     %% lowpass
     lowpassNumeratorCache = [ lfp(idx) lowpassNumeratorCache(1:end-1) ]; % shift register  
     lowPassOut = 0;
@@ -114,16 +116,16 @@ for idx=1: 20 %128*2048 %320000 %length(lfp)
             if ( xo > 0 ) %&& ( yo > 0 )
                 xx = xo;
                 yy = yo;
-                zz = 180;  %offset pi
+                zz = 180;  %180 offset pi
             else 
                 if ( yo < 0 )
                     xx = -yo;
                     yy = xo;
-                    zz = 90; %offset pi/2
+                    zz = 90; %90 offset pi/2
                 else
                     xx = yo;
                     yy = -xo;
-                    zz = 270; %offset  3*pi/2
+                    zz = 270; % offset  3*pi/2
                 end
             end
             for ii = 0:cordicItr-1
@@ -187,7 +189,7 @@ ii=8;
     figure;
     trueHilbert = hilbert(bandpassed(ii,:));
     subplot(4,1,1); plot(bandpassed(ii,1:2*downsampleRate)); hold on;  plot(enveloped(ii,1:2*downsampleRate)); legend('bandpassed','envelope'); title([  num2str(bandpassCenterFrequencies(ii)) ' Hz' ]);
-    subplot(4,1,2); plot(angled(ii,1:2*downsampleRate)); hold on;  plot(360/(2*pi)*(pi+angle(trueHilbert(1:2*downsampleRate)))); legend('CORDIC','mtlb_angle');
+    subplot(4,1,2); plot(angled(ii,1:2*downsampleRate)); hold on;  plot(360/(2*pi)*(pi+angle(trueHilbert(1:2*downsampleRate)))); legend('CORDIC','mtlb angl'); plot(180/pi*(pi+atan2(hilberted(ii,1:2*downsampleRate),bandpassed(ii,1:2*downsampleRate))));
     subplot(4,1,3); hold off; plot(bandpassed(ii,1:2*downsampleRate)); hold on; plot(hilberted(ii,1:2*downsampleRate)); legend('bandpassed','hilberted');
     subplot(4,1,4); plot(bandpassed(ii,1:2*downsampleRate)); hold on; plot(imag(trueHilbert(1:2*downsampleRate))); legend('bandpassed','true hilbert');
 %end
