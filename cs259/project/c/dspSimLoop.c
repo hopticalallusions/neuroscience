@@ -156,41 +156,62 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 		11.35, 11.6, 11.85,	12.10
 	};
 
+	/*
+	int delay_samples = -1;
+	for ( k=0; k<numberOfBandsToPass; k++) {
+		if ( delay_samples < delaySamples[k] ) {
+			delay_samples = delaySamples[k];
+		}
+	}
+	*/
+
+	// shift buffers
+	double lowpassNumeratorCache[nLowpassCoeffs] = { };
+	double lowpassDenominatorCache[nLowpassCoeffs] = { };
+	double bandpassNumeratorCache[numberOfBandsToPass][nBandpassCoeffs] = { };
+	double bandpassDenominatorCache[numberOfBandsToPass][nBandpassCoeffs] = { };
+	double hilbertCache[numberOfBandsToPass][16] = { };
+	double envelopeCache[numberOfBandsToPass*2] = { };
+	double envelopeSmoothTemp[numberOfBandsToPass] = { };
+	double lowPassOut=0.0f;
+	double bandPassOut=0.0f;
+
+//input_size = 5;
 	for ( dataIndex=0; dataIndex < input_size; dataIndex++ ) 
 	{
-
 		// LOW PASS FILTER
-
-		k_limit = (k < nLowpassCoeffs) ? dataIndex : nLowpassCoeffs;
-		for (k=0; k<k_limit; k++) 
-		{
-			lowpassed[dataIndex] += -lowpassDenominatorCoeffs[k]*lowpassed[dataIndex-k] + lowpassNumeratorCoeffs[k]*lfp[dataIndex-k];
+		for ( k=nLowpassCoeffs-1; k>0; k-- ) {  // ahhhhh it's backwards
+			lowpassNumeratorCache[k]=lowpassNumeratorCache[k-1];
+			lowpassDenominatorCache[k]=lowpassDenominatorCache[k-1];
 		}
-	
-	   // DOWN SAMPLE
-   
-	   if ( 0 == dataIndex % everyNthSample )  
-	   {
-
+		lowpassNumeratorCache[0]=lfp[dataIndex];
+		lowpassDenominatorCache[0]=0.0f;
+		lowPassOut=0.0f;
+	    for ( k=0; k<nLowpassCoeffs; k++) {
+    	    lowPassOut = lowPassOut - lowpassDenominatorCache[k]*lowpassDenominatorCoeffs[k] + lowpassNumeratorCache[k]*lowpassNumeratorCoeffs[k];
+		}
+	    lowpassDenominatorCache[0] = lowPassOut;
+	    lowpassed[dataIndex] = lowPassOut;
+	   // DOWN SAMPLE   
+	   if ( 0 == dataIndex % everyNthSample ) {
 			 dsIdx = dataIndex/everyNthSample;
 			 downsampled[dsIdx] = lowpassed[dataIndex];
-
 			// BANDPASS FILTERING  
-
-			//bandpassCache = [ bandpassCache(2:end) lowpassed(dataIndex) ]; // shift register
-			//bandpassed(dsIdx) = bandpassCache*bandpassNumeratorCoeffs' + bandpassCache*-bandpassDenominatorCoeffs';
-
 			for ( freqBandIdx = 0; freqBandIdx < numberOfBandsToPass; freqBandIdx++ ) 
 			{
-		
-				k_limit = (k < nBandpassCoeffs) ? dataIndex : nBandpassCoeffs;
-				for ( k = 0; k < k_limit; k++ ) 
-				{
-					bandpassed[freqBandIdx+dsIdx*N_BANKS] += - bandpassed[freqBandIdx+N_BANKS*(dsIdx-k)]*bandpassDenominatorCoeffs[freqBandIdx][k] + downsampled[dsIdx-k]*bandpassNumeratorCoeffs[freqBandIdx][k];
+				for ( k=nBandpassCoeffs-1; k>0; k-- ) {  // ahhhhh it's backwards
+					bandpassNumeratorCache[freqBandIdx][k]=bandpassNumeratorCache[freqBandIdx][k-1];
+					bandpassDenominatorCache[freqBandIdx][k]=bandpassDenominatorCache[freqBandIdx][k-1];
 				}
-
+				bandpassNumeratorCache[freqBandIdx][0]=lowPassOut;
+				bandpassDenominatorCache[freqBandIdx][0]=0.0f;
+				bandPassOut=0.0f;
+			    for ( k=0; k<nBandpassCoeffs; k++) {
+		    	    bandPassOut = bandPassOut - bandpassDenominatorCache[freqBandIdx][k]*bandpassDenominatorCoeffs[freqBandIdx][k] + bandpassNumeratorCache[freqBandIdx][k]*bandpassNumeratorCoeffs[freqBandIdx][k];
+				}
+				bandpassDenominatorCache[freqBandIdx][0] = bandPassOut;
+			    bandpassed[freqBandIdx+dsIdx*N_BANKS] = bandPassOut;			
 				//  HILBERT TRANSFORM APPROXIMATION
-
 				if ( dsIdx > delaySamples[freqBandIdx] ) 
 				{
 					hilberted[freqBandIdx+dsIdx*N_BANKS] =  bandpassed[freqBandIdx+N_BANKS*(dsIdx-delaySamples[freqBandIdx])];
@@ -198,9 +219,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, doubl
 				{
 					hilberted[freqBandIdx+dsIdx*N_BANKS] = 0;
 				}
-			
 				//// BEGIN CORDIC
-			
 				cordicX = bandpassed[freqBandIdx+dsIdx*N_BANKS]; 
 				cordicY = hilberted[freqBandIdx+dsIdx*N_BANKS];
 				cordicZ = 0;
