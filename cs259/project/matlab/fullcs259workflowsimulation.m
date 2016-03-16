@@ -12,7 +12,7 @@ everyNthSample = round(nativeSampleRate/downsampleRate); % 128 samples of each 3
 lowpassNumeratorCoeffs =   [ 0.000000000006564694180131090961704897522  0.000000000039388165080786542539055117347  0.000000000098470412701966356347637793367  0.000000000131293883602621825696446486011  0.000000000098470412701966356347637793367  0.000000000039388165080786542539055117347  0.000000000006564694180131090961704897522  ];
 lowpassDenominatorCoeffs = [ 1 -5.893323981110579090625378739787265658379 14.472294910655531197107848129235208034515  -18.955749009589681008947081863880157470703  13.966721637745113326900536776520311832428  -5.488755923739796926952294597867876291275  0.898812366459551981279219035059213638306  ];
 lowpassNCoeff = min(length(lowpassDenominatorCoeffs),length(lowpassNumeratorCoeffs));
-cordicItr=25;
+cordicItr=13;
 cordicGainCorrection = 1/prod(sqrt(1+(2.^(-2.*(0:cordicItr)))));
 %cordicArctanLookup = 45.*(2.^-(0:cordicItr));
 cordicArctanLookup = 180/pi*atan(2.^-(0:cordicItr));
@@ -172,7 +172,7 @@ for idx=1: 128*2048 %320000 %length(lfp)
             %% map to digital out
             % i.e. what TTL is currently on
             instantFrequency(dsIdx)= bandpassCenterFrequencies(pos);
-            digitized(dsIdx) = floor(angled(pos,dsIdx)/(359/phaseSegmentsDesired));
+            digitized(dsIdx) = ceil(angled(pos,dsIdx)/(360/phaseSegmentsDesired));
         end
     end
 end

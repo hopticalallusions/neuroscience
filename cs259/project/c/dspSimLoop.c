@@ -1,8 +1,3 @@
-
-
-//// simulate the arrival of data samples
-// cheat a little on the spool up
-
 #include <math.h>
 #include <stdio.h>
 #include <assert.h>
@@ -17,12 +12,12 @@
 #define HILBERT_CACHE_DEPTH		16	// depth of hilbert cache
 #define ENVELOPE_CACHE_DEPTH	2	// depth of envelope cache
 #define N_LOWPASS_COEFFS		7	// number of lowpass filter coefficients
-#define PHASE_QUANTIZATION 360/10	// 360 degrees / 10 segments
+#define PHASE_QUANTIZATION (360/10)	// 360 degrees / 10 segments
 
-//void realtime_theta_phase_kernel( int *lfp, int input_size, int *lowpassed, int *downsampled, double *bandpassed, double *hilberted, double *enveloped, double *angled, double *envelopeTemporalSmoothed, double *envelopeTemporalBandSmoothed, unsigned int *digitized, double *instantFrequency );
+//void realtime_theta_phase_kernel( int *lfp, int *lowpassed, int *downsampled, double *bandpassed, double *hilberted, double *enveloped, double *angled, double *envelopeTemporalSmoothed, double *envelopeTemporalBandSmoothed, unsigned int *digitized, double *instantFrequency );
 
-//void realtime_theta_phase_sw( int *lfp, int input_size, double *lowpassed, double *downsampled, double *bandpassed, double *hilberted, double *enveloped, double *angled, double *envelopeSmoothed, double *digitized, double *instantFrequency )
-void realtime_theta_phase_sw( int *lfp, int input_size, double *digitized)
+//void realtime_theta_phase_sw( int *lfp, double *lowpassed, double *downsampled, double *bandpassed, double *hilberted, double *enveloped, double *angled, double *envelopeSmoothed, double *digitized, double *instantFrequency )
+void realtime_theta_phase_sw( int *lfp, double *digitized)
 {
 	// CORDIC lookup table
 	// the following is a table of arctan values for the small steps used to
@@ -167,9 +162,7 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *digitized)
 	double lowPassOut 											= 0.0f;
 	double bandPassOut											= 0.0f;
 
-
-//input_size = 128*20;
-	for ( dataIndex=0; dataIndex < input_size; dataIndex++ ) 
+	for ( dataIndex=0; dataIndex < DATA_SIZE; dataIndex++ ) 
 	{
 		// LOW PASS FILTER
 		for ( k=N_LOWPASS_COEFFS-1; k>0; k-- ) {  // ahhhhh it's backwards
@@ -202,13 +195,13 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *digitized)
 		    	    bandPassOut = bandPassOut - bandpassDenominatorCache[freqBandIdx][k]*bandpassDenominatorCoeffs[freqBandIdx][k] + bandpassNumeratorCache[freqBandIdx][k]*bandpassNumeratorCoeffs[freqBandIdx][k];
 				}
 				bandpassDenominatorCache[freqBandIdx][0] = bandPassOut;
-				// bandpassed[freqBandIdx+dsIdx*N_BANKS] = bandPassOut;	// accounting
+				//bandpassed[freqBandIdx+dsIdx*N_BANKS] = bandPassOut;	// accounting
 				//  HILBERT TRANSFORM DELAY APPROXIMATION
 				for ( k=15; k>0; k-- ) {  // DANGEROUS! relace the hard-coded "15" with something intelligent.
 					hilbertCache[freqBandIdx][k]=hilbertCache[freqBandIdx][k-1];
 				}
 				hilbertCache[freqBandIdx][0]=bandPassOut;
-				// hilberted[freqBandIdx+dsIdx*N_BANKS] = hilbertCache[freqBandIdx][delaySamples[freqBandIdx]];  // accounting
+				//hilberted[freqBandIdx+dsIdx*N_BANKS] = hilbertCache[freqBandIdx][delaySamples[freqBandIdx]];  // accounting
 				//// BEGIN CORDIC
 				cordicX = bandPassOut; 
 				cordicY = hilbertCache[freqBandIdx][delaySamples[freqBandIdx]];
@@ -312,7 +305,7 @@ int main() {
     double angled[N_BANKS*DOWNSAMPLED_SIZE];
     double envelopeSmoothed[N_BANKS*DOWNSAMPLED_SIZE];
     double instantFrequency[DOWNSAMPLED_SIZE];
-	*/ 
+	/**/ 
 
     
     FILE * elfp, * dfp;
@@ -360,14 +353,14 @@ int main() {
         printf("File can not be open for read.\n");
         return -1;
     }
-    */
+    /**/
 
 	elementsRetrieved = fread(lfp, 4, DATA_SIZE, elfp);
 	//#pragma ACCEL task
 	//realtime_theta_phase_kernel( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, digitized, instantFrequency );
 	gettimeofday(&timevalStart,&timezone);
 	//realtime_theta_phase_sw( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeSmoothed, digitized, instantFrequency);
-	realtime_theta_phase_sw( lfp, elementsRetrieved, digitized );
+	realtime_theta_phase_sw( lfp, digitized );
 	gettimeofday(&timevalEnd,&timezone);
 	printf("%ld seconds, %d usec\n",  timevalEnd.tv_sec-timevalStart.tv_sec, timevalEnd.tv_usec-timevalStart.tv_usec);
 	fclose(elfp);
@@ -392,7 +385,7 @@ int main() {
 	fclose(esfp);
 	fwrite( instantFrequency, sizeof(instantFrequency[0]), sizeof(instantFrequency)/sizeof(instantFrequency[0]), iffp );
 	fclose(iffp);
-	*/
+	/**/
 
     printf("processing complete\n");
     return 0;
