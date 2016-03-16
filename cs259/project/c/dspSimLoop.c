@@ -320,126 +320,104 @@ void realtime_theta_phase_sw( int *lfp, int input_size, double *digitized)
 
 
 int main() {
-    int lfp[DATA_SIZE];  // input
+    struct timeval timevalStart;
+	struct timeval timevalEnd;
+	struct timezone tzhere;    
+	int elementsRetrieved = 1;
     int i = 0;
-    //double lowpassed[DATA_SIZE];
-    //double downsampled[DOWNSAMPLED_SIZE];
-    //double bandpassed[N_BANKS*DOWNSAMPLED_SIZE]; 
-    //double hilberted[N_BANKS*DOWNSAMPLED_SIZE];
-    //double enveloped[N_BANKS*DOWNSAMPLED_SIZE];
-    //double angled[N_BANKS*DOWNSAMPLED_SIZE];
-    //double envelopeSmoothed[N_BANKS*DOWNSAMPLED_SIZE];
+    int lfp[DATA_SIZE];  // input
     double digitized[DOWNSAMPLED_SIZE];
-    //double instantFrequency[DOWNSAMPLED_SIZE];
+	/*
+    double lowpassed[DATA_SIZE];
+    double downsampled[DOWNSAMPLED_SIZE];
+    double bandpassed[N_BANKS*DOWNSAMPLED_SIZE]; 
+    double hilberted[N_BANKS*DOWNSAMPLED_SIZE];
+    double enveloped[N_BANKS*DOWNSAMPLED_SIZE];
+    double angled[N_BANKS*DOWNSAMPLED_SIZE];
+    double envelopeSmoothed[N_BANKS*DOWNSAMPLED_SIZE];
+    double instantFrequency[DOWNSAMPLED_SIZE];
+	*/ 
+
     
     FILE * elfp, * dfp;
-    // , * lpfp, * dsfp, * bpfp, * hfp, * efp, * afp, * esfp, * mbfp, * iffp;
     if (!(elfp = fopen("lfp.data", "rb"))) 
     {
         printf("File can not be open for read.\n");
         return -1;
     }
-    /*
-    if (!(lpfp = fopen("lowpassed.dat", "wa"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    if (!(dsfp = fopen("downsampled.dat", "wa"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    if (!(bpfp = fopen("bandpassed.dat", "wa"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    if (!(hfp = fopen("hilberted.dat", "wa"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    if (!(efp = fopen("enveloped.dat", "wa"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    if (!(afp = fopen("angled.dat", "wa"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    if (!(esfp = fopen("envelopeSmoothed.dat", "wa"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    if (!(iffp = fopen("instantFrequency.dat", "wa"))) 
-    {
-        printf("File can not be open for read.\n");
-        return -1;
-    }
-    */
     if (!(dfp = fopen("digitized.dat", "wa"))) 
     {
         printf("File can not be open for read.\n");
         return -1;
     }
-    
-    
-    struct timeval timevalStart;
-	struct timeval timevalEnd;
-	struct timezone tzhere;
-    
-	int elementsRetrieved = 1;
-	//while ( elementsRetrieved > 0) {
-		elementsRetrieved = fread(lfp, 4, DATA_SIZE, elfp);
-		//#pragma ACCEL task
-		//realtime_theta_phase_kernel( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, digitized, instantFrequency );
-		gettimeofday(&timevalStart,&timezone);
-		//realtime_theta_phase_sw( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeSmoothed, digitized, instantFrequency);
-		realtime_theta_phase_sw( lfp, elementsRetrieved, digitized );
-		gettimeofday(&timevalEnd,&timezone);
-		printf("%ld seconds, %d usec\n",  timevalEnd.tv_sec-timevalStart.tv_sec, timevalEnd.tv_usec-timevalStart.tv_usec);
+    /*
+    FILE * lpfp, * dsfp, * bpfp, * hfp, * efp, * afp, * esfp, * mbfp, * iffp;
+    if (!(lpfp = fopen("lowpassed.dat", "wa"))) {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(dsfp = fopen("downsampled.dat", "wa"))) {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(bpfp = fopen("bandpassed.dat", "wa"))) {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(hfp = fopen("hilberted.dat", "wa"))) {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(efp = fopen("enveloped.dat", "wa"))) {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(afp = fopen("angled.dat", "wa"))) {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(esfp = fopen("envelopeSmoothed.dat", "wa"))) {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    if (!(iffp = fopen("instantFrequency.dat", "wa"))) {
+        printf("File can not be open for read.\n");
+        return -1;
+    }
+    */
 
-		// write data out to files.
-		//fwrite( lowpassed, sizeof(lowpassed[0]), sizeof(lowpassed)/sizeof(lowpassed[0]), lpfp );
-		//fwrite( downsampled, sizeof(downsampled[0]), sizeof(downsampled)/sizeof(downsampled[0]), dsfp );
-		//fwrite( bandpassed, sizeof(bandpassed[0]), sizeof(bandpassed)/sizeof(bandpassed[0]), bpfp );
-		//fwrite( hilberted, sizeof(hilberted[0]), sizeof(hilberted)/sizeof(hilberted[0]), hfp );
-		//fwrite( enveloped, sizeof(enveloped[0]), sizeof(enveloped)/sizeof(enveloped[0]), efp );
-		//fwrite( angled, sizeof(angled[0]), sizeof(angled)/sizeof(angled[0]), afp );
-		//fwrite( envelopeSmoothed, sizeof(envelopeSmoothed[0]), sizeof(envelopeSmoothed)/sizeof(envelopeSmoothed[0]), esfp );
-		fwrite( digitized, sizeof(digitized[0]), sizeof(digitized)/sizeof(digitized[0]), dfp );
-		//fwrite( instantFrequency, sizeof(instantFrequency[0]), sizeof(instantFrequency)/sizeof(instantFrequency[0]), iffp );
-	//}
-
-
+	elementsRetrieved = fread(lfp, 4, DATA_SIZE, elfp);
+	//#pragma ACCEL task
+	//realtime_theta_phase_kernel( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeTemporalSmoothed, envelopeTemporalBandSmoothed, digitized, instantFrequency );
+	gettimeofday(&timevalStart,&timezone);
+	//realtime_theta_phase_sw( lfp, elementsRetrieved, lowpassed, downsampled, bandpassed, hilberted, enveloped, angled, envelopeSmoothed, digitized, instantFrequency);
+	realtime_theta_phase_sw( lfp, elementsRetrieved, digitized );
+	gettimeofday(&timevalEnd,&timezone);
+	printf("%ld seconds, %d usec\n",  timevalEnd.tv_sec-timevalStart.tv_sec, timevalEnd.tv_usec-timevalStart.tv_usec);
 	fclose(elfp);
-	//fclose(lpfp);
-	//fclose(dsfp);
-	//fclose(bpfp);
-	//fclose(hfp);
-	//fclose(efp);
-	//fclose(afp);
-	//fclose(esfp);
-	//fclose(mbfp);
+	fwrite( digitized, sizeof(digitized[0]), sizeof(digitized)/sizeof(digitized[0]), dfp );
 	fclose(dfp);
-	//fclose(iffp);
 
 	/*
-	for ( i=0; i<64; i++ ) {
-		printf("%d ", lfp[i]);
-	}
-	printf("\n\n");
-	for ( i=1000; i<1064; i++ ) {
-		printf("%f ", lowpassed[i]);
-	}
+	// write data out to files.
+	fwrite( lowpassed, sizeof(lowpassed[0]), sizeof(lowpassed)/sizeof(lowpassed[0]), lpfp );
+	fclose(lpfp);
+	fwrite( downsampled, sizeof(downsampled[0]), sizeof(downsampled)/sizeof(downsampled[0]), dsfp );
+	fclose(dsfp);
+	fwrite( bandpassed, sizeof(bandpassed[0]), sizeof(bandpassed)/sizeof(bandpassed[0]), bpfp );
+	fclose(bpfp);
+	fwrite( hilberted, sizeof(hilberted[0]), sizeof(hilberted)/sizeof(hilberted[0]), hfp );
+	fclose(hfp);
+	fwrite( enveloped, sizeof(enveloped[0]), sizeof(enveloped)/sizeof(enveloped[0]), efp );
+	fclose(efp);
+	fwrite( angled, sizeof(angled[0]), sizeof(angled)/sizeof(angled[0]), afp );
+	fclose(afp);
+	fwrite( envelopeSmoothed, sizeof(envelopeSmoothed[0]), sizeof(envelopeSmoothed)/sizeof(envelopeSmoothed[0]), esfp );
+	fclose(esfp);
+	fwrite( instantFrequency, sizeof(instantFrequency[0]), sizeof(instantFrequency)/sizeof(instantFrequency[0]), iffp );
+	fclose(iffp);
 	*/
 
-
-    // TODO Compare the results of global_gradient between FPGA and CPU
     printf("processing complete\n");
     return 0;
 };
