@@ -153,8 +153,8 @@ void realtime_theta_phase_sw( int *lfp, double *digitized)
 	// shift buffers
 	double lowpassNumeratorCache[N_LOWPASS_COEFFS]				= { };
 	double lowpassDenominatorCache[N_LOWPASS_COEFFS]			= { };
-	double bandpassNumeratorCache[N_BANKS][N_BANDPASS_COEFFS]	= { };
-	double bandpassDenominatorCache[N_BANKS][N_BANDPASS_COEFFS] = { };
+	double bandpassNumeratorCache[N_BANKS*N_BANDPASS_COEFFS]	= { };
+	double bandpassDenominatorCache[N_BANKS*N_BANDPASS_COEFFS] = { };
 	double hilbertCache[N_BANKS][HILBERT_CACHE_DEPTH]			= { };
 	double envelopeCache[N_BANKS][ENVELOPE_CACHE_DEPTH]			= { };
 	double envelopeSmoothTemp[N_BANKS]							= { };
@@ -185,19 +185,20 @@ void realtime_theta_phase_sw( int *lfp, double *digitized)
 			for ( freqBandIdx = 0; freqBandIdx < N_BANKS; freqBandIdx++ ) 
 			{
 				for ( k=N_BANDPASS_COEFFS-1; k>0; k-- ) {  // ahhhhh it's backwards
-					bandpassNumeratorCache[freqBandIdx][k]=bandpassNumeratorCache[freqBandIdx][k-1];
-					bandpassDenominatorCache[freqBandIdx][k]=bandpassDenominatorCache[freqBandIdx][k-1];
+			    	j=freqBandIdx*N_BANDPASS_COEFFS+k;
+					bandpassNumeratorCache[j]=bandpassNumeratorCache[j-1];
+					bandpassDenominatorCache[j]=bandpassDenominatorCache[j-1];
 				}
-				bandpassNumeratorCache[freqBandIdx][0]=lowPassOut;
-				bandpassDenominatorCache[freqBandIdx][0]=0.0f;
+				bandpassNumeratorCache[freqBandIdx*N_BANDPASS_COEFFS+0]=lowPassOut;
+				bandpassDenominatorCache[freqBandIdx*N_BANDPASS_COEFFS+0]=0.0f;
 				bandPassOut=0.0f;
 				printf("\n");
 			    for ( k=0; k<N_BANDPASS_COEFFS; k++) {
 			    	j=freqBandIdx*N_BANDPASS_COEFFS+k;
-		    	    bandPassOut = bandPassOut - bandpassDenominatorCache[freqBandIdx][k]*bandpassDenominatorCoeffs[j] + bandpassNumeratorCache[freqBandIdx][k]*bandpassNumeratorCoeffs[j];
+		    	    bandPassOut = bandPassOut - bandpassDenominatorCache[j]*bandpassDenominatorCoeffs[j] + bandpassNumeratorCache[j]*bandpassNumeratorCoeffs[j];
 				}
 				printf("\n");
-				bandpassDenominatorCache[freqBandIdx][0] = bandPassOut;
+				bandpassDenominatorCache[freqBandIdx*N_BANDPASS_COEFFS+0] = bandPassOut;
 				//bandpassed[freqBandIdx+dsIdx*N_BANKS] = bandPassOut;	// accounting
 				//  HILBERT TRANSFORM DELAY APPROXIMATION
 				for ( k=15; k>0; k-- ) {  // DANGEROUS! relace the hard-coded "15" with something intelligent.
