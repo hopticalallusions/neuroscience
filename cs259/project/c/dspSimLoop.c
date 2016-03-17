@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <sys/time.h>
 
-#define DATA_SIZE 			2048*128 //10886944
+#define DATA_SIZE 			4096*128 //10886944
 #define DOWNSAMPLE_FACTOR 		128
 #define DOWNSAMPLED_SIZE ((DATA_SIZE % DOWNSAMPLE_FACTOR == 0) ? (DATA_SIZE/DOWNSAMPLE_FACTOR) : (DATA_SIZE/DOWNSAMPLE_FACTOR+1))
 #define N_BANKS 				34	// number of bandpass filters
