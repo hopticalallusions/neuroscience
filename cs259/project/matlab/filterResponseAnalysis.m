@@ -21,7 +21,8 @@ for ii=1:numberOfBbandsToPass
     [wc(ii,:),zc(ii,:)]=freqz(thetaFilter,responsePoints);
     [pc(ii,:),oc(ii,:)]=phasez(thetaFilter,responsePoints);
 end
-   figure;
+
+figure;
 for ii=1:numberOfBbandsToPass
     subplot(4,1,1);
     hold on;
@@ -51,8 +52,24 @@ axis([ 2 14 -pi*180/pi pi*180/pi ])
 line([0 Fs/2],[ 0 0 ],'color','k','LineStyle', '--') 
 
 
+figure;
+for ii=1:numberOfBbandsToPass
+    subplot(4,1,1);
+    hold on;
+    plot(zc(ii,:)*(Fs/2)/pi,20*log10(abs(wc(ii,:))/1))
+    axis([ 2 14 -5 1 ])
+    title('Frequency Response Plot');
+    ylabel('attenuation (db, logrithmic)');
+    subplot(4,1,2:4);
+    hold on;
+    plot(zc(ii,:)*(Fs/2)/pi,20*log10(abs(wc(ii,:))/1))
+    xlabel('frequency (hz)');
+    ylabel('attenuation (db, logrithmic)');
+    axis([ 0 (Fs/2) -100 1 ])
+end
 
 
+return
 
 
 
