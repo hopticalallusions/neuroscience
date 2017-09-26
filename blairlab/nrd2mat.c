@@ -138,7 +138,7 @@ int main( int argc, char *argv[] ) {
 
 
 	// position ourselves at the start of the data, which is at the end of the header
-    fseek (nrdFile , 16384 , SEEK_SET);   // why. why set and not START, when the end is _END?
+    fseek (nrdFile , HEADER_SIZE , SEEK_SET);   // why. why set and not START, when the end is _END?
 
 	//////////
 	// set up various output files
@@ -172,8 +172,9 @@ int main( int argc, char *argv[] ) {
 	int32_t packetSize = 0;
 	long currentPosition = 0;
 	unsigned int currentCrc = 0;		// Nlx specifies this type as DWORD (32bit unsigned ambiguous data), but DWORD is apparently MS Windows-only
-	int32_t * currentPacket = malloc(bytesPerRecord); // allocate a block of memory to pull a whole record out at once; for the time being this will be inefficient
-
+	uint32_t * currentPacket = malloc(bytesPerRecord); // allocate a block of memory to pull a whole record out at once; for the time being this will be inefficient
+	uint64_t timestamp = 0;
+	unsigned int tmpCrc = 0;
 		
 //		elementsRetrieved = fread( header, 1, HEADER_SIZE, nrdFile );
 	fread( &startTransmission,        4,  1, nrdFile );  // ptr to destination, size in bytes to read, number of elements to read, ptr to file to read from
@@ -186,45 +187,61 @@ int main( int argc, char *argv[] ) {
 	fread( currentPacket, bytesPerRecord,  1, nrdFile );
 	printf( "startTransmission value : %i ;  packetId value : %i ;  packetSize value : %i \n", currentPacket[0], currentPacket[1], currentPacket[2]);
 	
-	/*
+	timestamp = (uint64_t)currentPacket[3];
+	timestamp <<= 32;
+	timestamp += (uint64_t)currentPacket[4];
+	printf( "first timestamp (unsigned int) %llu    (unsigned long) %lu \n", timestamp, (unsigned long)timestamp);
+
 while ( 1 ) {
 	
 	if ( feof(nrdFile) ) { break; }		// quit if we are at the end of the file.
     
-    // check for start of record;  should always equal 2048
-    if ( fread( &startTransmission, 4, 1, nrdFile ) != 1) { printf("an error occurred reading startTransmission in the data extraction loop!"); break; };
+	currentPosition = ftell (nrdFile);  // if the CRC check fails, we want to advance 4 bytes from here
     
-    if ( startTransmission == 2048 ) {
+    if ( fread( currentPacket, bytesPerRecord,  1, nrdFile ) != 1 ) { printf("an error occurred while reading the current packet in the data extraction loop! quiting..."); break; };
+	
+	/*
+    if ( currentPacket[0] == 2048 ) {   // check for start of record;  should always equal 2048
 
-        // check for second field;  should always equal 1
-	    if ( fread( &packetId, 4, 1, nrdFile ) != 1) { printf("an error occurred reading packetId in the data extraction loop!"); break; };
-
-        if ( packetId == 1 ) {
+        if ( currentPacket[1] == 1 ) {
         
-            // check for packet size (data size) consistency (see Nlx file specification);  should always equal 10 + num_channels
-		    if ( fread( &packetSize, 4, 1, nrdFile ) != 1) { printf("an error occurred reading packetSize in the data extraction loop!"); break; };
-
-            // by definition, this should always be true
-            if ( packetSize == 10 + NumADChannels ) {
-            
+            if ( currentPacket[2] == 10 + NumADChannels ) {  // by definition, this should always be true
+      */      
                 // I. read the whole record and XOR everything together to check integrity
 
-                // 1. rewind
-                // we have read 3 32-bit integers which are 4 bytes each
-                currentPosition = ftell (nrdFile);                
-                fseek( nrdFile, currentPosition-(3*4), SEEK_SET);        //  alternatively, I think this should work  %% fseek( nrdFile, -(3*4), currentPosition);
-
-                // 2. initialize the integrity check result
-				if ( fread( &currentCrc, 4, 1, nrdFile ) != 1) { printf("an error occurred reading currentCrc in the data extraction loop!"); break; };
-                tempCrc = uint64( fread( nrdFile,1, 'uint32' ) );
-
                 // 3. read every entry and bitwise XOR 
-                for idx=2:(18+NumADChannels) {
-                    tempEntry = uint64( fread( fid, 1, 'uint32' ) );
-                    // NOTE : The Neuralynx documentation says this is an OR but that is incorrect, it is an XOR
-                    tempCrc = bitxor( tempCrc, tempEntry );
+                printf("\n\n");
+                currentCrc = (unsigned int)currentPacket[0];
+                printf("%u\n", currentCrc);
+                for ( unsigned int idx = 1; idx<bytesPerRecord/4; idx++ ) {
+                    currentCrc ^= (unsigned int)currentPacket[idx];                      // NOTE : The Neuralynx documentation says this is an OR but that is incorrect, it is an XOR
+	                printf("%u\n", (unsigned int)currentPacket[idx]);
                 }
+				printf("crc output %i\n", currentCrc);
+				printf("bytes per record %i  ; to read %i \n", bytesPerRecord, bytesPerRecord/4);
+			
+
+                printf("\n------------\n");				
+			    fseek (nrdFile , HEADER_SIZE , SEEK_SET);
+
+	          	fread( &currentCrc,        4,  1, nrdFile );
+                printf("%u\n", currentCrc);
+
+                for ( unsigned int idx = 1; idx < 18+NumADChannels; idx++ ) {
+                	fread( &tmpCrc,        4,  1, nrdFile );
+                    currentCrc ^= tmpCrc;                  // NOTE : The Neuralynx documentation says this is an OR but that is incorrect, it is an XOR
+		             printf("%u\n", tmpCrc);
+                }
+				printf("crc output %i  ;  total read %i\n", currentCrc, 18+NumADChannels);
+			    
+				
+              break;
                 
+		/*	}
+		}
+	}*/
+}
+            /*    
                 // 4. check the result
                 if ( tempCrc ~= 0 ) {
                 
