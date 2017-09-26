@@ -150,6 +150,12 @@ int main( int argc, char *argv[] ) {
 	    printf("Error opening timestamps output file!\n");
 	    exit(1);
 	}
+
+	FILE * ttlOutputFile = NULL;
+	if (!(ttlOutputFile = fopen("ttlOutputFile.dat", "w")))  {
+	    printf("Error opening TTL output data file!\n");
+	    exit(1);
+	}
 	
 	
 	// TODO generalize this so it handles n channels
@@ -162,7 +168,7 @@ int main( int argc, char *argv[] ) {
 
 	// set up some acounting
 	int goodRecordsRead = 0;
-	int dataWordsSkipped = 0;
+	int dataElementsSkipped = 0;
 	// remember, the number of records is stored here num_recs
 	
 	// set up variables we will reuse
@@ -171,6 +177,7 @@ int main( int argc, char *argv[] ) {
 	unsigned int currentCrc = 0;		// Nlx specifies this type as DWORD (32bit unsigned ambiguous data), but DWORD is apparently MS Windows-only
 	uint32_t * currentPacket = malloc(bytesPerRecord); // allocate a block of memory to pull a whole record out at once; for the time being this will be inefficient
 	uint64_t timestamp = 0;		
+	int32_t datum=0;
 	
 	currentPosition = ftell (nrdFile);                
 //    fseek( nrdFile, HEADER_SIZE, SEEK_SET);
@@ -189,32 +196,66 @@ while ( 1 ) {
 	currentPosition = ftell (nrdFile);  // if the CRC check fails, we want to advance 4 bytes from here
     
     if ( fread( currentPacket, bytesPerRecord,  1, nrdFile ) != 1 ) { printf("an error occurred while reading the current packet in the data extraction loop! quiting..."); break; };
-	
-	/*
-    if ( currentPacket[0] == 2048 ) {   // check for start of record;  should always equal 2048
+	     
+		if ( currentPacket[0] == (uint32_t)2048 ) {
+		
+			if ( currentPacket[1] == (uint32_t)1 ) {
 
-        if ( currentPacket[1] == 1 ) {
-        
-            if ( currentPacket[2] == 10 + NumADChannels ) {  // by definition, this should always be true
-      */      
-                // I. read the whole record and XOR everything together to check integrity
+				if ( currentPacket[2] == (uint32_t)(10 + NumADChannels) ) { 
 
-                // 3. read every entry and bitwise XOR 
-                printf("\n\n");
-                currentCrc = (unsigned int)currentPacket[0];
-                printf("%u\n", currentCrc);
-                for ( unsigned int idx = 1; idx<bytesPerRecord/4; idx++ ) {
-                    currentCrc ^= (unsigned int)currentPacket[idx];                      // NOTE : The Neuralynx documentation says this is an OR but that is incorrect, it is an XOR
-                }
-				printf("crc output %i\n", currentCrc);
-				printf("bytes per record %i  ; to read %i \n", bytesPerRecord, bytesPerRecord/4);
-			
-				
-              break;
+					// I. read the whole record and XOR everything together to check integrity
+
+					// 3. read every entry and bitwise XOR 
+					//printf("\n\n");
+					currentCrc = (unsigned int)currentPacket[0];
+					//printf("%u\n", currentCrc);
+					for ( unsigned int idx = 1; idx<bytesPerRecord/4; idx++ ) {
+						currentCrc ^= (unsigned int)currentPacket[idx];                      // NOTE : The Neuralynx documentation says this is an OR but that is incorrect, it is an XOR
+					}
+					//printf("crc output %i\n", currentCrc);
+					//printf("bytes per record %i  ; to read %i \n", bytesPerRecord, bytesPerRecord/4);
+					
+					if ( currentCrc == (unsigned int)0 ) {
+						// process the packet
+						
+						// output timestamp
+						timestamp = (uint64_t)currentPacket[3];
+						timestamp <<= 32;
+						timestamp += (uint64_t)currentPacket[4];
+						fwrite( &timestamp, 1, sizeof(uint64_t), timestampsOutputFile );  // write as raw string of 64bit timestamps
+						
+						// output TTL status 
+						fwrite( &currentPacket[6], 1, sizeof(uint32_t), ttlOutputFile );
+						
+						// output channel data
+						datum = (int32_t)currentPacket[17+30];  // TODO figure out how to output signed 24 bit integers later; reduce file size by n_samples * 8 bits!
+						fwrite( &datum, 1, sizeof(int32_t), channelOutputFile );
+						
+						// should have naturally moved the position of the file sizeof(packet) bytes with read
+					} else {
+						// the packet failed, so advance the position of the file 4 bytes and try again
+						fseek (nrdFile , currentPosition+4 , SEEK_SET);
+					};
+              
+              /*
+              == data packet map ==
+
+              	startTransmission -> [0]				' int32' |  1 | always 2048
+              	packetId          -> [1]				' int32' |  1 | always 1
+              	packetSize        -> [2]				' int32' |  1 | always  10 + n_chan
+                timestampHighbits -> [3]			 	'uint32' |  1 | half of a 64 bit number
+            	timestampLowbits  -> [4] 			 	'uint32' |  1 | half of a 64 bit number
+                status            -> [5]  			 	' int32' |  1 | almost useless? "reserved" whatever that means
+                TTLState          -> [6]       			'uint32' |  1 | parallel port input, 2^32 states, but only 32 signals
+                extras            -> [7-16]          	' int32' | 10 | magical hardware codes, ignore
+                dataframe         -> [17-(17+n_chan)]	' int32' |  n | read the whole frame
+                crc               -> [n_chan-1]         ' int32' |  1 | check sum value
+              */
+              
                 
-		/*	}
-		}
-	}*/
+			} else { printf("packetSize failed\n"); } 
+		} else { printf("packetId failed\n"); }
+	} else { printf("startTransmission failed\n"); }
 }
             /*    
                 // 4. check the result
@@ -271,6 +312,8 @@ while ( 1 ) {
 	fclose(nrdFile);
 	fclose(timestampsOutputFile);
 	fclose(channelOutputFile);
+	fclose(ttlOutputFile);
+
 	
 	return 0;
 
