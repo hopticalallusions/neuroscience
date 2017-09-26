@@ -1,14 +1,6 @@
 function [ correctedCsc, idxs, mxValues, meanCscWindow ] = cscCorrection( cscLFP, nlxCscTimestamps )
-%pathToFile, fileName, saveFile)
-%function [ correctedCsc, idxs, mxValues, meanCscWindow ]=cscCorrection( pathToFile, fileNum, saveFile)
-
-% TODO things that could be returned, if desired.
-%mxRelIdxs
-%nlxFscvTimes
-
 % *** note : this needs to be made piecewise, or not. who knows. maybe it
 % should be an option. sigh.
-
 % load the data file
 % csc 7 is VTA
 % csc 25 is a sharp wave
@@ -36,8 +28,6 @@ end
 % 1) FSCV board falls off, so no big noise signal (clean with max value 
 % standard deviation threshold)
 % 2) sharp waves can be bigger than FSCV noise (clean by time estimation)
-
-
 % modify this to pull out the indexes and times of the points; these can be
 % aligned with the FSCV data later
 
@@ -166,6 +156,34 @@ if ( 1.01 < length(idxs)/estimatedFscvEvents )
 elseif ( 0.99 > length(idxs)/estimatedFscvEvents ) % matlab corrected max(find(var))) to this find(var, 1, 'last') thing
     warning(['The number of detected FSCV events is < 99% of the expected level! ' num2str(100*length(idxs)/estimatedFscvEvents) '% detected!'])
 end
+
+% % recenter the mean artifact because the 
+% firstDerivMeanCsc=diff(meanCscWindow);
+% artifactIdxStart=find(firstDerivMeanCsc>10,1, 'first')-100; % cushioning
+% artifactIdxEnd=find(firstDerivMeanCsc>10,1, 'last')+200;   % cushioning
+% dcBiasStart=meanCscWindow(artifactIdxStart+1)
+% dcBiasEnd=meanCscWindow(artifactIdxEnd-1)
+% meanCscWindow(1:artifactIdxStart)=0;
+% meanCscWindow(artifactIdxEnd:end)=0;
+% artifactIdxs=artifactIdxStart+1:artifactIdxEnd-1;
+% dcBiasFunction=linspace(dcBiasStart,dcBiasEnd,length(artifactIdxs));
+% size(meanCscWindow(artifactIdxs))
+% size(dcBiasFunction)
+% figure; plot(dcBiasFunction)
+% meanCscWindow(artifactIdxs)=meanCscWindow(artifactIdxs)-dcBiasFunction';
+% NOTES : This foolishness is an imperfect attempt to fit the artifact to
+% the background signal it is riding on. This is much easier on a highpass
+% for spikes filtered signal because all the low frequency components are
+% gone, and the artifact signal pops out of the average with no DC biases.
+% In the wide filtered data, there are slow frequency components that
+% introduce a slope on a per-artifact basis, which do weird things to the
+% shape of the artifact itself. For example, let's assume the artifact is
+% on the maximum downward sloping component of a theta cycle -- the FSCV 
+% artifact onset will occur at a higher DC offset due to the theta signal
+% than the FSCV artifact offset. Some sort of model of the signal would
+% help compensate for this situation, but I don't have time to build it
+% immediately. 
+% TODO (see above)
 
 % this corrector seems to be pushing the curve a little too far to the
 % right

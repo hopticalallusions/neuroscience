@@ -1,11 +1,11 @@
-function sharpWaveDetector
+%function sharpWaveDetector
 
 %
 %% load the CSC file
 %
-[ theta12swr16, nlxCscTimestampstheta12, cscHeadertheta12, channelx, sampFreqx, nValSampx ] = csc2mat(['/Users/andrewhowe/Downloads/Theta12/' '/CSC' num2str(16) '.ncs']);
+[ theta12swr16, nlxCscTimestampstheta12, cscHeadertheta12, channelx, sampFreqx, nValSampx ] = csc2mat(['/Users/andrewhowe/blairLab/blairlab_data/Theta12/day4ish/' '/CSC' num2str(16) '.ncs']);
 %
-%% build a theta band filter (see below for parameter choices. the Fc#
+%% build a SWR band filter (see below for parameter choices. the Fc#
 % aren't fixed
 %
 Fs = 32000;  % Sampling Frequency

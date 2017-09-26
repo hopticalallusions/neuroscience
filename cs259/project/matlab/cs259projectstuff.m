@@ -1,5 +1,5 @@
 
-load('~/Desktop/cs259demodata.mat')
+load('~/src/cs259demodata.mat')
 %lfp=data(2,:);
 tic();
 % All frequency values are in Hz.
@@ -14,10 +14,6 @@ match = 'passband';  % Band to match exactly
 % Construct an FDESIGN object and call its BUTTER method.
 h  = fdesign.lowpass(Fpass, Fstop, Apass, Astop, Fs);
 lowpassFilter = design(h, 'butter', 'MatchExactly', match);
-
-lowpassLFP = filter(lowpassFilter,lfp);
-
-decimatedLFP = downsample(lowpassLFP,128);
 
 % All frequency values are in Hz.
 Fs = 250;  % Sampling Frequency
@@ -36,14 +32,13 @@ h  = fdesign.bandpass(Fstop1, Fpass1, Fpass2, Fstop2, Astop1, Apass, ...
                       Astop2, Fs);
 thetaFilter = design(h, 'butter', 'MatchExactly', match);
 
+
+lowpassLFP = filter(lowpassFilter,lfp);
+decimatedLFP = downsample(lowpassLFP,128);
 thetaLFP = filter(thetaFilter,decimatedLFP);
-
 hilbertLFP = hilbert(thetaLFP);
-
 thetaPhaseRadians = angle(hilbertLFP); %angle
-
 thetaPhaseDegrees = thetaPhaseRadians*180/pi;
-
 envelopeThetaLFP = abs(hilbertLFP);
 
 
@@ -98,7 +93,7 @@ hold on;
 plot(log10(xx),log10(yy1./sum(yy1)),'*r');
 plot(log10(xx),log10(yy2),'k-');
 axis([ -0.05 1.05*log10(max(xx))  0  log10(1/(2*sum(yy1))) ]);
-title([label1, " empirical data vs ", label2," distribution"], 'FontSize', 28, 'FontName', 'Arial');
+title([label1, ' empirical data vs ', label2,' distribution'], 'FontSize', 28, 'FontName', 'Arial');
 xlabel('log_{10}( episode duration )', 'FontSize', 22, 'FontName', 'Arial');
 ylabel('log_{10}( P ( episode duration ) )', 'FontSize', 22, 'FontName', 'Arial');
 legend('data', 'label2');

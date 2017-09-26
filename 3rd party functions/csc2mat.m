@@ -118,18 +118,39 @@ data = data(:);
 % make a continuous time vector, preserving the original timestamps and
 % interpolating between these markers
 fulltimestamps = zeros( length( timestamps ) * 512, 1 );
-for idx = 1: (length( timestamps )-1)
-    
-    deltaTime = ( timestamps(idx+1) - timestamps(idx) )/512;
-    if idx < length(timestamps)
-        tempTimes = timestamps(idx):deltaTime:timestamps(idx+1);
-    else
-        tempTimes = timestamps(idx):deltaTime:timestamps(idx)+(deltaTime*512);
+if (length(timestamps) > 1)
+    for idx = 1: (length( timestamps )-1)
+
+        deltaTime = ( timestamps(idx+1) - timestamps(idx) )/512;
+        if idx < length(timestamps)
+            tempTimes = timestamps(idx):deltaTime:timestamps(idx+1);
+        else
+            tempTimes = timestamps(idx):deltaTime:timestamps(idx)+(deltaTime*512);
+        end
+
+        fulltimestamps( 1+(512*(idx-1)):512+(512*(idx-1)) ) = tempTimes(1:512);
     end
-    
-    fulltimestamps( 1+(512*(idx-1)):512+(512*(idx-1)) ) = tempTimes(1:512);
-    
+    % TODO clean up this tail-end full timestamps array fixer.
+    tmpIdx = strfind(header, 'SamplingFrequency');
+    sampFreq = sscanf(header(tmpIdx(1) + length('SamplingFrequency'):end), '%g', 1);
+    fulltimestamps(end-512:end) = timestamps(end):1e6/32000:timestamps(end)+(512*1e6/32000);
+elseif (length(timestamps) == 1 )
+        tmpIdx = strfind(header, 'SamplingFrequency');
+        sampFreq = sscanf(header(tmpIdx(1) + length('SamplingFrequency'):end), '%g', 1);
+        fulltimestamps = timestamps(1):1e6/32000:timestamps(1)+(512*1e6/32000);
 end
+if (sum(fulltimestamps==0)>0)
+    disp(['problem : ', num2str(sum(fulltimestamps==0))  ,' bad timestamps'])
+    %fulltimestamps(end-512:end)=fulltimestamps(end-1024:end-512)+(fulltimestamps(end-1024)-fulltimestamps(end-513));
+end
+
+% don't adjust the timestamps. makes it hard to align things from events .
+% fulltimestamps = ( fulltimestamps - fulltimestamps(1) )/1e6;
+
+% method to extract bitvolts
+% there are others, but this one was a new one.
+tmpIdx = strfind(header, 'ADBitVolts');
+ADBitVolts = sscanf(header(tmpIdx(1) + length('ADBitVolts'):end), '%g', 1);
 
 fclose(fid);
 

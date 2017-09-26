@@ -65,6 +65,11 @@ for idx = 1:numberOfRecords
     events(idx)          = cellstr( fread( fid, 128, '*char')' );%%
 end
 
+% added to start all records at zero and convert to seconds.
+%eventTimestamps = ( eventTimestamps - eventTimestamps(1) ) / 1e6 ;
+% can't align the timestamps across files if we zero them relative to this
+% file
+
 fclose(fid);
 
 % for recX=1:numberOfRecords

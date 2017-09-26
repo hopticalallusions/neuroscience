@@ -1,6 +1,6 @@
 %% obtain data
 clear all;
-load('~/Desktop/cs259demodata.mat')
+load('/Users/andrewhowe/data/cs259demodata.mat')
 %% create data structures
 % constants
 bitvolts = 0.015624999960550667; % microvolts per bit
@@ -11,6 +11,7 @@ downsampleRate = 250; % Hz
 everyNthSample = round(nativeSampleRate/downsampleRate); % 128 samples of each 32,000 (Hz) is 250 Hz
 lowpassNumeratorCoeffs =   [ 0.000000000006564694180131090961704897522  0.000000000039388165080786542539055117347  0.000000000098470412701966356347637793367  0.000000000131293883602621825696446486011  0.000000000098470412701966356347637793367  0.000000000039388165080786542539055117347  0.000000000006564694180131090961704897522  ];
 lowpassDenominatorCoeffs = [ 1 -5.893323981110579090625378739787265658379 14.472294910655531197107848129235208034515  -18.955749009589681008947081863880157470703  13.966721637745113326900536776520311832428  -5.488755923739796926952294597867876291275  0.898812366459551981279219035059213638306  ];
+lowpassDenominatorCoeffs(1) = 0; % compensate for loop design.
 lowpassNCoeff = min(length(lowpassDenominatorCoeffs),length(lowpassNumeratorCoeffs));
 cordicItr=13;
 cordicGainCorrection = 1/prod(sqrt(1+(2.^(-2.*(0:cordicItr)))));
@@ -62,6 +63,7 @@ end
 bandpassGain = downsampleRate./(bandpassCenterFrequencies.^2);
 % for checking the results
 lowpassed = zeros(size(lfp));
+lowpassedRB = zeros(size(lfp));
 downsampled = zeros(size(lfp));
 bandpassed = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
 hilberted = zeros(numberOfBbandsToPass,ceil(length(lfp)/everyNthSample));
@@ -77,23 +79,51 @@ deltaEnvTemporal=.01;
 % shift buffers
 lowpassNumeratorCache=zeros(1,lowpassNCoeff);
 lowpassDenominatorCache=zeros(1,lowpassNCoeff);
+lowpassNumeratorCacheRB=zeros(1,lowpassNCoeff);
+lowpassDenominatorCacheRB=zeros(1,lowpassNCoeff);
 bandpassNumeratorCache=zeros(numberOfBbandsToPass,bandpassNCoeff);
 bandpassDenominatorCache=zeros(numberOfBbandsToPass,bandpassNCoeff);
 hilbertCache=zeros( numberOfBbandsToPass, max(delay_samples) );
 envelopeCache=zeros( numberOfBbandsToPass, 2);
 envelopeSmoothTemp=zeros( numberOfBbandsToPass, 1);
+lpBuffPtr=10;
 tic();
+close all;
 %% simulate the arrival of data samples
-for idx=1: 128*2048 %320000 %length(lfp)
+for idx=1: 1280 %320000 %length(lfp)
     %% lowpass
     lowpassNumeratorCache = [ lfp(idx) lowpassNumeratorCache(1:end-1) ]; % shift register  
     lowPassOut = 0;
     lowpassDenominatorCache = [ lowPassOut lowpassDenominatorCache(1:end-1)  ];
     for k=1:lowpassNCoeff
-        lowPassOut = lowPassOut - lowpassDenominatorCache(k)*lowpassDenominatorCoeffs(k) + lowpassNumeratorCache(k)*lowpassNumeratorCoeffs(k);
+        %lowPassOut = lowPassOut - ...
+        %    lowpassDenominatorCache(k)*lowpassDenominatorCoeffs(k) + ...
+        %    lowpassNumeratorCache(k)*lowpassNumeratorCoeffs(k);
+        lowpassDenominatorCache(1) = lowpassDenominatorCache(1) - ...
+            lowpassDenominatorCache(k)*lowpassDenominatorCoeffs(k) + ...
+            lowpassNumeratorCache(k)*lowpassNumeratorCoeffs(k);
     end
-    lowpassDenominatorCache(1) = lowPassOut;
-    lowpassed(idx) = lowPassOut; % accounting
+    % ring buffer version
+    rbNCoeff = length(lowpassDenominatorCoeffs);
+    rbN=mod(lpBuffPtr,rbNCoeff)+1;
+    rbRaw = 0;
+    rbFilt= 0;
+    lowpassDenominatorCacheRB(rbN) = 0;
+    lowpassNumeratorCacheRB(rbN ) = lfp(idx);
+    rbIdx=zeros(2,rbNCoeff);
+    % signal progresses left (oldest) to right (newest)  // could flip this by subtracting from max value
+    % coeff progress left (newest) to right (oldest)
+    % this works, but only when the first coefficient is set to zero, and ;
+    % I suspect there's some sort of off by 1 error at work here
+    % it is lagged, which is a bit strange
+    for k=0:rbNCoeff-1;
+        lowpassDenominatorCacheRB(rbN) = lowpassDenominatorCacheRB(rbN) - lowpassDenominatorCacheRB(1+mod(lpBuffPtr-k,rbNCoeff))*lowpassDenominatorCoeffs(k+1) + lowpassNumeratorCacheRB(1+mod(lpBuffPtr-k,rbNCoeff))*lowpassNumeratorCoeffs(k+1);
+    end
+    lpBuffPtr=lpBuffPtr+1;
+    % end RB part
+    %lowpassDenominatorCache(1) = lowPassOut;
+    lowpassed(idx) = lowpassDenominatorCache(1);%lowPassOut; % accounting
+    lowpassedRB(idx) = lowpassDenominatorCacheRB(1+mod(lpBuffPtr,length(lowpassDenominatorCacheRB)));
     %% downsample
     if ( 0 == mod(idx, everyNthSample) )
         dsIdx = idx/everyNthSample;
@@ -177,7 +207,7 @@ for idx=1: 128*2048 %320000 %length(lfp)
     end
 end
 toc()
-
+return; %ringbuffer
 %% plot things
 figure; hold on; plot(enveloped(16,1:2048));plot(envelopeSmoothed(16,1:2048)); plot(abs(hilbert(bandpassed(16,1:2048))));
 pp=hilbert(bandpassed(16,1:2048)); oo=zeros(1,2048); for ii = 1:2048; [aa, hh]=cordicVector(imag(pp(ii)),real(pp(ii)),25); oo(ii)=hh; end; plot(oo); 

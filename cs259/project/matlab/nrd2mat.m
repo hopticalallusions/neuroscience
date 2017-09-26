@@ -6,8 +6,10 @@
 %testing...
 nargin=1;
 %fname='/Users/andrewhowe/Downloads/DemoNeurodata.nrd';
-fname='/Users/andrewhowe/blairLab/DigitalLynxSXRawDataFile.nrd';
-channelsRequested=[1,5,9,27,31,35];
+%fname='/Users/andrewhowe/blairLab/DigitalLynxSXRawDataFile.nrd';
+basedir='/Users/andrewhowe/Downloads/da5fscEphysRecheck/';
+fname=[basedir 'DigitalLynxSXRawDataFile.nrd'];
+channelsRequested=1:32;
 
 % TODO if channalesRequested doesn't exist, make it equal [1:NumADChannels]
 % somewhere below
@@ -182,9 +184,9 @@ end
 fclose(fid);
 
 
-save( 'nrdTimestamps.mat', 'timestamps' );
-save( 'nrdData.mat', 'data' );
-save( 'nrdChannels.mat', 'channelsRequested' );
+save( [basedir 'nrdTimestamps.mat'], 'timestamps' );
+save( [basedir 'nrdData.mat'], 'data' );
+save( [basedir 'nrdChannels.mat'], 'channelsRequested' );
 
 %return;
 %end
