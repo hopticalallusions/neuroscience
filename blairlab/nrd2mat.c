@@ -167,23 +167,13 @@ int main( int argc, char *argv[] ) {
 	
 	// set up variables we will reuse
 	// TODO find out if it actually matters that these are supposedly forced to 32 bit integers
-	int32_t startTransmission = 0;
-	int32_t packetId = 0;
-	int32_t packetSize = 0;
 	long currentPosition = 0;
 	unsigned int currentCrc = 0;		// Nlx specifies this type as DWORD (32bit unsigned ambiguous data), but DWORD is apparently MS Windows-only
 	uint32_t * currentPacket = malloc(bytesPerRecord); // allocate a block of memory to pull a whole record out at once; for the time being this will be inefficient
-	uint64_t timestamp = 0;
-	unsigned int tmpCrc = 0;
-		
-//		elementsRetrieved = fread( header, 1, HEADER_SIZE, nrdFile );
-	fread( &startTransmission,        4,  1, nrdFile );  // ptr to destination, size in bytes to read, number of elements to read, ptr to file to read from
-	fread( &packetId,        4,  1, nrdFile );
-	fread( &packetSize,        4,  1, nrdFile );
-	printf( "startTransmission value : %i ;  packetId value : %i ;  packetSize value : %i \n", startTransmission, packetId, packetSize);
+	uint64_t timestamp = 0;		
 	
 	currentPosition = ftell (nrdFile);                
-    fseek( nrdFile, currentPosition-(3*4), SEEK_SET);
+//    fseek( nrdFile, HEADER_SIZE, SEEK_SET);
 	fread( currentPacket, bytesPerRecord,  1, nrdFile );
 	printf( "startTransmission value : %i ;  packetId value : %i ;  packetSize value : %i \n", currentPacket[0], currentPacket[1], currentPacket[2]);
 	
@@ -215,25 +205,10 @@ while ( 1 ) {
                 printf("%u\n", currentCrc);
                 for ( unsigned int idx = 1; idx<bytesPerRecord/4; idx++ ) {
                     currentCrc ^= (unsigned int)currentPacket[idx];                      // NOTE : The Neuralynx documentation says this is an OR but that is incorrect, it is an XOR
-	                printf("%u\n", (unsigned int)currentPacket[idx]);
                 }
 				printf("crc output %i\n", currentCrc);
 				printf("bytes per record %i  ; to read %i \n", bytesPerRecord, bytesPerRecord/4);
 			
-
-                printf("\n------------\n");				
-			    fseek (nrdFile , HEADER_SIZE , SEEK_SET);
-
-	          	fread( &currentCrc,        4,  1, nrdFile );
-                printf("%u\n", currentCrc);
-
-                for ( unsigned int idx = 1; idx < 18+NumADChannels; idx++ ) {
-                	fread( &tmpCrc,        4,  1, nrdFile );
-                    currentCrc ^= tmpCrc;                  // NOTE : The Neuralynx documentation says this is an OR but that is incorrect, it is an XOR
-		             printf("%u\n", tmpCrc);
-                }
-				printf("crc output %i  ;  total read %i\n", currentCrc, 18+NumADChannels);
-			    
 				
               break;
                 
