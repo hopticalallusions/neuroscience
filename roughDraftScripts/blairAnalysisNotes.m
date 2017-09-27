@@ -1,6 +1,7 @@
 %'/Users/andrewhowe/toSort/blairlab_data/giantsharpwaves/01. File Beginning To 5564929835/
 
-
+%  You might be a grad student if ... noticing that Matlab now displays what files are tracked in Git excites you a little bit on Saturday night near midnight. (apologies to Jeff Foxworthy)
+    
 datadir = '/Users/andrewhowe/toSort/blairlab_data/giantsharpwaves/02. 5564929835 To 7591955835/'
 [nlxEvents, nlxEvTimestamps, evHeader]=nev2mat('/Users/andrewhowe/toSort/blairlab_data/giantsharpwaves/02. 5564929835 To 7591955835/Events.Nev');
 ttlOnsetIdx=find(not(cellfun('isempty', strfind(nlxEvents, 'TTL Input on AcqSystem1_0 board 0 port 2 value (0x0001).') )));
