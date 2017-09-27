@@ -1,14 +1,29 @@
+%%
+% the point of this file is to accumulate enough of a model to simulate the
+% signal we would recieve from the FSCV injection. This will involve making
+% a model of the carbon fiber current/voltage injection, the transmision
+% through the tissue, the tetrode/tissue interface, the filter on the
+% neuralynx cheetah system and the AgCl electrode (?)
+%
+% Below exists a model of the injected current, but it is no where near
+% complete. Information about the filter in neuralynx is also invcuded.
+
 %We use the window method (Bartlett Window). If you have the signal processing 
 %toolbox you can use the Filter Design Tool, fdatool, to generate the coefficients 
 %or filter object. Then you can use the filter command and compare.  Let us know 
 %if you need more information.
 
+
+%%
 vel = 400 % V/s
 valley = -0.4 % V
 peak = 1.3 % V
-dt = 1e-6 % s
-sweepV = zeros(1,20000);
-idx=5000;
+dt = 1e-5 % s
+% scan duration is (100*2)*(peak-valley)/vel = xyz ms; in this case 8.5ms
+% total sweep time
+voltageSweepPoints=1000;
+sweepV = zeros(1,voltageSweepPoints);
+idx=1;
 sweepV(idx) = valley;
 while ( sweepV(idx) < peak )
 	idx = idx + 1;
@@ -18,9 +33,18 @@ while ( sweepV(idx) > valley )
 	idx = idx + 1;
 	sweepV(idx) = sweepV(idx-1) - (vel*dt);
 end
+while ( idx < voltageSweepPoints )
+	idx = idx + 1;
+	sweepV(idx) = valley;
+end
 figure;
 %subplot(,1,1);
 plot(sweepV);
+plotFft([ zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000) sweepV zeros(1,9000)],1/dt)
+
+figure; plot(freq, impedances([17 18 28 32 ],:))
+figure; plot(freq, phases([17 18 28 32 ],:))
+
 %legend('sweep')
 %subplot(3,1,2);
 hold on;
