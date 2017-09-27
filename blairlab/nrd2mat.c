@@ -276,16 +276,18 @@ int main( int argc, char *argv[] ) {
 	    exit(1);
 	}
 
-/*	FILE * tmpPtr = NULL;
-	FILE * channelOutputFile = malloc( numberChannelsRequested * sizeof( tmpPtr ) );
-	char * tmpFilename[100];
-	for ( unsigned int idx = 0; idx < numberChannelsRequested; idx++ ) {
-		if (!(channelOutputFile[idx] = fopen("channelOutputFile.dat", "w")))  {
+	// this part is kinda sketchy
+	FILE * tmpPtr = NULL;
+	FILE * channelOutputFileArray[MAX_CHANNELS];// = malloc( numberOfChannelsToExtract * sizeof( tmpPtr ) );
+	char tmpFilename[100]; // TODO -- not entirely safe...
+	for ( unsigned int idx = 0; idx < numberOfChannelsToExtract; idx++ ) {
+	    snprintf(tmpFilename, sizeof(char) * 32, "rawChannel_%i.dat", arrayOfChannelsToExtract[idx]);
+		if (!(channelOutputFileArray[idx] = fopen(tmpFilename, "w")))  {
 			 printf("Error opening channel output data file!\n");
 		    exit(1);
 		}
 	}
-*/	
+
 
 	// set up some acounting
 	int goodRecordsRead = 0;
@@ -362,8 +364,10 @@ int main( int argc, char *argv[] ) {
 							}
 												
 							// output channel data
-							datum = (int32_t)currentPacket[17+30];  // TODO figure out how to output signed 24 bit integers later; reduce file size by n_samples * 8 bits!
-							fwrite( &datum, 1, sizeof(int32_t), channelOutputFile );
+							for ( unsigned int idx = 0; idx < numberOfChannelsToExtract; idx++ ) {
+								datum = (int32_t)currentPacket[17+arrayOfChannelsToExtract[idx]];   // TODO figure out how to output signed 24 bit integers later; reduce file size by n_samples * 8 bits!
+								fwrite( &datum, 1, sizeof(int32_t), channelOutputFileArray[idx] );
+							}
 						
 							goodRecordsRead++;
 							// 24 bit output advice
@@ -409,6 +413,11 @@ int main( int argc, char *argv[] ) {
 	if ( processTtls ) { fclose(ttlOutputFile); } 
 
 	fclose(channelOutputFile);
+
+	for ( unsigned int idx = 0; idx < numberOfChannelsToExtract; idx++ ) {
+		fclose(channelOutputFileArray[idx]);
+	}
+
 	
 	return 0;
 
