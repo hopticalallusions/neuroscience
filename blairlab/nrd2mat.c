@@ -58,15 +58,19 @@ int main( int argc, char *argv[] ) {
 		printf("+--------------------------------------------------------------+\n");
 		printf("|                       nrdExtract help                        |\n");
 		printf("+--------------------------------------------------------------+\n");
+		printf("|                                                              |\n");
 		printf("| USAGE   : nrdExtract (-tThH) <file>.nrd <ch#> ... <ch#>      |\n");
+		printf("|                                                              |\n");
 		printf("| OUTPUTS : to current directory; 1 file per channel, header   |\n");
 		printf("|           file, timestamp file, TTL state file, *overwrites* |\n");
 		printf("|           existing files                                     |\n");
+		printf("|                                                              |\n");
 		printf("| FLAGS   : -t  -- do not output timestamp file                |\n");
 		printf("|           -T  -- do not output TTL file                      |\n");
 		printf("|           -h  -- do not output header file                   |\n");
 		printf("|           -H  -- display this help & quit                    |\n");
 		printf("|           -v  -- verbose output                              |\n");
+		printf("|                                                              |\n");
 		printf("+--------------------------------------------------------------+\n");
 		return 100;
 		
