@@ -7,6 +7,7 @@
 nargin=1;
 %fname='/Users/andrewhowe/Downloads/DemoNeurodata.nrd';
 %fname='/Users/andrewhowe/blairLab/DigitalLynxSXRawDataFile.nrd';
+%basedir='/Users/andrewhowe/Downloads/da5fscEphysRecheck/';
 basedir='/Users/andrewhowe/Downloads/da5fscEphysRecheck/';
 fname=[basedir 'DigitalLynxSXRawDataFile.nrd'];
 channelsRequested=1:32;

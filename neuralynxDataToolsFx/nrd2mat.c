@@ -29,13 +29,16 @@ int main( int argc, char *argv[] ) {
 	bool processChannels = true;
 	bool displayHelp = false;
 	bool verboseOutput = false;
+	bool obeyErrorLimit = true;
 	char * strWhere;
 
+	unsigned int errorLimit = 1000;
 	unsigned int argvIdxToFile = 1;
 	int arrayOfChannelsToExtract[MAX_CHANNELS];
 	int numberOfChannelsToExtract = 0;
 	char *ptrToEnd; // this value will be NULL if strtol not a number
 	long argChannel; // but it will still return whatever numerical parts are available here
+
 	
 	// flags will subtract functionality, because on the first run, you probably want all these outputs
 	for ( unsigned int idx=0; idx < argc; idx++ ) {
@@ -45,6 +48,7 @@ int main( int argc, char *argv[] ) {
 		strWhere = strstr (argv[idx],"-H");	  if ( strWhere != NULL ) { processHeader = false; printf("INFO : NO header output\n"); }
 		strWhere = strstr (argv[idx],"-h");	  if ( strWhere != NULL ) { displayHelp = true; }
 		strWhere = strstr (argv[idx],"-v");	  if ( strWhere != NULL ) { verboseOutput = true; }
+		strWhere = strstr (argv[idx],"-e");	  if ( strWhere != NULL ) { obeyErrorLimit = false; }
 		argChannel = strtol( argv[idx], &ptrToEnd, 10 ); 
 		if ( !*ptrToEnd ) { 
 				// check whether the channels are rational later.
@@ -59,17 +63,19 @@ int main( int argc, char *argv[] ) {
 		printf("|                       nrdExtract help                        |\n");
 		printf("+--------------------------------------------------------------+\n");
 		printf("|                                                              |\n");
-		printf("| USAGE   : nrdExtract (-tThH) <file>.nrd <ch#> ... <ch#>      |\n");
+		printf("| USAGE   : nrdExtract (-<[]>)... <file>.nrd <ch#> ... <ch#>   |\n");
 		printf("|                                                              |\n");
 		printf("| OUTPUTS : to current directory; 1 file per channel, header   |\n");
 		printf("|           file, timestamp file, TTL state file, *overwrites* |\n");
 		printf("|           existing files                                     |\n");
 		printf("|                                                              |\n");
-		printf("| FLAGS   : -t  -- do not output timestamp file                |\n");
+		printf("| FLAGS   : each flag must be preceded by a -; e.g. -t -h ...  |\n");
+		printf("|           -t  -- do not output timestamp file                |\n");
 		printf("|           -T  -- do not output TTL file                      |\n");
 		printf("|           -h  -- do not output header file                   |\n");
 		printf("|           -H  -- display this help & quit                    |\n");
 		printf("|           -v  -- verbose output                              |\n");
+		printf("|           -e  -- ignore error limit                          |\n");
 		printf("|                                                              |\n");
 		printf("+--------------------------------------------------------------+\n");
 		return 100;
@@ -90,7 +96,7 @@ int main( int argc, char *argv[] ) {
 	 * open file and evaluate size  *
 	 ****************************** */
 	
-	if ( verboseOutput ) { printf("INFO : opening file\n"); };
+	if ( verboseOutput ) { printf("STEP : opening file\n"); };
 	
     long lSize;
 
@@ -111,7 +117,7 @@ int main( int argc, char *argv[] ) {
 	 * process the header *
 	 ******************** */
 
-	if ( verboseOutput ) { printf("INFO : extracting header\n"); }
+	if ( verboseOutput ) { printf("STEP : extracting header\n"); }
 
 	char header[HEADER_SIZE];
 	int elementsRetrieved;
@@ -131,7 +137,7 @@ int main( int argc, char *argv[] ) {
 	 * use regular expressions to munge header info *
 	 ********************************************** */
 
-	if ( verboseOutput ) { printf("INFO : parsing header\n"); };
+	if ( verboseOutput ) { printf("STEP : parsing header\n"); };
 
 	/* 
 	TODO
@@ -274,7 +280,7 @@ int main( int argc, char *argv[] ) {
 	 * prepare to process data file                 *
 	 ********************************************** */
 	
-	if ( verboseOutput ) { printf("INFO : preparing to process data file\n"); };
+	if ( verboseOutput ) { printf("STEP : preparing to process data file\n"); };
 	
 	int bytesPerRecord=((18+NumADChannels)*32 )/ 8;
 
@@ -287,9 +293,10 @@ int main( int argc, char *argv[] ) {
 	
 	float num_recs=(lSize-HEADER_SIZE)/bytesPerRecord;
 	int packatsExpected = (lSize-HEADER_SIZE)/bytesPerRecord;
-	if ( verboseOutput ) { printf("INFO : preparing to process data file\n"); 
-		printf( "INFO : number records %f\n", num_recs );
-		printf( "INFO : fractional records %ld\n", (lSize-HEADER_SIZE) % bytesPerRecord);
+	if ( verboseOutput ) { 
+		printf( "STEP : preparing to process data file\n"); 
+		printf( "INFO : estimated number of records %f\n", num_recs );
+		printf( "INFO : estimated fractional records %ld\n", (lSize-HEADER_SIZE) % bytesPerRecord);
 		printf( "INFO : found %ld bytes; %ld data bytes; %i bytes per record \n", lSize, lSize-HEADER_SIZE, bytesPerRecord);
 	};
 
@@ -306,7 +313,9 @@ int main( int argc, char *argv[] ) {
 			printf("Error opening header output file!\n  Quitting...\n");
 			exit(1);
 		}
+		// this way produces a compact header file
 		fprintf( headerOutputFile, "%s\n", header);
+		//fwrite( header, 1, HEADER_SIZE, headerOutputFile );
 		fclose( headerOutputFile );
 	}
 	
@@ -368,6 +377,13 @@ int main( int argc, char *argv[] ) {
     fseek( nrdFile, HEADER_SIZE, SEEK_SET);
 	while ( 1 ) {
 	
+		if (obeyErrorLimit) {
+			if ( dataElementsSkipped > errorLimit ) { 
+				printf("ERROR : quitting processing loop because error limit reached, and obeyErrorLimit enabled.\n");
+				break;
+			}
+		}
+		
 		// TODO -- estimate progress completeness   ;; various versions of this don't work smoothly.
 //		progress = (100*goodRecordsRead)/num_recs;
 //		if ( ( fmod( progress, 10.0f ) < 0.0001f ) ) { printf("INFO : %i pct complete\n", (int)progress); }
@@ -467,7 +483,7 @@ int main( int argc, char *argv[] ) {
 	}
 	
 	if ( verboseOutput ) { 
-		printf( "INFO : Completed the main processing loop.\n" ); 
+		printf( "STEP : Completed the main processing loop.\n" ); 
 		printf("\n");
 		printf( "INFO : %f total packets *expected*\n", num_recs ); 
 		printf( "INFO : %i total packets processed\n", goodRecordsRead ); 
@@ -477,10 +493,11 @@ int main( int argc, char *argv[] ) {
 		printf("\n");
 	};
 	
+	
 	//
 	// clean up
 	//
-	if ( verboseOutput ) { printf( "INFO : Cleaning up...\n" ); }
+	if ( verboseOutput ) { printf( "STEP : Cleaning up...\n" ); }
 	free( currentPacket );
 	fclose( nrdFile );
 	if ( processTimestamps ) { fclose(timestampsOutputFile); }	
@@ -489,6 +506,29 @@ int main( int argc, char *argv[] ) {
 		fclose( channelOutputFileArray[idx] );
 	}
 
-	if ( verboseOutput ) { printf( "INFO : Terminating successfully.\n" ); }
+/*
+	//
+	// summarize the results of the run
+	//
+	FILE * summaryFile = NULL;
+	if (!(summaryFile = fopen( "executionSummary.log", "a" ) )) {
+		printf( summaryFile, "nrdExtractor processed file %s\n", argv[argvIdxToFile])
+		if ( bytesPerRecord == headerRecordSize ) { 
+			printf( summaryFile, "%i record size detected; consistent with header\n", headerRecordSize); }
+		} else { 
+			printf( summaryFile, "%i record size detected; *inconsistent* with header\n", headerRecordSize); }
+		}
+		printf( summaryFile, "number of channels %i & number of A-to-D channels %i found\n", numberOfChannels, NumADChannels );
+		printf( summaryFile, "estimated number of records %f\n", num_recs );
+		printf( summaryFile, "estimated fractional records %ld\n", (lSize-HEADER_SIZE) % bytesPerRecord);
+		printf( summaryFile, "found %ld bytes; %ld data bytes; %i bytes per record \n", lSize, lSize-HEADER_SIZE, bytesPerRecord);
+		printf( summaryFile, "processed %f of records",(100.0f*goodRecordsRead)/num_recs);
+		printf( summaryFile, "%f packets *expected* ; %i packets processed\n", num_recs, goodRecordsRead ); 
+		printf( summaryFile, "%li skipped elements *expected* ;  %i data elements skipped\n", ( (lSize-HEADER_SIZE) % bytesPerRecord )/4, dataElementsSkipped ); // TODO this might be incorrect?
+		printf( summaryFile, "\n\n\n");
+	} else {	printf( "ERROR : File executionSummary.log can not be opened.\n" ); }
+*/
+
+	if ( verboseOutput ) { printf( "STEP : Terminating successfully.\n" ); }
 	return 0;
 }
