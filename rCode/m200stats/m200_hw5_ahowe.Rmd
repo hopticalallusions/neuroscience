@@ -1,0 +1,257 @@
+---
+title: "m200_hw5_ahowe"
+author: "Andrew Howe"
+date: "May 6, 2015"
+output: html_document
+---
+
+```{r,echo=FALSE,results='hide',message=FALSE}
+# Load packages
+chooseCRANmirror(ind=88) # go Bruin
+packagesToLoad = c("aplpack", "vioplot", "ggplot2", "shiny", "dplyr", "tidyr", "minerva", "lattice", "sqldf", "reshape2", "xtable" )
+pkgsIn <- function(x) { require(x,character.only = TRUE) || { install.packages(x,); library(x, character.only = TRUE) } } 
+lapply(packagesToLoad, pkgsIn)
+# yay! global variables!
+deals = 1000
+```
+
+
+## Extra Credit / Set up the data
+
+```{r,echo=FALSE,results='asis'}
+# Build data
+filename = 'Hospitals.csv'
+dir = '/Users/andrewhowe/toSort/m200-stats/homeworks/PSM200Problem_Set_5/'
+hospData <- read.csv( file = file.path( dir, filename ), head=TRUE, sep="," )
+#
+# this makes more sense in SQL
+#
+# SELECT 
+#   SUBSTR(type, 1, 4)  AS status, 
+#   location            AS location, 
+#   SUM(Counts)         AS total 
+# FROM 
+#   hospData 
+# WHERE 
+#   SUBSTR(type, 1, 4) = SUBSTR(type, 1, 4) 
+# GROUP BY 
+#   location, 
+#   status
+#
+# make a long form summary
+hospitalObservations <- sqldf('SELECT SUBSTR(type, 1, 4) AS status, location AS location, SUM(Counts) AS total FROM hospData WHERE SUBSTR(type, 1, 4) = SUBSTR(type, 1, 4) GROUP BY location, status') 
+# reform the table
+hospitalSummary <- acast( data = hospitalObservations, formula = location~status, value.var = "total")
+# fix the row names
+#hospitalTable <- hospitalSummary[,-1]
+#rownames(hospitalTable) <- hospitalSummary[,1]
+print(xtable( hospitalSummary ), type='html', width=10)
+```
+
+# Data Analysis
+
+## R's built in fisher.test()
+
+```{r,echo=TRUE,eval=FALSE}
+fisher.test( hospitalSummary )
+```
+
+This fails, with a complaint about running out of workspace : "Error in fisher.test(hospitalSummary) : FEXACT error 40. Out of workspace."
+
+This probably occurred because the factorials are enormous. Now, we'll simulate the result with Monte-Carlo.
+
+```{r,echo=FALSE}
+fisher.test( hospitalSummary, simulate.p.value = TRUE)
+```
+
+The results of the Fisher's test suggest a significant association between outcome and hospital location.
+
+##Bootstraping Chi-squared and Kullback-Liebler Divergence
+
+```{r,echo=FALSE}
+
+observed = hospitalSummary  #rbind(c(65,35),c(50,50))
+expected = rowSums(observed) %o% colSums(observed) / sum(observed)
+KL = sum(expected*log(expected/observed))
+X2 = sum(((expected-observed)^2)/expected)
+
+#deals = 100
+KL.boot = rep( NA, deals )
+X2.boot = rep( NA, deals )
+
+# this code is hella confusing.
+for (i in 1:deals) {
+  dataDims = dim(observed)
+  bootSample = array( data = NA, dim = dataDims)
+  # we want to resample the (rownames) with replacement using the 
+  # probabilities of observations of each (rowname).
+  # To do this, we'll just convert everything to index numbers and
+  # get a big list of numbers. Then we'll cut up the list into snippets
+  # that match the number of obs. per COLUMN and count the ROWS in each
+  # by numerical address. Confused yet? I am.
+  #
+  # get the long line of scrambled values
+  bootData = sample( x = 1:dataDims[1], size = sum(observed), replace=TRUE, prob=rowSums(observed)/sum(observed) )
+  # build index cuts for long line of scrambled values
+  idxLimitsLong = array( data=NA, dim=c(dataDims[2],2) )
+  numObsRows = colSums(observed)
+  idxLimitsLong[1,1] = 1
+  idxLimitsLong[1,2] = numObsRows[1]
+  for ( k in 2: dataDims[2] ) {
+    idxLimitsLong[k,1] = 1 + idxLimitsLong[k-1,2]
+    idxLimitsLong[k,2] = idxLimitsLong[k,1] + numObsRows[k] - 1
+  }
+  # cut the big line into column sizes
+  for ( colIdx in 1:dataDims[2] ) {
+    snip = bootData[idxLimitsLong[colIdx,1]:idxLimitsLong[colIdx,2]]
+    for ( rowIdx in 1:dataDims[1] ) {
+      bootSample[rowIdx,colIdx] = sum(snip == rowIdx)
+    }
+  }
+  expected.boot = rowSums(bootSample) %o% colSums(bootSample) / sum(bootSample)
+  KL.boot[i] = sum(expected.boot*log(expected.boot/bootSample))
+  X2.boot[i] = sum(((expected.boot - bootSample)^2)/expected.boot)
+}
+
+print(X2)
+x2pval=sum(X2.boot>X2)/deals
+
+print(KL)
+klpval=sum(KL.boot>KL)/deals
+```
+
+The results of the bootstrap indicate that a Chi Square value of `r round(X2, digits = 4)` is highly unlikely with a p-value of `r round(x2pval, digits = 4 )` (zero means the bootstrap cannot accurately estimate how unlikely this observation is.)
+
+The results of the bootstrap indicate that a KL value of `r round(KL, digits = 4 )` is highly unlikely with a p-value of `r round(klpval, digits = 4 )` (zero means the bootstrap cannot accurately estimate how unlikely this observation is.)
+
+##Relative Risk of Death Matrix
+
+```{r,echo=FALSE}
+# wooooooooooo
+observed = hospitalSummary  #rbind(c(65,35),c(50,50))
+pctFatalIntv = observed[,"MORT"]/rowSums(observed)
+rrMat <- t(t(pctFatalIntv)) %*% t(1/pctFatalIntv)
+```
+
+###Fraction of deaths after interventions for life-threatening conditions
+
+```{r,echo=FALSE,results='asis'}
+print( pctFatalIntv )
+```
+
+###Relative Risk of Death Matrix
+
+The way to read this is "the relative risk of death in the hospital <row name> is <table value> compared to <column name> (over <column name>).
+
+```{r,echo=FALSE,results='asis'}
+print( xtable(rrMat), type='html', width=10 )
+```
+
+###Confidence Intervals
+
+
+
+###Null Hypothesis Testing P-Values for Risk Ratio 
+
+```{r,echo=FALSE,results='asis'}
+
+observed = hospitalSummary  
+
+#deals = 1000
+dataDims = dim(observed)
+rrMatBooted <- array( data = rep(NA, dataDims[1]*dataDims[1]*deals), dim = c( dataDims[1], dataDims[1], deals ) )
+
+# this code is hella confusing.
+for (i in 1:deals) {
+  dataDims = dim(observed)
+  bootSample = array( data = NA, dim = dataDims)
+  # we want to resample the (rownames) with replacement using the 
+  # probabilities of observations of each (rowname).
+  # To do this, we'll just convert everything to index numbers and
+  # get a big list of numbers. Then we'll cut up the list into snippets
+  # that match the number of obs. per COLUMN and count the ROWS in each
+  # by numerical address. Confused yet? I am.
+  #
+  # get the long line of scrambled values
+  bootData = sample( x = 1:dataDims[1], size = sum(observed), replace=TRUE, prob=rowSums(observed)/sum(observed) )
+  # build index cuts for long line of scrambled values
+  idxLimitsLong = array( data=NA, dim=c(dataDims[2],2) )
+  numObsRows = colSums(observed)
+  idxLimitsLong[1,1] = 1
+  idxLimitsLong[1,2] = numObsRows[1]
+  for ( k in 2: dataDims[2] ) {
+    idxLimitsLong[k,1] = 1 + idxLimitsLong[k-1,2]
+    idxLimitsLong[k,2] = idxLimitsLong[k,1] + numObsRows[k] - 1
+  }
+  # cut the big line into column sizes
+  for ( colIdx in 1:dataDims[2] ) {
+    snip = bootData[idxLimitsLong[colIdx,1]:idxLimitsLong[colIdx,2]]
+    for ( rowIdx in 1:dataDims[1] ) {
+      bootSample[rowIdx,colIdx] = sum(snip == rowIdx)
+    }
+  }
+  # perform mathematical transformations
+  colnames(bootSample)<-colnames(observed)
+  pctFatalIntvBoot = bootSample[,"MORT"]/rowSums(bootSample)
+  rrMatBooted[,,i] <- t(t(pctFatalIntvBoot)) %*% t(1/pctFatalIntvBoot)
+}
+
+# now plot these things
+cn <- colnames(observed)
+rn <- rownames(observed)
+par(mfrow=c(dataDims[1],dataDims[1]))
+#plot.new()
+for ( cidx in 1:dataDims[1] ) {
+  for ( ridx in 1:dataDims[1] ) {
+    if ( cidx == ridx ) {
+      #plot(c(1,2),c(2,1), main = rn[ridx] , xlab = '', ylab = '' )
+      #text(rn[ridx])
+    } else {
+      #hist(rrMatBooted[ridx,cidx,], main='', ylab='', xlab='')
+      #abline(v = rrMat[ridx,cidx], col='red' )
+    }
+  }
+}
+par(mfrow=c(1,1))
+```
+
+Above, we have plots of all the histograms for the bootstrapped risk ratios (big-box).
+
+```{r,echo=FALSE,results='asis'}
+# Calculate the p-values, both 1 and 2 sided.
+pval1side = array( data = rep(NA, dataDims[1]*dataDims[1]), dim = c( dataDims[1], dataDims[1] ) )
+colnames(pval1side) <- rownames(observed)
+rownames(pval1side) <- rownames(observed)
+pval2side = array( data = rep(NA, dataDims[1]*dataDims[1]), dim = c( dataDims[1], dataDims[1] ) )
+colnames(pval2side) <- rownames(observed)
+rownames(pval2side) <- rownames(observed)
+for ( cidx in 1:dataDims[1] ) {
+  for ( ridx in 1:dataDims[1] ) {
+    if ( cidx == ridx ) {
+      pval1side[ridx,cidx] <- NA
+    } else {
+      if ( rrMat[ridx,cidx] > 1) {
+        pval1side[ridx,cidx] <- sum(rrMatBooted[ridx,cidx,]>rrMat[ridx,cidx])/length(rrMatBooted[ridx,cidx,])
+        pval2side[ridx,cidx] <- (sum(rrMatBooted[ridx,cidx,]>rrMat[ridx,cidx])+sum(rrMatBooted[ridx,cidx,]<(1/rrMat[ridx,cidx])))/length(rrMatBooted[ridx,cidx,])
+      } else {
+        pval1side[ridx,cidx] <- sum(rrMatBooted[ridx,cidx,]<rrMat[ridx,cidx])/length(rrMatBooted[ridx,cidx,])
+        pval2side[ridx,cidx] <- (sum(rrMatBooted[ridx,cidx,]<rrMat[ridx,cidx])+sum(rrMatBooted[ridx,cidx,]>(1/rrMat[ridx,cidx])))/length(rrMatBooted[ridx,cidx,])
+      }
+    }
+  }
+}
+print(xtable( pval2side ), type='html', width=10)
+```
+
+
+
+
+
+#References
+
+Healthcare.gov
+
+Made with R 
+```{r, echo=FALSE}
+version
+```

@@ -1,0 +1,857 @@
+---
+title: "M200 Homework 4"
+author: "Andrew Howe"
+date: "May 2, 2015"
+output: html_document
+---
+
+```{r, echo=FALSE, message=FALSE, results='hide'}
+
+#####
+# Initialization block.
+#####
+
+chooseCRANmirror(ind=88) # go Bruin
+
+#include (couldn't resist the joke)
+require("aplpack") || { install.packages("aplpack"); library(aplpack) } # for bagplot
+require("vioplot") || { install.packages("vioplot"); library(vioplot) } # for violin plots
+require("ggplot2") || { install.packages("ggplot2"); library(ggplot2) } # for ggplot2 does many cool things
+require("shiny") || { install.packages("shiny"); library(shiny) } # ooouuuuu shiiiiny
+
+require("dplyr") || { install.packages("dplyr"); library(dplyr) } # 
+require("tidyr") || { install.packages("tidyr"); library(tidyr) } # 
+# tidr and dplyr allow data summaries and other fun stuff
+
+require("reshape2") || { install.packages("reshape2"); library(reshape2) } # 
+require("minerva") || { install.packages("minerva"); library(minerva) } # 
+require("lattice") || { install.packages("lattice"); library(lattice) } # 
+
+require("xtable") || { install.packages("xtable"); library(xtable) } # 
+
+# set the directory
+if ( Sys.info()["nodename"] == "andrewhowes-MacBook-Pro.local") { 
+  # interestingly, the UCLA VPN screws up this trick.
+  dir<-'/Users/andrewhowe/toSort/m200-stats/homeworks/PSM200_Problem_Set_4/'
+} else  { 
+  setwd(".") 
+  dir <- "./"
+} 
+
+
+filename <- "Sepsis2.csv"
+sepsisData <- read.csv( file = file.path( dir, filename ), head=TRUE, sep="," ) 
+
+# establish some nice functions here
+
+# Khris's cast
+# this is nice.
+
+#castvegf <- acast( vegfdata, PID~Time.Point, value.var = "VEGF")
+# I seem to have lost all the notes on how to use this for fun and profit.
+
+# apply command might do something helpful
+
+#function(dat, repats, stat=NULL, ...) {
+#  stat<- if(~is.null(stat)){match.fun(stat)}
+#  
+#}
+
+# for a and b
+
+# bootstrap ratio and then bootstrap difference
+# we will have 4 total bootstraps
+
+# division of medial to lateral
+# repeat the above, but take the difference
+
+# two different  
+
+booting <- function( data, stat=NULL, deals, param=NULL) {
+  if(!is.null(stat)) {
+    match.fun(stat)
+  }
+  booted <- rep(NA, deals)
+  for ( thisSample in 1:deals) {
+    hand <- sample( data, length(data), replace = T)
+    booted[thisSample] <- stat(hand)
+  }
+  return(booted)
+}
+
+
+addGaussianMetrics <- function( theData, whereAt=1, giveString=FALSE) {
+  xbar=mean( theData )
+  stdev=sd( theData )
+  if  (giveString) {
+    return( c( str(round(xbar, digits = 3 )), "±", str(round(stdev, digits = 3 )) ))
+  } else {
+    points( x=c( xbar, xbar-stdev, xbar+stdev, xbar-2*stdev, xbar+2*stdev), y=rep(x=whereAt, times=5), pch=c( "x", "(", ")", "{", "}"), col="red", cex=.8)
+    #return
+  }
+}
+
+
+bigBooty <- function( dataA, dataB, deals, calcType="minus" ) {
+  #
+  # Null Hypothesis : median(population_a) == median(population_b) | population_a == population_b
+  #
+  # "The medians are equal given that the populations sampled are the same."
+  #
+  # To find a p-value of this dataset, utilize the same metric on the actual data, and compare its position in the population to everything. The p-value provides the probability of finding a value more extreme than the value observed.
+
+  dataAB <- c( dataA, dataB)
+  bigBootyResults <- rep(NA, deals)
+  
+  if ( calcType == "minus" ) {
+    temp <- 0 # geez. lazy.
+  } else if ( calcType == "ratio") {
+      temp <- 0 # geez. lazy.
+  } else {
+    print(paste("bigBooty doesn't implement ", str(type), " !!!"))
+  }
+  
+  for ( thisHand in 1:deals) {
+    handsBootyDataA <- sample( dataAB, length(dataA), replace = T)
+    handsBootyDataB <- sample( dataAB, length(dataB), replace = T)
+    if ( calcType == "minus" ) {
+      bigBootyResults[thisHand] <- median(handsBootyDataB) - median(handsBootyDataA)
+    } else if ( calcType == "ratio") {
+      bigBootyResults[thisHand] <- median(handsBootyDataB) / median(handsBootyDataA)
+    }
+      
+  }
+  return(bigBootyResults)
+}
+
+quantilefx <- function( data, quantile=97.5 ) {
+  sort(data) -> sortedData
+  return(sortedData[round(length(sortedData)*(quantile/100))])
+}
+
+# use this when it is assumed that the populations are different
+dualBooty <- function( dataA, dataB, deals, calcType="minus") {
+  #
+  # Null Hypothesis : median(population_a) == median(population_b) | population_a != population_b
+  #
+  # "What is the probability of finding equal medians, 
+  #    given the assumption that the two populations are different."
+  
+  dualBootyResults <- rep(NA, deals)
+  
+  if ( calcType == "minus" ) {
+    # center the boxes
+    boxA <- dataA - median(dataA)
+    boxB <- dataB - median(dataB)
+  } else if ( calcType == "ratio") {
+    # the goal here is to center the distribution around 1, and linearize the calculations
+    boxA <- dataA / median(dataA)
+    boxB <- dataB / median(dataB)
+  } else {
+    print(paste("dualBooty doesn't implement ", str(type), " !!!"))
+    return(dualBootyResults)
+  }
+    
+  for ( thisHand in 1:deals) {
+    handsBootyDataA <- sample( boxA, length(dataA), replace = T)
+    handsBootyDataB <- sample( boxB, length(dataB), replace = T)
+    if ( calcType == "minus" ) {
+      dualBootyResults[thisHand] <- median(handsBootyDataB) - median(handsBootyDataA)
+    } else if ( calcType == "ratio") {
+      dualBootyResults[thisHand] <- median(handsBootyDataB) / median(handsBootyDataA)
+    }
+  }
+  return(dualBootyResults)
+}
+
+madam <- function(data) {
+  return(median(abs(data-median(data))))
+}
+
+
+compareBinning <- function(data=NULL, numBins=c(10,20,40,80)) {
+  if ( is.null(data) ) {
+    warning('compareBinning is not going to histogram nothing.')
+    return
+  }
+  if ( length(numBins) != 4 ) {
+    warning('compareBinning is only using the first 4 values!')
+  }
+  
+  plot.new()
+  frame()
+  par(mfrow = c(2,2))
+  #
+  for (binIdx in 1:4) {
+    hist( data, breaks = numBins[binIdx], main = paste("All Densities, ", numBins[binIdx],"Bins"), xlab="cell density", col="lightgreen", density=60, xlim=c(min(data) * .95, max( data) * 1.05), axes = FALSE)
+    axis( 1, lwd=0, lwd.ticks = 1 )
+    axis( 2, las=1, lwd=0, lwd.ticks = 1 )
+    
+    addGaussianMetrics( dabdata$counts, 0.5 ) 
+  }
+}
+
+
+nhstCorr <- function( dataA, dataB, flavor='spearman', deals = 10000) {
+  nhstCorrResults <- rep(NA, deals)
+  idxs = c( 1:length(dataA) )
+  for ( thisHand in 1:deals) {
+    bootyIdxs <- sample( idxs, length(dataA), replace = F )
+    # break the correlation
+    nhstCorrResults[thisHand] <- cor( dataA[bootyIdxs], dataB, method = flavor, use = "pairwise.complete.ob" )
+  }
+  return(nhstCorrResults)
+}
+
+ciCorr <- function( dataA, dataB, flavor='spearman', deals = 10000) {
+  ciCorrResults <- rep(NA, deals)
+  idxs = c( 1:length(dataA) )
+  for ( thisHand in 1:deals) {
+    bootyIdxs <- sample( idxs, length(dataA), replace = T )
+    ciCorrResults[thisHand] <- cor( dataA[bootyIdxs], dataB[bootyIdxs], method = flavor, use = "pairwise.complete.ob" )
+  }
+  return(ciCorrResults)
+}
+
+nthTriNum <- function(n) {
+  # HA! I found a way to incorporate recursion into this homework.
+  if (n<1) {
+    return(0)
+  } else {
+    return(nthTriNum(n-1)+n)
+  }
+}
+
+
+calcPvalue <- function( observedValue, valueDistribution ) {
+
+  pivotValue = round(median(valueDistribution))
+  # this is the center of the null hypothesis; it will be the most likely result of the bootstrap
+  # rounding because simulation will return approximate answers
+  # examples :
+  #   ratio -- pivot should be 1 
+  #   difference -- pivot should be zero
+  if (observedValue < pivotValue ) {
+    sortDecreasing = FALSE
+    # ASSUMES LINEARIZED COMPARISON DISTRO
+    evilTwin = pivotValue + ( pivotValue - observedValue )
+    # for example, ratio pivotValue = 1, observed =  0.8 => evilTwin would be 1.2
+    # for example, diff. pivotValue = 0, observed = -0.3 => evilTwin would be 0.3
+  } else {
+    sortDecreasing = TRUE
+    evilTwin = pivotValue + ( pivotValue - observedValue )
+    # for example, ratio pivotValue = 1, observed =  1.3 => evilTwin would be 0.7
+    # for example, diff. pivotValue = 0, observed = 0.13 => evilTwin would be -0.13
+  }
+  
+  # calculate both tails
+  partOne = min(which(sort(c(observedValue, valueDistribution), decreasing = sortDecreasing)==observedValue ))
+  partTwo = min(which(sort(c(evilTwin, valueDistribution), decreasing = !sortDecreasing)==evilTwin ))
+
+  # min value is 2 because the above will return two ones as indices, so subtract 2 to correct
+  # this will return zero when the observed value is beyond the observations
+  pval = ( partOne + partTwo - 2 ) / length(valueDistribution)
+  prec = floor(log10(length(valueDistribution)))
+  
+  pvalCorrected = round( x = pval, digits = prec)
+
+  # return the pvalue rounded to an appropriate precision based on the available samples
+  return(pvalCorrected)
+}
+
+
+bootHist <- function( ratioBootyData, center, n = -1, mainText = '', xText='' ) {
+  tempHist <- hist(ratioBootyData, breaks=50, plot = FALSE)
+  
+  lowerTwoish = quantilefx(ratioBootyData, 2.5)
+  upperNinetySeventhish = quantilefx(ratioBootyData, 97.5)
+  
+  # calculate these ridiculous indices
+  #this is terrible.
+  cyanRealLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 1) ))
+  cyanRealHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 99)))
+  # arg.
+  
+  greenLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 2.5) )) - cyanRealLow
+  greenHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 97.5))) - cyanRealHigh
+  redCount = length(tempHist$mids) - ( greenHigh + greenLow + cyanRealLow + cyanRealHigh + 1 )
+  
+  plot(tempHist,col=c(rep("cyan",cyanRealLow), rep("green",greenLow), rep("lightgrey",redCount), rep("green", greenLow), rep("cyan",cyanRealHigh)), xlab=xText, main=mainText, las=1, xlim = range(c(tempHist$breaks, center)), ylim = c(0, max(tempHist$counts)*1.2))
+  #
+  # this is very poor programming...
+  lines(c(quantilefx(ratioBootyData, 97.5), quantilefx(ratioBootyData, 97.5)),c(0, max(tempHist$counts)*.99), lwd=2, col='green', lty=3)
+  text( quantilefx(ratioBootyData, 97.5), max(tempHist$counts)*1.05, paste('97.5%\n', round(quantilefx(ratioBootyData, 97.5),2)), col = 'darkgreen')
+  
+  lines(c(quantilefx(ratioBootyData, 2.5), quantilefx(ratioBootyData, 2.5)),c(0, max(tempHist$counts)*.99), lwd=2, col='green', lty=3)
+  text( quantilefx(ratioBootyData, 2.5), max(tempHist$counts)*1.05, paste('2.5%\n', round(quantilefx(ratioBootyData, 2.5),2)), col = 'darkgreen')
+
+  lines(c(center, center),c(0, max(tempHist$counts)*1.05), lwd=2, col = 'blue')
+  pv <- calcPvalue( center, ratioBootyData )
+  # this is terrible.
+  if ( pv == 0 ) {
+    pv = 1/length(ratioBootyData)
+    text( center, max(tempHist$counts)*1.09, substitute( atop(tilde(x) == a, p < b), list(a=center,b=pv ) ), pos = 2, col = 'blue' )
+  } else {
+    text( center, max(tempHist$counts)*1.09, substitute( atop(tilde(x) == a, p == b), list(a=center,b=pv ) ), pos = 2, col = 'blue' )
+  }
+  if ( n != -1 ) {
+    text( center, max(tempHist$counts)*.95, substitute( n == c, list( c=n ) ), pos = 2, col = 'blue' )
+  }
+}
+
+
+
+panel.hist <- function(x,...) {
+  # Winston Chang. "O'Reilly Media, Inc.", 2013, ch.5; p.114; 
+  usr <- par('usr')
+  on.exit(par(usr))
+  par(usr = c(usr[1:2], 0, 1.5))
+  h <- hist(x, plot=FALSE)
+  breaks <-h$breaks
+  nB <- length(breaks)
+  y <- h$counts
+  y <- y/max(y)
+  rect( breaks[-nB], 0, breaks[-1], y, col='white', ...)
+}
+
+# contour plot, but I don't have time to make it work the way this demonstrates
+# http://stackoverflow.com/questions/28182872/how-to-use-different-sets-of-data-in-lower-and-upper-panel-of-pairs-function-in
+
+pnl.lg <- function( x, y, ... ) {
+  usr <- par('usr')
+  on.exit(par(usr))
+  xlim=range(log(x), na.rm = TRUE, finite = TRUE)
+  ylim=range(log(y), na.rm = TRUE, finite = TRUE)
+  par(usr = c( (xlim[1]), (xlim[2]), (ylim[1]), (ylim[2])  ))
+  lx = log(x)
+  ly = log(y)
+  lx[!is.finite(lx)] <- 0 # not the best solution.
+  ly[!is.finite(ly)] <- 0
+  points( lx, ly, pch=20, col='blue' ) # this will cause errors.
+  text( x = xlim[1], y = ylim[1], 'logs', pos=4 )
+}
+
+corrmat <- function( xy, deals=10000, ... ) {
+  dimxy <- dim(xy)
+  # create a results array
+  resultxy <- rep(x = NA, times = 10*nthTriNum(dimxy[2]-1))
+  # column names
+  #cn = list(c('Attribute.1', 'Attribute.2', 'pearson.Corr','person.CI.low', 'pearson.CI.high','pearson.P.val','spearman.Corr','sparman.CI.low', 'spearman.CI.high','spearman.P.val'))
+  # make a results matrix out of the array
+  resultxy <- matrix(resultxy, byrow = TRUE, ncol = 10) #dimnames = cn[1]
+  # fill in the 
+  prec = floor(log10(deals))
+  attrNames <- colnames(xy)
+  curResultCol <- 0
+  rowlabels <- NULL
+  for ( cola in 1:(dimxy[2]-1) ) {
+    for ( colb in (cola+1):dimxy[2] ) {
+      curResultCol <- 1 + curResultCol
+      x <- xy[,cola]
+      y <- xy[,colb]
+      # labels
+      #print(paste(attrNames[cola], ' X ', attrNames[colb]) )
+      #resultxy[curResultCol,1] <- attrNames[cola]
+      #resultxy[curResultCol,2] <- attrNames[colb]
+      rowlabels <- c(rowlabels, paste(attrNames[cola],'X',attrNames[colb]))
+      # Pearson Corr
+      pc <- cor( x, y, method = 'pearson', use = "pairwise.complete.ob" )
+      resultxy[curResultCol,1] <- round( x = pc, digits = prec)
+      # Spearman Corr
+      sc <- cor( x, y, method = 'spearman', use = "pairwise.complete.ob" )
+      resultxy[curResultCol,6] <- round( x = sc, digits = prec)
+      # Pearson Corr CI bootstrap
+      pccibs <- ciCorr( x, y, deals = deals, flavor = 'pearson')
+      # Spearman Corr CI bootstrap
+      sccibs <- ciCorr( x, y, deals = deals, flavor = 'spearman')
+      # Pearson Corr p-val bootstrap
+      pvpcbs <- nhstCorr( x, y, deals = deals, flavor = 'pearson')
+      # Spearman Corr p-val bootstrap
+      pvscbs <- nhstCorr( x, y, deals = deals, flavor = 'spearman')
+      #### extract values
+      # Pearson Corr CI
+      pccilo <- quantilefx(pccibs, 2.5)
+      resultxy[curResultCol,2] <- round( x = pccilo, digits = prec)
+      pccihi <- quantilefx(pccibs, 97.5)
+      resultxy[curResultCol,3] <- round( x = pccihi, digits = prec)
+      # Spearman Corr CI
+      sccilo <- quantilefx(sccibs, 2.5)
+      resultxy[curResultCol,7] <- round( x = sccilo, digits = prec)
+      sccihi <- quantilefx(sccibs, 97.5)
+      resultxy[curResultCol,8] <- round( x = sccihi, digits = prec)
+      # Pearson Corr p-val
+      pcpv <- calcPvalue( pc, pvpcbs)
+      resultxy[curResultCol,4] <- pcpv
+      # Spearman Corr p-val
+      scpv <- calcPvalue( sc, pvscbs)
+      resultxy[curResultCol,9] <- scpv
+      # Pearson woo?
+      pwoo <- c(' ')
+      if ( !findInterval( x = 0, vec = c( pccilo, pccihi ) ) ) {
+        pwoo <-  '!'
+        if ( pcpv > 0.05 ){
+          pwoo <- paste( pwoo, '?', sep = '')
+        }
+      }
+      resultxy[curResultCol,5] <- pwoo
+      # Spearman woo?
+      swoo <- c(' ')
+      if ( !findInterval( x = 0, vec = c( sccilo, sccihi ) ) ) {
+        swoo <- '!'
+        if ( pcpv > 0.05 ){
+          pwoo <- paste( pwoo, '?', sep = '')
+        }
+      }
+      resultxy[curResultCol,10] <- swoo
+    }
+  }
+  colnames(resultxy) <- c( 'p.Corr','p.CI.lo', 'p.CI.hi','p.Pval','p.Woo!','s.Corr','s.CI.lo', 's.CI.hi','s.Pval','s.Woo!')
+  rownames(resultxy) <- rowlabels
+  return(resultxy)  
+}
+
+
+```
+
+#Part I : Further Reading
+
+##Meta-Analysis
+
+###Main Points
+
+1. Null-Hypothesis Significane Testing (NHST) is often an incomplete, misleading metric.
+  + The null hypothesis can rarely be true in biology.
+  + NHST only tests one of the possible hypotheses that the data could support, rather than all relevant hypothesis, and often these other hypotheses are ignored.
+  + The NHST approach provides a binary assesment of a single theory, instead of a graded, probabilistic (and more realistic) assesment of possible explanations.
+2a. Effect size with confidence intervals provides a better estimate across a range of possible hypotheses.
+  + Effect sizes and confidence intervals allow biologically realistic reasoning about the hypotheses the data may support.
+  + Effect sizes and confidence intervals position the results of a study for comparison with other similar studies in meta-analyses.
+  + Power analysis for NHST assists in study design due to its mathematical interconnections with effect size.
+2b. There are a large number of methods to calculate effect sizes.
+  + Confusion exists with the term "effect size" due to its multiple meanings.
+  + Cohen's *d* (or Hedges *g*), *r* statistics (measures of correlation) and odds ratios are good, general-purpose effect size measures.
+  + Correlation is not regression. Regression is for prediction, while correlation describes association.
+  + *r* is not simply equal to the square root of *R^2*.
+3. Effect sizes should be corrected for bias, when it exists.
+  + Bias is caused by sampling errors or inherent features of the statistics employed.
+  + The problem is significantly more pronounced with small sample sizes.
+  + Biologists have never heard of *t* nor *f* distributions (now false.)
+4. Heteroskedastic error or variance is likely to bias effect size and confidence interval measures.
+  + No generic solution exists.
+  + Try to linearize the data; for example, logrithms will transform exponential data into linear space, making the linear effect size and confidence interval calculations more accurate.
+5. Effect size estimation for non-independent data (for example, messy field experiment data following individuals over years), is not impossible, but requires additional care. (Useful resources are provided.)
+6. Effect size (and other statistical testing) must be interpreted in the context of their biological meaning.
+
+###Meta-Analysis
+
+Meta-analysis places the results from multiple studies deemed comparable by an analysis of their methods into a mathematical space where their results may be compared. Ideally, one will find that despite variance in confidence intervals, an effect of some significance lies within the 95% confidence intervals for all of the studies examined. Methods also exist to estimate the effect size and confidence intervals as though all the results were pooled into a single data pool (however, this requires some caution.)
+
+###Multiple Regression
+
+Covariation in data can have very large effects on effect sizes and confidence intervals, including complete reversal of the observed effect size. Generalized Linear Models (GLMs) provide a common (general) framework to examine covariance incorporating, e.g., ANCOVA, ANOVA, and regression. As GLMs represent an extension of multiple regression, it is possible to derive accurate estimations, provided certain caveats are met.
+
+Of particular importance is simplification of the statistical model to its simplest viable form, which can be accomplished via the Akaike Information Criterian (AIC) approach. This approach often results in multiple predictors, and potentially multiple plausible models with a different subset of the predictive data. This approach is not foolproof.
+
+##Multicolinearity
+
+Multicolinearity occurs under a variety of different realistic experimental or analysis conditions. The term refers to the situation that arises when a pair of predictive variables vary together in a linear fashion. During linear regression model fitting, multicolinearity causes problems because the fitting technique attempts to find a solution to the multivariable model that minimizes the error in the model. When two or more of the variables included in the model colinearize, the solution is essentially unconstrained along the axis of colinearity, which means that a unique best solution for the fit parameters is effectively unavailable. Therefore a wide range of variables can satisfy the fitting technique, which leads to an unstable solution that may include a number of coefficients that are non-sensical upon examination. In one example provided by Slinker and Glantz (1985), the model fit provided a negative relationship between the measure of interest and a predictive variable, which is the opposite of what logic and prior knowledge dictate!
+
+Multicolinearity arises either from experimental design or model construction. Ideal experimental design will yield only variables of interest with perfect control of all confounding variables. In practice, this can be quite difficult, especially if the system under study is not well understood or there is no way to control one of the counfounding variables without negatively affecting the experimental question. When a system is not well understood, the experiment may collect variables not previously known to colinearize; these must then be detected and handled during analysis and linear model construction. On the other hand, model construction itself can introduce colinearity when two measured variables (which may or may not already colinearize) are combined into an analytically-derived predictive variable.
+
+Multicolinearity can be detected in several ways. One of the most important ways to detect multicolinearity (and other potential linear modeling problems) is examination of the model parameters and model structure. If the magnitude of a coefficient is significantly larger or smaller than one would expect, there might be a multicolinearity problem that requires further attention. Knowledge of maginitude or sign problems may come from prior experimental knowledge, theoretical knowledge or recognition of a mathematical phenomenon within the structure of the predictive equation itself. Slinker and Glantz provide an example where they recognize a harmonic damping feature in the response of their variable of interest in response to one of the predictive variables, and the coefficient assigned by the first model attempted is inappropriate because the oscillatory equation will not damp with the given parameter as their experimental system is known to do. Another method to detect multicolinearity is to manipulate the model structure and look for dramatic shifts in parameter value magnitude or sign changes. If a variable appears to be highly correlated with the variable being predicted, and yet the significance value of the coefficient is above a significance threshold, there might be a colinearity problem in the model. In all cases where these indicators suggest multicolinearity, further examination of the problem is required to determine the severity of the multicolinearity.
+
+A variety of techniques can be employed to overcome serious multicolinearity problems. Multicolinearity does not prohibit prediction with a given model fit because the model remains constrained to the data despite the multicolinearity. However, if determination of the parameters is desired, the problem must be surmounted. Additional data can mitigate the problem by reducing the colinearity; for example, adding a new experimental condition that reduces the interaction will provide better constraints for the linear model fit procedure (the plane will be less able to rotate around and provide multiple solutions.) Removal of predictive variables can also assist, but it does change the model (this is equivalent to forcing a coefficient to zero) and it can be difficult to know which variables are appropriate to remove. If the multicolinearity appears to have arisen from a mathematical operation on one or more of the predictive variables, changing the operations that created the multicolinearity can overcome this problem. Scaling the predictive variables may also help to overcome correlations that exist between them. Slinker and Glantz highly recommend axes transformation in the form of principal components regression. This involves transforming the data correlations into another corridinate system, which minimizes the effect of the large correlation by allowing the axis with greatest variance to take precedence.
+
+#Part II : Data Analysis
+
+##Multiple Regression Tutorial
+
+Let's load and take a gander at some built in data about states.
+
+```{r, echo=FALSE}
+# http://ww2.coastal.edu/kingw/statistics/R-tutorials/multregr.html
+st = as.data.frame(state.x77)
+str(st)
+```
+
+Here, we'll "fix" the labels, replacing spaces with periods.
+
+**Before**
+
+```{r, echo=FALSE}
+# ooooh
+# ...
+# ahhhhhh
+#
+# this is a better method than the recommended method because it handles arbitrary names with spaces.
+str(colnames(st))
+```
+
+**After**
+
+```{r,echo=FALSE}
+for ( idx in 1:length(colnames(st)) ) {
+  colnames(st)[idx]=sub(x=colnames(st)[idx], pattern = ' ', replacement = '.')
+}
+str(colnames(st))
+# cool that works.
+```
+
+The next phase will add a column called "Density" by combing some existing data for each state.
+
+```{r, echo=FALSE}
+st[,9]=st$Population*1000/st$Area
+colnames(st)[9] = "Density"
+str(st)
+# cool that works.
+```
+
+Now let's see some summary statistics!
+
+```{r,echo=FALSE}
+summary(st)
+# cool that works.
+```
+
+And some correlations!
+
+```{r, echo=FALSE}
+cor(st)
+# cool that works.
+```
+
+Simplifying the problem a bit, let's focus on life expectancy.
+
+```{r,echo=FALSE}
+sort(cor(st)[,4])
+```
+
+Murder rate has a fairly large negative correlation with life expectancy, as does illiteracy. High school graduation, income and frost (!?) also appear to positively correlate with life expectancy.
+
+We can check this out visually with some dot-plots!
+
+```{r,echo=FALSE}
+#this is more interesting than what the tutorial offers
+pairs( st, pch=20, diag.panel = panel.hist, upper.panel = pnl.lg )
+# not perfect, but more interesting than the vanilla instructions.
+# options(show.signif.stars=F) # I don't mind the stars
+```
+
+Neato! Along the diagonal are the attributes of the data set and histograms giving some rough idea of their distribution of variables. In the lower half of the panel, black dots represent pairs of data pulled from the data set and associated by state. The upper panel contains log-log plot versions of the data in the lower panels, which pulls outliers into the distribution, and can linearize non-linear (in particular exponential) relationships (or at least make them more obvious). 
+
+Next, we shall construct and iterate a linear model of the data to predict Life Expectancy, to see which variables are have the best correlations (and thus are most likely useful for prediction of Life Expectancy.)
+
+```{r,echo=FALSE}
+model1 = lm( Life.Exp ~ Population + Income + Illiteracy + Murder + HS.Grad + Frost + Area + Density, data = st )
+summary( model1 )
+summary.aov( model1 )
+model2 = update( model1, .~.-Area )
+summary( model2 )
+anova( model1, model2 )
+model3 = update( model2, .~.-Illiteracy )
+summary( model3 )
+model4 = update( model3, .~.-Income )
+summary( model4 )
+model5 = update( model4, .~.-Density )
+summary( model5 )
+anova( model5, model4 )
+model6 = update( model5, .~.-Population )
+summary( model6 )
+```
+
+This can be automated, although the tutorial author doesn't like this idea. Automation is useful in the sense that when an algorithm makes a decision, it should not make decisions based on what it read last week, which means the results are replicable. Truly well designed algorithmic assistants can also parse massive amounts of data that a human observer could never manually examine.
+
+However, placing blind trust in an algorithm, or failing to understand what it is doing (and therefore its strengths and limitations) is extremely bad practice. If the user cannot understand the algorithms behavior, it is best to perform the maniuplations by hand.
+
+```{r,echo=FALSE}
+step( model1, direction = "backward" )
+```
+
+Above, the auto-fit uses the AIC to reduce the model down. Below, we can see the confidence intervals on the model fit.
+
+```{r,echo=FALSE}
+confint( model6 )
+```
+
+Next, we can try to predict life expectancy using the model and feeding it a few values.
+
+```{r,echo=FALSE}
+predict(model6, list(Murder=10.5, HS.Grad=48, Frost=100))
+```
+
+The plot below provides a visualization of the model fit. The residuals and the Q-Q plot both look good.
+
+```{r,echo=FALSE}
+par(mfrow=c(2,2))
+plot(model6)
+par(mfrow=c(1,1))
+```
+
+Accessing components of the model data is easy. First, we can select the parameters and then we can sort the residuals.
+
+```{r,echo=FALSE}
+model6[[1]]
+#model6[[2]]
+sort(model6$resid)
+```
+
+The following is a scaled version of the data.
+
+```{r,echo=FALSE}
+model7 = lm( scale(Life.Exp) ~ scale(Murder) + scale(HS.Grad) + scale(Frost), data=st )
+summary(model7)
+#
+```
+
+Here, we can check the result by manually scaling :
+
+```{r,echo=FALSE}
+ -0.283 * sd(st$Murder) / sd(st$Life.Exp)
+```
+
+The following code block allows us to examine partial correlations.
+
+```{r,echo=FALSE}
+### Partial correlation coefficient
+### From formulas in Sheskin, 3e
+### a,b=variables to be correlated, c=variable to be partialled out of both
+pcor = function(a,b,c)
+{
+     (cor(a,b)-cor(a,c)*cor(b,c))/sqrt((1-cor(a,c)^2)*(1-cor(b,c)^2))
+}
+### end of script
+pcor(st$Life.Exp, st$Murder, st$HS.Grad)
+```
+
+Now, let's check out some air quality data.
+
+```{r, echo=FALSE}
+#rm(list=ls())                        # clean up (WARNING! this will wipe your workspace!) # eliminated because this will screw up the knitr
+data(airquality)                     # see ?airquality for details on these data
+na.omit(airquality) -> airquality    # toss cases with missing values
+lm(Ozone ~ Solar.R + Wind + Temp + Month, data=airquality) -> model
+coef(model)
+#
+(prediction <- c(1,200,11,80,6) * coef(model))
+sum(prediction)
+predict(model, list(Solar.R=200,Wind=11,Temp=80,Month=6), interval="conf")
+predict(model, list(Solar.R=200,Wind=11,Temp=80,Month=6), interval="pred")
+```
+
+
+##Sepsis Data Analysis
+
+###Multiple Regression Tutorial Applied to Sepsis
+
+What are we looking at here anyway? <To the wikipedia cave! -- Factman!>
+
+ApacheIII -- Acute Physiology, Age, Chronic Health Evaluation; a higher score is worse
+
+*pro-inflammatory markers*
+
+IL6 -- fever, inflamatory response
+IL8 -- inflamation, immune response, chemotaxis inducer, 'inflamation dispatcher' (roughly, go to infection)
+TNFa -- inflamation, regulation of immune cells, correlation with several human diseases
+LEP -- leptin, wide ranging, inflammation
+
+*cytokines*
+
+CXCL1 -- chemokine cytokine, mitogenic, cancer?, angiogenesis, inflammation
+IL1B -- interleukin 1-beta; cytokine, involved in inflamation
+CCL3 -- acute inflamation
+IL10 -- anti-inflammatory cytokine
+IFNG -- interferon; innate immune response compound
+CCL2 -- supports immune response
+
+```{r, echo=FALSE}
+pairs( sepsisData, pch=20, diag.panel = panel.hist, upper.panel = pnl.lg )
+sepsisDataFixed <- sepsisData[,2:12]
+```
+
+Here in the pairs plot, IL10 might have a correlation, but the data is fairly noisy. There aren't any particularly striking correlations with the ApacheIII score.
+
+Let's test all the correlations all the pairs.
+
+In the table below, all the correlations with Spearman and Pearson approaches are listed with their bootstrapped 95% CIs and p-values.
+
+```{r,echo=FALSE,results='asis'}
+# unfortunately, this HTML table is nearly unreadable
+print(xtable(corrmat( sepsisDataFixed )), type='html', width=10)
+#corrmat( sepsisDataFixed )
+```
+
+That's a bit disappointing. (both the corerlations and the format.) In terms of ApacheIII, the only IFNG and LEP don't span zero in the estimation of the 95% CI.
+
+Let's try an automated model search on everything and see what happens.
+
+```{r,echo=FALSE}
+modelSepsis1 = lm( ApacheIII ~ CXCL1 + IL1B + CCL3 + IL6 + TNFa + IL8 + LEP + IL10 + IFNG + CCL2, data = sepsisData )
+summary( modelSepsis1 )
+step( modelSepsis1, direction = "backward" )
+stepsis <- lm( ApacheIII ~ CXCL1 + IL10 + IFNG+ TNFa + LEP, data = sepsisData ) # haha stepsis
+summary(stepsis)
+confint(stepsis)
+par(mfrow=c(2,2))
+plot(stepsis)
+par(mfrow=c(1,1))
+```
+
+This produces a model that mixes several cytokines ( CXCL1, IL10, IFNG ) with pro-inflammatory markers ( TNFa, LEP ). The 95% confidence intervals for CXCL1 span zero, which is difficult to consider important. This parameter is probably a colinear element. In addition the model coefficients for LEP seem to emphasize it's importance. Furthermore, it is not especially significant by p-value. The residuals also indicate a poor fit (see plot). Let's try focusing on just the cytokines.
+
+```{r,echo=FALSE}
+modelSepsisCytokines = lm( ApacheIII ~ CXCL1 + IL1B + CCL3 + IL10 + IFNG + CCL2, data = sepsisData )
+summary( modelSepsisCytokines )
+step( modelSepsisCytokines, direction = "backward" )
+AICmodelSepsisCytokines <- lm(formula = ApacheIII ~ CXCL1 + CCL3 + IL10 + IFNG + CCL2, data = sepsisData)
+par(mfrow=c(2,2))
+plot(AICmodelSepsisCytokines)
+par(mfrow=c(1,1))
+confint( AICmodelSepsisCytokines )
+```
+
+The cytokine markers do not find a particularly good fit, considering the residuals and the confidence intervals (all but one of which -- IFNG -- range from negative to positive; IFNG is an innate immune response compound). 
+
+```{r,echo=FALSE}
+modelSepsisProInflammatory = lm( ApacheIII ~ IL6 + TNFa + IL8 + LEP, data = sepsisData )
+summary( modelSepsisProInflammatory )
+step( modelSepsisProInflammatory, direction = "backward" )
+AICmodelSepsisProInflammatory <- lm(formula = ApacheIII ~ TNFa + LEP, data = sepsisData)
+par(mfrow=c(2,2))
+plot(AICmodelSepsisProInflammatory)
+par(mfrow=c(1,1))
+confint( AICmodelSepsisProInflammatory )
+```
+
+The residuals look significantly better here, as do the confidence intervals. Additionally, the confidence intervals on the coefficients do not flip signs, suggesting that these are likely to be useful predictors. TNFa has fairly small coefficients, suggesting that it is not contributing a lot to the model, when compared to the Leptin coefficients.
+
+```{r,echo=FALSE}
+AICmodelSepsisSpecialEdition <- lm(formula = ApacheIII ~ TNFa + LEP + IFNG, data = sepsisData)
+step( AICmodelSepsisSpecialEdition, direction = "backward" )
+```
+
+Interestingly, AIC doesn't want to remove any variables, so apparently adding this predictor improved the model.
+
+```{r,echo=FALSE}
+par(mfrow=c(2,2))
+plot(AICmodelSepsisSpecialEdition)
+par(mfrow=c(1,1))
+```
+
+Unfortunately, this model looks worse in terms of residuals.
+
+```{r,echo=FALSE}
+confint( AICmodelSepsisSpecialEdition )
+```
+
+These look OK, but I still don't want to trust predictions from this model about my grandmother's health if she enters a hospital with sepsis someday (hopefully never).
+
+```{r,echo=FALSE}
+anova(AICmodelSepsisProInflammatory,AICmodelSepsisCytokines)
+```
+
+I think this means there's no big difference in these two models, but we didn't really get into ANOVAs yet, so I'm not sure how to interpret this.
+
+```{r,echo=FALSE}
+anova(AICmodelSepsisProInflammatory,AICmodelSepsisSpecialEdition)
+```
+
+I think this means the fit with the added variable is better, but again, I'm not completly certain how to interpret ANOVA results yet.
+
+It is also possible to check a variety of pairwise correlations between each variable and also the predictive variable of interest.
+
+```{r, echo=FALSE}
+par(mfrow=c(2,3))
+plot(sepsisDataFixed$TNFa,sepsisData$LEP)
+plot(sepsisDataFixed$TNFa,sepsisData$IFNG)
+plot(sepsisDataFixed$IFNG,sepsisData$LEP)
+plot(sepsisDataFixed$ApacheIII,sepsisData$TNFa)
+plot(sepsisDataFixed$ApacheIII,sepsisData$IFNG)
+plot(sepsisDataFixed$ApacheIII,sepsisData$LEP)
+par(mfrow=c(1,1))
+```
+
+On the first row are plots of each pair of predictors; none of these have particularly striking correlations, which is relatively good news for the stability of the solution that the linear regression derived because the solution should be stable.
+
+On the second row are correlations between each predictive factor and the Apache III variable (indicator of sepsis). None of these are very convincing, which probably means that the Apache III is not a good evaluation of sepsis risk. (This isn't surprising, given that the measure incorporates a variety of physiological metrics into a single score.)
+
+###Minerva Applied to Sepsis
+
+```{r, echo=FALSE}
+noPidSepsisData <- sepsisData[,!(names(sepsisData) %in% "PID")]
+micData <- mine(noPidSepsisData)
+round(x=micData$MIC, digits=4)
+# download and process MIC p-value file
+download.file('http://www.exploredata.net/ftp/Pvalues/n=35,alpha=0.6.csv','./micPvalues.csv')
+micPvalues <- read.csv( file = './micPvalues.csv', sep=",", skip=12, stringsAsFactors = FALSE )
+micPvalsMyData <- micData$MIC
+micCIsMyData <- micData$MIC
+mcpvdim <- dim(micPvalsMyData)
+for ( i in 1:mcpvdim[1] ) {
+  for ( j in 1:mcpvdim[2] ) {
+    if ( i == j ) {
+      micPvalsMyData[i,j] <- NA
+      micCIsMyData[i,j] <- NA
+    } else {
+      micPvalsMyData[i,j] <- micPvalues[min(which(micPvalues$MIC....x < micData$MIC[i,j] )), 2]
+      micCIsMyData[i,j] <- micPvalues[min(which(micPvalues$MIC....x < micData$MIC[i,j] )), 3]
+    }
+  }
+}
+
+```
+
+In each table, the entry value correponds to the value indicated in the title above the table, and the relation measured corresponds to the row-column label pair. NA means that the value was outside the range of the lookup table (i.e. not significant). Each table is symmetric.
+
+**MIC P-Values**
+
+```{r,echo=FALSE}
+round(x = micPvalsMyData, digits = 4)
+```
+
+**MIC 95% CIs**
+
+```{r,echo=FALSE}
+round(x = micCIsMyData, digits = 4)
+```
+
+#References
+
+Further Reading :
+
+S Nakagawa & IC Cuthill. "Effect size, confidence interval and statistical significance: A practical guide for biologists." 2007. ISSN 14647931.
+
+BK Slinker & SA Glantz. "Multiple regression for physiological data analysis: the problem of multicolinearity." *The American Journal of Phsyiology*, 249 (1 Pt 2) R1-R12, 1985 ISSN 0002-9513.
+
+Sepsis Data :
+
+A Elixhauser, B Friedman & E Stranges. "Septicemia in US hospitals, 2009." *Agency for Healthcare Research and Quality,* 348(62):1-13, 2011.
+
+ApacheIII, Cytokines and Pro-Inflammatory Biomolecules :
+
+http://en.wikipedia.org/wiki/Inflammation
+http://en.wikipedia.org/wiki/CCL2
+http://en.wikipedia.org/wiki/CCL3
+http://en.wikipedia.org/wiki/Interferon_gamma
+http://en.wikipedia.org/wiki/Interleukin_10
+http://en.wikipedia.org/wiki/Leptin
+http://en.wikipedia.org/wiki/Interleukin_8
+http://en.wikipedia.org/wiki/Tumor_necrosis_factor_alpha
+http://en.wikipedia.org/wiki/Interleukin_6
+http://en.wikipedia.org/wiki/IL1B
+http://en.wikipedia.org/wiki/CXCL1
+http://www.ncbi.nlm.nih.gov/pubmed/0001959406
+http://en.wikipedia.org/wiki/APACHE_II#APACHE_III
+
+Cartoons :
+
+http://www.seykota.com/tribe/FAQ/2004_Jan/Jan_1/recursive.gif
+
+http://mrburkemath.net/xwhy/images/872belle-whiskers05.png
+
+http://xwhy.comicgenesis.com/comics/20100219outliar01.png
+
+
+Made with R 
+```{r, echo=FALSE}
+version
+```

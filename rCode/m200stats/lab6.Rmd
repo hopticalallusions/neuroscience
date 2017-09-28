@@ -1,0 +1,33 @@
+---
+title: "lab6"
+author: "Andrew Howe"
+date: "May 6, 2015"
+output: html_document
+---
+
+```{r,echo=FALSE}
+dat <- Titanic
+tisum <- apply( Titanic, c(1,4), sum ) # sum from 1 to 4
+texp <- expand.grid( dimnames(tisum) )[rep( 1:8, tisum ), ] # take 8 numbers and convert to their correpsonding class and number
+N <- nrow( texp )
+tco <- xtabs( ~Class+Survived, texp ) # formulates a table
+Exp <- rowSums(tco) %o% colSums(tco) / N
+
+
+
+
+require("sqldf") || { install.packages("sqldf"); library(sqldf) }
+require("reshape2") || { install.packages("reshape2"); library(reshape2) }
+
+
+#reshape(data, 
+#  varying = c( "oec", "media", "trained", "untrained"), 
+#  v.names = "steplength", 
+#  new.row.names = 1:80,
+#  direction = "long")
+# useful
+#
+
+
+
+```

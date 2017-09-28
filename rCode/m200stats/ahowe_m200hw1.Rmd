@@ -1,0 +1,336 @@
+---
+title: "Biostatistics M200 Homework 1"
+author: "Andrew Howe"
+date: "April 4, 2015"
+output: html_document
+---
+
+###Part I : Further Reading
+####*The 8-Fold Path to Appropriate Description of Statistical Analysis*
+
+Applying statistical tests to data without appropriate consideration and justification of the approach can be very misleading. Careful consideration of the statistical tests applied to the data will avoid inappropriate conclusions from inappropriate tests. Clear explanations will convince the reader of the validity of the analysis and bolster support for the conclusions presented in the work. The 8 guidelines suggested in Drummond and Tom (2011) are summarized below.  
+
+1. Provide a detailed, unambiguous description of data quantification and analysis.
+  + The manner in which the data has been quantified informs the design and interpretation of the analysis. There should be no ambiguity in the approach taken.
+  + The details of the analysis must be clearly stated such that the reader does not have questions after reading the analysis.
+  + Ensure that all units are clearly specified.
+2. Provide a clear hypothesis. Connect the hypothesis to the statistical test employed and justify the test results used to support the conclusion about the hypothesis.
+3. Check that the assumptions made about the data are accurate. Many popular tests require input data to be Gaussian distributed, and such data is rare in biology.
+4. State the value used to indicate statistical significance of the result.
+  + In the case of p-values, state the actual p-value with a reasonable number of significant digits as well as a cut-off for significance.
+  + Consider including data on effect size and 95% confidence intervals. Keep in mind that effect size can help justify the sample size, providing better support for a result.
+5. Observing a p-value above the specified threshold does not 'prove' that the null result is true. 
+  + Carefully consider how Type II errors (false negative) could be introduced by the analysis system chosen.
+  + Explain why the sample size was chosen, and relate this to the expected and observed effect size.
+  + Both p=0.06 and p=0.045 are unlikely; the latter is not dramatically less likely than the former.
+6. Avoid multiple comparisons, for they increase the chance of Type I errors (false positives).
+  + For example, performing a comparison for each of 8,000 voxels of BOLD signal data obtained with fMRI from a dead salmon yielded a 'statistically significant' brain area in response to the presentation of happy and sad faces.
+  + If multiple comparisons cannot be avoided, correct for them.
+7. Carefully consider whether the statistical analysis design appropriately accounts for correlation within the study. For example, statistical approaches appropriate for independent groups cannot usefully be applied to data collected from the same subject over time nor if a group experiences multiple conditions -- in both cases there is repeated sampling of the same group of individuals and other statistical approaches should be employed, such as repeated measures analysis of variance.
+8. Precisely specify the software used for analysis, providing the name and version of all packages used to perform analysis.
+  + Inclusion of this information will assist readers in evaluating the quality of the software employed.
+  + If possible, provide code for the analysis.
+
+### Part II : Data Analysis
+#### This data looked so compeling, I leptin with both feet
+
+
+```{r, echo=FALSE}
+#####
+# Initialization block.
+#####
+
+chooseCRANmirror(ind=88) # go Bruin
+
+#include (couldn't resist the joke)
+require("aplpack") || { install.packages("aplpack"); library(aplpack) } # for bagplot
+require("vioplot") || { install.packages("vioplot"); library(vioplot) } # for violin plots
+require("ggplot2") || { install.packages("ggplot2"); library(ggplot2) } # for ggplot2 does many cool things
+require("shiny") || { install.packages("shiny"); library(shiny) } # ooouuuuu shiiiinyyyy
+
+# set the directory
+if ( Sys.info()["nodename"] == "andrewhowes-MacBook-Pro.local") { 
+  dir = "/Users/andrewhowe/toSort/m200-stats/homeworks/PSM200_S15_Problem_Set_1/" 
+} else  { 
+  setwd(".") 
+  dir = "./"
+} 
+
+filename = "Leptin.csv"
+
+read.csv( file = file.path( dir, filename ), head=TRUE, sep="," ) -> leptin
+
+```
+
+####Leptin Data Collection
+
+Here, we present and analyze concentration data for the hormone Leptin in the blood of a healthy human adult. Samples were collected once every 7 minutes over a 24 hour period. The test subject was exposed to light from 7:00 am until 11:00 pm, at which point the lights went out. Sample collection began at 8:00 am. No other information concerning the subject is available.
+
+####a. Leptin Concentrations without Regard to Time
+
+First, lets examine the distribution of concentration values found in the data by generating a boxplot, which will provide a quick visualization of the data distribution.
+
+```{r, echo=FALSE}
+boxplot( leptin$Leptin, notch=FALSE, col="lightgreen", ylab="",xlab="Leptin (ng/mL)", main="Distribution of Leptin Values", horizontal=TRUE )
+# add a mean
+xbar=mean( leptin$Leptin )
+stdev=sd( leptin$Leptin )
+points( x=c( xbar, xbar-stdev, xbar+stdev, xbar-2*stdev, xbar+2*stdev), y=c(1,1,1,1,1), pch=c( "x", "(", ")", "{", "}"), col="red")
+# summarize the data
+summary( leptin$Leptin )
+```
+
+The boxplot hints that the distribution is a bit skewed, as the median (thick center line of the box) lies on the lower end of the data range (indicated by the vertical lines connected to the central box by dotted lines). Gaussian-appropriate statistics are depicted in red. The median is lower than the mean ('x'). Two outliers (open circles) lie in the higher values. The presence of outliers on one side combined with the position of the median relative to both the mean and the total range of the data suggests that the data is skewed, and is unlikely to be Gaussian-distributed. The standard deviation of this data is `r sd(leptin$Leptin)`. The mean plus/minus the standard deviation is depicted with the red parenthesis, while double the standard deviation is depicted with the curly braces. The lack of good overlap of the standard Gaussian statistics bolsters the suggestion that this data will not be well described as a Gaussian distribution.
+
+Histograms provide more information about the distribution of the data by showing how much data is concentrated along the range of data. Bin size can affect the appearance of data distribution, so it is worth trying a several different bin numbers to see how it affects the histogram outcome.
+
+In the next figure, there are 4 different values of bins on the same data displayed. Each figure title contains the number of bins used to generate the histogram.
+
+```{r, echo=FALSE}
+plot.new()
+frame()
+par(mfrow = c(2,2))
+#
+hist( leptin$Leptin, breaks = 10, main = "Leptin Conc. Density, 10 Bins", xlab="Leptin Concentration (ng/mL)", freq=F, col="lightgreen", density=60, xlim=c(min(leptin$Leptin) * .95, max( leptin$Leptin) * 1.05))
+#
+hist( leptin$Leptin, breaks = 20, main = "Leptin Conc. Density, 20 Bins", xlab="Leptin Concentration (ng/mL)", freq=F, col="lightgreen", density=60, xlim=c(min(leptin$Leptin) * .95, max( leptin$Leptin) * 1.05))
+#
+hist( leptin$Leptin, breaks = 40, main = "Leptin Conc. Density, 40 Bins", xlab="Leptin Concentration (ng/mL)", freq=F, col="lightgreen", density=60, xlim=c(min(leptin$Leptin) * .95, max( leptin$Leptin) * 1.05))
+#
+hist( leptin$Leptin, breaks = 80, main = "Leptin Conc. Density, 80 Bins", xlab="Leptin Concentration (ng/mL)", freq=F, col="lightgreen", density=60, xlim=c(min(leptin$Leptin) * .95, max( leptin$Leptin) * 1.05))
+```
+
+The data looks a poorly defined with 10 bins and it looks chopped up with 40 or more bins. Twenty bins is probably a good number to examine this data set in a bit more detail.
+
+```{r, echo=FALSE}
+hist( leptin$Leptin, breaks = 20, main = "Leptin Conc. Density, 20 Bins", xlab="Leptin Concentration (ng/mL)", freq=F, col="lightgreen", density=60, xlim=c(min(leptin$Leptin) * .95, max( leptin$Leptin) * 1.05))
+curve( dnorm(x, mean = mean(leptin$Leptin), sd = sd (leptin$Leptin)), add = T, col="red", lwd = 1 )
+points( x=c( xbar, xbar-stdev, xbar+stdev, xbar-2*stdev, xbar+2*stdev), y=c(0,0,0,0,0), pch=c( "x", "(", ")", "{", "}"), col="red")
+#where in the world is the skewness function!?
+```
+
+The red curve on each presents a Gaussian approximation of the data, while the red symbols mark the plot as in the boxplot above. The data is not symmetric around the mean, and has a fatter right-hand tail, both indicating that Gaussian statistics are inappropriate to describe this data. Furthermore, no real data lies in the bottom 2.5% as suggested it should by the Gaussian model, while it looks like more than 2.5% of the actual data lies in the upper tail of the Gaussian. Estimating from the distribugion, the mode of this data is around 7.
+
+
+Violin plots are another popular visualization tool for data, although a fairly large amount of data is usually required to yield a nice violin plot. This data set only provides `r length(leptin$Leptin)` samples. 
+
+```{r, echo=FALSE}
+library(vioplot)
+vioplot(leptin$Leptin, clip=F, adjust=1, col="lightblue", horizontal=TRUE, names=c("Leptin", "", ""))
+title("Violin Plot of Leptin Concentration (ng/mL)") #, xlab="Leptin Concentration (ng/mL)", ylab=""")
+```
+
+The violin plot provides some insight into the empirical distribution, smoothing over a histogram of the data. The violin plot helps make it fairly clear that the distribution is skewed to the right.
+
+####b.1 These Leptin Concentration Samples Do Not Follow a Gaussian Distribution
+
+Quantile-quantile (QQ) plots directly compare theoretical Gaussian quantiles to the quantiles actually found in the data. The data should lie in a straight line across the diagonal if it is Gaussian distributed. This is possible to see using simulated Gaussian random noise as the input to the qqnorm function or the statistical package R. To make this demonstration more accurate, the random noise will take the number of sample, mean and standard deviation of the leptin concentration data as parameters to the random Gaussian noise generator.
+
+```{r, echo=FALSE}
+
+qqnorm( rnorm(length(leptin$Leptin), mean=mean(leptin$Leptin), sd=sd(leptin$Leptin)), main="QQ Plot for Gaussian Model of Leptin Concentration", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgray")
+qqline(leptin$Leptin, col="red", lwd=3)
+legend(-3,14, c("Gaussian Noise", "perfect"), col=c("darkgray", "red"), pch=c("o",NA), lty=c(NA,1))
+# this code doesn't garauntee correct placement of the legend
+```
+
+The dark grey open circles represent the simulated Gaussian noise data with parameters derived from the empirical leptin sample population. The simulated sample does not exactly follow the "perfect" line, but it is very close except for the very far tails. The error in the tails is likely due to sampling error -- very few samples will appear at the extreme ends of this distribution, so the extreme tails of a simulated set will be poorly sampled because by their nature they are rare. Increasing the sample size produces nicer tails and a less noisy plot, as would be expected (see next figure). Note that the simulated data is quite straight despite being derived from psuedorandomly generated noise. This is approximately what we would expect to see if the data were Gaussian.
+
+```{r, echo=FALSE}
+qqnorm( rnorm(10000, mean=mean(leptin$Leptin), sd=sd(leptin$Leptin)), main="QQ Plot for Gaussian Model of Leptin Concentration", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgray")
+qqline(leptin$Leptin, col="red", lwd=3)
+legend(-3,14, c("Gaussian Noise", "perfect"), col=c("darkgray", "red"), pch=c("o",NA), lty=c(NA,1))
+# this code doesn't garauntee correct placement of the legend
+```
+
+Plotting the QQ Plot of the actual data produces a less convincing fit to the Gaussian assumption.
+
+```{r, echo=FALSE}
+qqnorm(leptin$Leptin, main="QQ Plot for Leptin Concentration", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgreen")
+qqline(leptin$Leptin, col="red")
+legend(-3,16, c("Leptin", "perfect"), col=c("darkgreen", "red"), pch=c("o",NA), lty=c(NA,1))
+```
+
+The actual leptin data deviates quite a bit in the left hand tail, reflecting its skewness and bolstering the evidence that the Leptin data is not best described by a Gaussian distribution.
+
+In Gaussian distributed data, the median, mean, and mode are all equal in theory, or approximately equal for real data. When the data is not Gaussian distributed, outlying data and skewness in the data can significantly affect the mean, moving it away from the median. In any finite sample of data, the median by definition defines the center of that data, and provides a more accurate measure of central tendency than the mean. Real data may not have a usefully measureable mode because no data point may ever repeat. Although the mode can be approximated as a histrogram range containing the highest frequency, the median remains the best description of the central tendency of a data set because it is gauranteed that 50% of the data will lie on either side of the median value.
+
+Quantiles provide the best estimate of spread, as a natural extension of the median. Quantiles do not assume that the data is symmetric around the center, as does the standard deviation. One can quickly assess the data for assymetries by examining whether the quantiles at equal distance from the median are equal distance in terms of the data values. Like the median, examining data with quantiles is not likely to be seriously affected by an outlier. The default behavior of the R boxplot function brilliantly visualizes the quantiles in a collection of data.
+
+####b.2 Bootstrapping the sample
+```{r, echo=FALSE}
+booting <- function( data, samples, stat=NULL, deals, param=NULL) {
+  if(!is.null(stat)) {
+    match.fun(stat)
+  }
+  booted <- rep(NA, deals)
+  for ( thisSample in 1:deals) {
+    hand <- sample( data, samples, replace = T)
+    if ( is.null(param)) {
+      booted[thisSample] <- stat(hand)
+    } else {
+      booted[thisSample] <- stat(hand, param)
+    }
+  }
+  return(booted)
+}
+
+bootstrapSamples=10000
+resamplingLeptin<-booting( leptin$Leptin, length(leptin$Leptin), median, bootstrapSamples)
+medianLeptinBS=median(resamplingLeptin)
+sortedRL=sort(resamplingLeptin)
+ciLeptinLow=sortedRL[round(length(sortedRL)*0.025)]
+ciLeptinHigh=sortedRL[round(length(sortedRL)*0.975)]
+boxplot(resamplingLeptin, horizontal=TRUE, col="gold", main="Bootstrapped Median w/ 95% CI", ylab="Leptin Data", xlab="Leptin Concentration (ng/mL)")
+points( x=c( medianLeptinBS, ciLeptinLow, ciLeptinHigh), y=c(1,1,1), pch=c( "O", "(", ")"), col="blue", lwd=c(5,5,5) )
+```
+
+The median of the bootstrapped samples and its 95% confidence interval is `r medianLeptinBS` (`r ciLeptinLow`, `r ciLeptinHigh`). The actual sample has a median of `r median(leptin$Leptin)`, which is `r median(leptin$Leptin)-medianLeptinBS` away from or `r 100*median(leptin$Leptin)/medianLeptinBS`% of the empirical sample with `r bootstrapSamples` bootstrap samples. The median (open blue circle) and 95% confidence interal (blue parenthesis) on the boxplot represent these values.
+
+```{r, echo=FALSE}
+quantilefx <- function( data, quantile=97.5 ) {
+  sort(data) -> sortedData
+  return(sortedData[round(length(sortedData)*(quantile/100))])
+}
+
+seventyFifthQLeptinRefix<-booting( leptin$Leptin, length(leptin$Leptin), quantilefx, bootstrapSamples, 75)
+twnetyFifthQLeptinRefix<-booting( leptin$Leptin, length(leptin$Leptin), quantilefx, bootstrapSamples, 25)
+
+```
+
+The 25th quantile of the bootstrapped samples and its 95% confidence interval is `r median(twnetyFifthQLeptinRefix)` (`r quantilefx(twnetyFifthQLeptinRefix, 2.5)`, `r quantilefx(twnetyFifthQLeptinRefix, 97.5)`). The actual sample has a 25th quantile of `r quantilefx(leptin$Leptin, 25)`, which is `r quantilefx(leptin$Leptin, 25)-median(twnetyFifthQLeptinRefix)` away from or `r 100*quantilefx(leptin$Leptin, 25)/median(twnetyFifthQLeptinRefix)`% of the empirical sample with `r bootstrapSamples` bootstrap samples.
+
+The 75th quantile of the bootstrapped samples and its 95% confidence interval is `r median(seventyFifthQLeptinRefix)` (`r quantilefx(seventyFifthQLeptinRefix, 2.5)`, `r quantilefx(seventyFifthQLeptinRefix, 97.5)`). The actual sample has a 75th quantile of `r quantilefx(leptin$Leptin, 75)`, which is `r quantilefx(leptin$Leptin, 75)-median(seventyFifthQLeptinRefix)` away from or `r 100*quantilefx(leptin$Leptin, 75)/median(seventyFifthQLeptinRefix)`% of the empirical sample with `r bootstrapSamples` bootstrap samples.
+
+Repeat experiments should fall within any 95% CI value reported here 95% of the time.
+
+####Leptin During the Day and Night
+
+
+```{r, echo=FALSE}
+leptinNight = leptin$Leptin[which(leptin$Daylight==0)]
+leptinDay = leptin$Leptin[which(leptin$Daylight==1)]
+vioplot( leptinNight, leptinDay, names=c( "Night", "Day" ), col=c("gold", "blue") ) # what is wrong with the colors!?
+title("Night vs Day Leptin Concentrations (ng/mL)")
+```
+
+Although the number of samples is even lower for after seperating the available data into night and day, the shape of the distributions in the violin plots look fairly different, although they are centered around similar median values.
+
+```{r, echo=FALSE}
+resamplingLeptinNight<-booting( leptinNight, length(leptinNight), median, bootstrapSamples)
+medianLeptinNightBS=median(resamplingLeptinNight)
+ciLowLeptinNightMedian=quantilefx(resamplingLeptinNight, 2.5)
+ciHighLeptinNightMedian=quantilefx(resamplingLeptinNight, 97.5)
+#boxplot(resamplingLeptinNight, horizontal=TRUE, col="gray", main="Bootstrapped Median w/ 95% CI", ylab="Leptin Data", xlab="Leptin Concentration (ng/mL)")
+#points( x=c( medianLeptinNightBS, ciLowLeptinNightMedian, ciHighLeptinNightMedian), y=c(1,1,1), pch=c( "O", "(", ")"), col="blue", lwd=c(5,5,5) )
+```
+
+The median of the bootstrapped nighttime samples and its 95% confidence interval is `r medianLeptinNightBS` (`r ciLowLeptinNightMedian`, `r ciHighLeptinNightMedian`). The actual sample has a median of `r median(leptinNight)`, which is `r median(leptinNight)-medianLeptinNightBS` away from or `r 100*median(leptinNight)/medianLeptinNightBS`% of the empirical sample with `r bootstrapSamples` bootstrap samples. The median (open blue circle) and 95% confidence interal (blue parenthesis) on the boxplot represent these values.
+
+
+```{r, echo=FALSE}
+resamplingLeptinDay<-booting( leptinDay, length(leptinDay), median, bootstrapSamples)
+medianLeptinDayBS=median(resamplingLeptinDay)
+ciLowLeptinDayMedian=quantilefx(resamplingLeptinDay, 2.5)
+ciHighLeptinDayMedian=quantilefx(resamplingLeptinDay, 97.5)
+#boxplot(resamplingLeptinDay, horizontal=TRUE, col="gray", main="Bootstrapped Median w/ 95% CI", ylab="Leptin Data", xlab="Leptin Concentration (ng/mL)")
+#points( x=c( medianLeptinDayBS, ciLowLeptinDayMedian, ciHighLeptinDayMedian), y=c(1,1,1), pch=c( "O", "(", ")"), col="blue", lwd=c(5,5,5) )
+# this code is a mess
+
+```
+
+The median of the bootstrapped nighttime samples and its 95% confidence interval is `r medianLeptinDayBS` (`r ciLowLeptinDayMedian`, `r ciHighLeptinDayMedian`). The actual sample has a median of `r median(leptinDay)`, which is `r median(leptinDay)-medianLeptinDayBS` away from or `r 100*median(leptinDay)/medianLeptinDayBS`% of the empirical sample with `r bootstrapSamples` bootstrap samples. The median (open blue circle) and 95% confidence interal (blue parenthesis) on the boxplot represent these values.
+
+
+```{r, echo=FALSE}
+boxplot(leptin$Leptin, leptinDay, leptinNight, horizontal=TRUE, names=c("All","Day","Night"), col=c("grey","gold", "blue"), ylab="Leptin Data", xlab="Leptin Concentration (ng/mL)", main="Comparison of Leptin Concentrations and 95% CIs")
+
+points( x=c( medianLeptinNightBS, ciLowLeptinNightMedian, ciHighLeptinNightMedian), y=c(3,3,3), pch=c( "O", "(", ")"), col="red", lwd=c(5,5,5))
+points( x=c( medianLeptinDayBS, ciLowLeptinDayMedian, ciHighLeptinDayMedian), y=c(2,2,2), pch=c( "O", "(", ")"), col="red", lwd=c(5,5,5))
+points( x=c( medianLeptinBS, ciLeptinLow, ciLeptinHigh), y=c(1,1,1), pch=c( "O", "(", ")"), col="red", lwd=c(5,5,5))
+
+```
+
+Both day and night sample median values fall within the 95% confidence interval (and are in fact quite a lot closer) of the other sample, indicating that the central tendency of these samples are not convincingly different. On the boxplot comparison, the bootstrapped 95% CIs (red parenthesis) are overlayed around the median (open red circle).
+
+
+```{r, echo=FALSE}
+# fake the time data
+start <- as.POSIXct("2015-04-01 08:00:00 am")
+interval <- 7 # minutes
+end <- start + as.difftime(1, units="days")
+newLeptinTimes=seq(from=start, by=interval*60, to=end)
+
+```
+
+
+####Leptin Over Time
+
+```{r, echo=FALSE}
+
+#cheating a bit to wrap the data properly
+#ax(which(leptin$Time > 2300 )) -> wrapIdx 
+#leaptTime=c(leptin$Time[1:wrapIdx], 2400+leptin$Time[wrapIdx+1:length(leptin$Time)])
+#leaptTime = seq.int(0,(length(leptin$Time)-1)*7,by=7)
+#leaptConc=c(leptin$Leptin[1:wrapIdx], leptin$Leptin[wrapIdx+1:length(leptin$Time)])
+#leaptDay =c(leptin$Daylight[1:wrapIdx], leptin$Daylight[wrapIdx+1:length(leptin$Time)]) 
+#plot( leptin$Leptin, col="blue", main="Leptin Concentration Over Time", xlab="Time", ylab="Leptin (ng/mL)")
+plot( newLeptinTimes, leptin$Leptin, col="lightblue", main="Leptin Concentration Over Time", xlab="Time", ylab="Leptin (ng/mL)", pch=16)
+mav <- function(x, n=5){filter(x,rep(1/n,n),sides=2)} # -> mav # from http://druedin.com/2012/08/11/moving-averages-in-r/
+lines( newLeptinTimes, mav(leptin$Leptin, 20), col="orange", lwd=4)
+westX=newLeptinTimes[min(which(leptin$Daylight == 0))]
+eastX=newLeptinTimes[max(which(leptin$Daylight == 0))]
+northY=1.03*min(leptin$Leptin)
+southY=0.97*min(leptin$Leptin)
+polygon( c( westX, westX, eastX, eastX ), c( southY,northY,northY, southY ), col="black" )
+legend(newLeptinTimes[1],16, c("moving average","leptin (ng/mL)", "night"), col=c("orange", "lightblue", NA), pch=c(NA,16,NA), fill=c(NA,NA,"black"), border=c(NA,NA,"black"), lty=c(1,NA,NA), lwd=c(4,NA,NA))
+```
+
+It appears that leptin could have some correlation with light and dark conditions (maybe even influence? but this conclusion requires further testing). Bootstrapping pairs of {time,leptin concentration} values will allow some inference.
+
+####95% CI for a Time Series
+
+```{r,echo=FALSE}
+plot( newLeptinTimes, leptin$Leptin, col="lightblue", main="Leptin Concentration Over Time w/ 95% CI", xlab="Time", ylab="Leptin (ng/mL)", pch=16)
+mav <- function(x, n=5){filter(x,rep(1/n,n),sides=2)} # -> mav # from http://druedin.com/2012/08/11/moving-averages-in-r/
+lines( newLeptinTimes, mav(leptin$Leptin, 20), col="orange", lwd=4)
+westX=newLeptinTimes[min(which(leptin$Daylight == 0))]
+eastX=newLeptinTimes[max(which(leptin$Daylight == 0))]
+northY=1.03*min(leptin$Leptin)
+southY=0.97*min(leptin$Leptin)
+polygon( c( westX, westX, eastX, eastX ), c( southY,northY,northY, southY ), col="black" )
+legend(newLeptinTimes[1],16, c("moving average","leptin (ng/mL)", "night", "95% CI"), col=c("orange", "lightblue", NA, "blue"), pch=c(NA,16,NA,NA), fill=c(NA,NA,"black",NA), border=c(NA,NA,"black",NA), lty=c(1,NA,NA,2), lwd=c(4,NA,NA,2))
+#####
+leptinIdxs=seq(from=1,to=length(leptin$Leptin), by=1) # make an array of indexes to use, slightly silly, but hurrying
+deals = 10000
+bootmavs = matrix ( rep(NA, length(leptin$Leptin) * deals), nrow=deals, ncol=length(leptin$Leptin) )
+boottimes = matrix ( rep(NA, length(leptin$Leptin) * deals), nrow=deals, ncol=length(leptin$Leptin) )
+# create an array of mavs
+for (i in 1 : deals) {
+  bootidxs = sample (leptinIdxs, length(leptin$Leptin), replace = TRUE)
+  bootdataconc = leptin$Leptin[sort(bootidxs)]
+  bootdatatimes = leptin$Leptin[sort(bootidxs)]
+  bootmavs[i,1:length(bootdataconc)] <- mav(bootdataconc,n=20)
+  boottimes[i,1:length(bootdatatimes)] <- bootdatatimes
+}
+ciMavHigh=rep(NA, length(leptin$Time))
+ciMavLow=rep(NA, length(leptin$Time))
+for ( i in 1:length(leptin$Time)) {
+  if (!is.na(bootmavs[1,i])) {
+    ciMavHigh[i] <- quantilefx(bootmavs[1:deals,i],97.5)
+    ciMavLow[i] <- quantilefx(bootmavs[1:deals,i],2.5)
+    }
+}
+lines( newLeptinTimes, ciMavHigh, col="blue", lwd=2, lty=2)
+lines( newLeptinTimes, ciMavLow, col="blue", lwd=2, lty=2)
+#I'm not actually sure if this is completely correct; didn't have time to read e.g. http://link.springer.com/article/10.1007%2FBF02589032#page-1
+```
+
+Placing a 95% CI on this chart over time suggests that the time sequence data rising and falling is a significant feature of this data. The rise and fall is probably dependent on light and dark cycling, although this cannot be determined from the current analysis.
+
+See also : http://irregularwebcomic.net/comics/irreg2653.jpg
+
+Made with R 
+```{r, echo=FALSE}
+version
+```

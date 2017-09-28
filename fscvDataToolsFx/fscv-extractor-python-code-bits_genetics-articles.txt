@@ -1,0 +1,144 @@
+from scipy import special, optimize
+
+import numpy as np
+aa=np.fromfile('/Users/andrewhowe/tarheelSample.fscv','>i2',-1,'')
+
+f = open('intfile', 'w')
+
+for ii in range(0, aa.size) :
+	f.write(str(aa[ii]))
+	f.write('\t')
+	
+f.close
+
+
+aa=np.fromfile('/Users/andrewhowe/tarheelSample.fscv','char',-1,'')
+
+
+f = open(filename, "rb")
+s = f.read(8)
+x, y, z = struct.unpack(">hhl", s)
+
+
+f = open('/Users/andrewhowe/tarheelSample.fscv', "rb")
+for ii in range(1, 12000) :
+    s = f.read(32)
+    for element in struct.unpack(">hhhhhhhhhhhhhhhh", s) :
+        print(element)
+        print('\t')
+    print('\n')
+
+
+
+x, y, z = 
+
+
+
+imp=imphas(:,1:2:100); phase=imphas(:,2:2:100);
+
+
+[17 28 32]
+
+imphasPrevious=[22.325	30.6	31.797	52.6	54.016	70.9	64.595	74.9	78.167	79.6	92.291	81.8	109.100	84.4	121.420	87.6	139.080	93.9	150.900	94.3	159.770	96.8	336.370	130.0	371.240	150.0	32.769	113.0	314.510	148.0	607.840	-151.0	414.360	-162.0	282.080	-122.0	274.830	-124.0	344.770	-129.0	132.470	-120.0	115.080	-120.0	147.080	-113.0	113.010	-117.0	109.900	-101.0	96.746	-94.3	79.235	-103.0	84.164	-98.6	70.437	-105.0	63.378	-99.7	50.791	-99.6	57.309	-99.1	46.168	-96.2	46.719	-101.0	41.693	-96.1	36.488	-96.8	32.964	-94.4	30.330	-97.7	25.522	-91.4	24.101	-98.7	23.496	-99.2	21.759	-99.1	22.188	-100.0	22.386	-115.0	22.282	-108.0	24.185	-99.6	37.552	-123.0	53.091	169.0	10.846	111.0	4.180	94.7	;
+19.725	18.6	38.221	25.3	64.209	-30.9	48.779	-52.0	38.264	-61.4	30.533	-65.6	25.857	-68.4	22.619	-70.4	20.230	-71.6	18.232	-72.3	16.776	-72.9	10.306	-74.0	4.805	-73.4	4.601	-68.3	3.651	-73.2	2.978	-73.2	2.729	-73.3	2.357	-73.4	2.067	-73.2	1.855	-73.2	1.693	-73.5	1.546	-73.2	1.433	-73.1	1.335	-72.9	1.244	-73.0	1.100	-73.1	0.971	-72.9	0.867	-72.7	0.793	-72.5	0.722	-72.4	0.621	-72.2	0.553	-71.7	0.495	-71.4	0.496	-71.5	0.453	-71.0	0.413	-70.7	0.356	-70.4	0.317	-70.0	0.284	-69.3	0.261	-69.1	0.240	-68.4	0.223	-67.9	0.207	-67.2	0.198	-67.3	0.186	-66.2	0.178	-65.7	0.160	-64.0	0.146	-63.0	0.131	-60.0	0.121	-56.1	;
+21.512	26.9	33.952	43.8	85.490	41.4	129.800	21.0	163.460	-12.4	125.940	-41.6	96.912	-56.5	78.138	-64.0	65.096	-69.1	55.337	-71.1	49.780	-72.5	26.690	-75.5	12.071	-75.9	7.875	-81.2	9.000	-75.7	7.246	-75.5	6.594	-75.3	5.657	-75.4	4.955	-75.4	4.438	-75.1	4.066	-74.6	3.684	-74.7	3.432	-74.1	3.160	-74.3	2.927	-74.3	2.614	-73.9	2.307	-73.9	2.056	-73.5	1.878	-73.4	1.717	-73.2	1.472	-73.1	1.316	-72.4	1.189	-71.8	1.178	-71.9	1.080	-72.3	0.990	-72.0	0.855	-71.7	0.764	-71.3	0.683	-71.2	0.633	-71.1	0.581	-70.8	0.544	-70.8	0.506	-70.7	0.480	-70.7	0.454	-70.2	0.431	-70.2	0.389	-69.3	0.359	-69.1	0.318	-67.0	0.302	-65.2	];
+
+impPrev=imphasPrevious(:,1:2:100); phasePrev=imphasPrevious(:,2:2:100);
+
+
+figure; subplot(2,1,1); plot(log10(hz),log10(impPrev)); legend('ch 17','ch 28','ch 32'); ylabel('impedance log(Mohms)'); title('fscv bode plot probe old* design for headcap bode'); subplot(2,1,2); plot(log10(hz),(phasePrev)); legend('ch 17','ch 28','ch 32'); xlabel('log(Hz)'); ylabel('phase (deg)');
+
+
+
+
+http://www.thisiscolossal.com/2016/05/violent-rabbit-illustrations-found-in-the-margins-of-medieval-manuscripts/?src=footer
+http://www.thisiscolossal.com/2016/05/onbashira-log-moving-festival/?src=footer
+http://www.thisiscolossal.com/2016/05/ingenious-hand-puppet-capable-of-pointing-grabbing-and-talking/?src=footer
+http://www.thisiscolossal.com/2016/06/new-magnitized-planters-allow-your-garden-to-levitate-in-the-air/
+http://www.thisiscolossal.com/2016/06/impermanent-anatomical-drawings-on-chalkboards-by-chuan-bin-chung/
+
+
+VetstreetExCoder2011
+
+
+
+
+
+f = open(filename, "rb")
+s = f.read(8)
+x, y, z = struct.unpack(">hhl", s)
+
+
+
+Matlab Tutorial : Video Processing 1 - Object Detection by Color Thresholding
+http://www.bogotobogo.com/Matlab/Matlab_Tutorial_Video_Processing_1_Object_Detection_by_Color_Thresholding.php
+
+
+https://www.researchgate.net/post/How_do_I_set_uniform_intensity_on_an_image_in_MATLAB
+
+adapthisteq -- Contrast-limited adaptive histogram equalization (CLAHE)
+http://www.mathworks.com/help/images/ref/adapthisteq.html?refresh=true
+
+Enhance Local Contrast (CLAHE)
+http://imagej.net/Enhance_Local_Contrast_(CLAHE)
+
+Adaptive histogram equalization
+https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE
+
+
+
+
+Bacterial Adaptation through Loss of Function
+Alison K. Hottes,  Peter L. Freddolino,  Anupama Khare,  Zachary N. Donnell,  Julia C. Liu,  Saeed Tavazoie
+http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1003617
+
+
+Feedback Regulation of the Heat Shock Response in E. coli
+
+Origins and Evolution of Antibiotic Resistance
+http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2937522/
+
+Evolutionary Chance Mutation: A Defense of the Modern Synthesis’ Consensus View
+http://quod.lib.umich.edu/p/ptb/6959004.0002.003/--evolutionary-chance-mutation-a-defense-of-the-modern?rgn=main;view=fulltext
+
+Are mutations truly random?
+http://www.the-scientist.com/?articles.view/articleNo/27910/title/Are-mutations-truly-random-/
+
+
+Genes Are Not Immune to Context
+http://natureinstitute.org/pub/ic/ic12/genes.htm
+
+Mutation Frequencies and Antibiotic Resistance
+http://aac.asm.org/content/44/7/1771.full
+
+Developing insights into the mechanisms of evolution of bacterial pathogens from whole-genome sequences
+http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3996552/
+
+Genes Are Not Immune to Context
+http://natureinstitute.org/pub/ic/ic12/genes.htm
+
+Selection against Accumulating Mutations in Niche-Preference Genes Can Drive Speciation
+Niclas Norrström, Wayne M. Getz, Noél M. A. Holmgren 
+Published: December 27, 2011
+http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0029487
+
+
+
+http://svenand.blogdrive.com/archive/172.html#.V1rfOOYrJE5
+https://reference.digilentinc.com/digilent_adept_2#software_downloads
+https://docs.google.com/document/d/1UE0DbjcgxSBL-tupjh0WPn6ccg8l0m1wFA07vDALMLk/edit
+
+
+inhalation anaesthetic -- isofourane effects
+https://www.cdc.gov/niosh/pdfs/77-140b.pdf
+http://repository.usfca.edu/cgi/viewcontent.cgi?article=1201&context=capstone
+http://www.drugs.com/pro/isoflurane.html
+https://www.linux.com/blog/find-usb-device-details-linuxunix-using-lsusb-command
+
+
+RoadRunner1924
+
+This service has encountered an unknown error. Please try again later. Error code: -42637637
+
+We were unable to retrieve your account information and apologize for the inconvenience. Please try again later.
+Error Code: STMTINFO

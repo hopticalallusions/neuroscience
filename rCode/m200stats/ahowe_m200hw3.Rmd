@@ -1,0 +1,788 @@
+---
+title: "BioStats m200 Homework 3"
+author: "Andrew Howe"
+date: "April 25, 2015"
+output: html_document
+---
+
+
+#Part I
+##Further Reading
+
+1. Failure to clearly report sample size in text
+2. Failure to provide 95% confidence interval for a correlation coefficient
+3. Inappropriate regression line in plot when only correlation is calculated
+4. Failure to address or exclude outliers in plots and calculations
+5. Inappropriate use of a correlation coefficient when either of the following is true :
+  + sample size is small
+  + data plot suggests a non-linear association
+6. Inappropriate use of Pearson (linear) correlation coefficient when Spearman (monotonic nonlinear) correlation coefficient is appropriate
+7. Failure to identify and address heteroscedasticity (variation in variance)
+8. Inappropriate satisfaction with an outcome based solely on significance value
+9. Failure to report sample size in figure
+10. Confusion of correlation with regression
+11. Failure to provide anything but a correlation coefficient on data plot
+12. Failure to state the type of regression line plotted
+13. Failure to depict 95% confidence interval around an appropriate regression line
+14. Failure to provide hyperbolic 95% confidence intervals for the regression line
+15. Inappropriate comparison of regression slope instead of analysis of covariance statistic
+
+On the whole, these errors render results difficult to interpret at best, and downright misleading at worst. 
+
+#Part II
+##Data Analysis
+
+```{r, echo=FALSE, message=FALSE, results='hide'}
+
+#####
+# Initialization block.
+#####
+
+chooseCRANmirror(ind=88) # go Bruin
+
+#include (couldn't resist the joke)
+require("aplpack") || { install.packages("aplpack"); library(aplpack) } # for bagplot
+require("vioplot") || { install.packages("vioplot"); library(vioplot) } # for violin plots
+require("ggplot2") || { install.packages("ggplot2"); library(ggplot2) } # for ggplot2 does many cool things
+require("shiny") || { install.packages("shiny"); library(shiny) } # ooouuuuu shiiiiny
+
+require("dplyr") || { install.packages("dplyr"); library(dplyr) } # 
+require("tidyr") || { install.packages("tidyr"); library(tidyr) } # 
+# tidr and dplyr allow data summaries and other fun stuff
+
+require("reshape2") || { install.packages("reshape2"); library(reshape2) } # 
+require("minerva") || { install.packages("minerva"); library(minerva) } # 
+require("lattice") || { install.packages("lattice"); library(lattice) } # 
+
+
+# set the directory
+if ( Sys.info()["nodename"] == "andrewhowes-MacBook-Pro.local") { 
+  # interestingly, the UCLA VPN screws up this trick.
+  dir <- "/Users/andrewhowe/toSort/m200-stats/homeworks/problemSet3/" 
+} else  { 
+  setwd(".") 
+  dir <- "./"
+} 
+
+filename = "VEGF.csv"
+read.csv( file = file.path( dir, filename ), head=TRUE, sep="," ) -> vegfdata
+filename = "Cytokine.csv"
+read.csv( file = file.path( dir, filename ), head=TRUE, sep="," ) -> cytodata
+
+# establish some nice functions here
+
+# Khris's cast
+# this is nice.
+
+castvegf <- acast( vegfdata, PID~Time.Point, value.var = "VEGF")
+# I seem to have lost all the notes on how to use this for fun and profit.
+# dammit.
+
+
+vegftime1 <- vegfdata$VEGF[which(vegfdata$Time.Point==1)]
+vegftime2 <- vegfdata$VEGF[which(vegfdata$Time.Point==2)]
+
+
+
+
+
+
+# apply command might do something helpful
+
+#function(dat, repats, stat=NULL, ...) {
+#  stat<- if(~is.null(stat)){match.fun(stat)}
+#  
+#}
+
+# for a and b
+
+# bootstrap ratio and then bootstrap difference
+# we will have 4 total bootstraps
+
+# division of medial to lateral
+# repeat the above, but take the difference
+
+# two different  
+
+booting <- function( data, stat=NULL, deals, param=NULL) {
+  if(!is.null(stat)) {
+    match.fun(stat)
+  }
+  booted <- rep(NA, deals)
+  for ( thisSample in 1:deals) {
+    hand <- sample( data, length(data), replace = T)
+    booted[thisSample] <- stat(hand)
+  }
+  return(booted)
+}
+
+
+addGaussianMetrics <- function( theData, whereAt=1, giveString=FALSE) {
+  xbar=mean( theData )
+  stdev=sd( theData )
+  if  (giveString) {
+    return( c( str(round(xbar, digits = 3 )), "±", str(round(stdev, digits = 3 )) ))
+  } else {
+    points( x=c( xbar, xbar-stdev, xbar+stdev, xbar-2*stdev, xbar+2*stdev), y=rep(x=whereAt, times=5), pch=c( "x", "(", ")", "{", "}"), col="red", cex=.8)
+    #return
+  }
+}
+
+
+bigBooty <- function( dataA, dataB, deals, calcType="minus" ) {
+  #
+  # Null Hypothesis : median(population_a) == median(population_b) | population_a == population_b
+  #
+  # "The medians are equal given that the populations sampled are the same."
+  #
+  # To find a p-value of this dataset, utilize the same metric on the actual data, and compare its position in the population to everything. The p-value provides the probability of finding a value more extreme than the value observed.
+
+  dataAB <- c( dataA, dataB)
+  bigBootyResults <- rep(NA, deals)
+  
+  if ( calcType == "minus" ) {
+    temp <- 0 # geez. lazy.
+  } else if ( calcType == "ratio") {
+      temp <- 0 # geez. lazy.
+  } else {
+    print(paste("bigBooty doesn't implement ", str(type), " !!!"))
+  }
+  
+  for ( thisHand in 1:deals) {
+    handsBootyDataA <- sample( dataAB, length(dataA), replace = T)
+    handsBootyDataB <- sample( dataAB, length(dataB), replace = T)
+    if ( calcType == "minus" ) {
+      bigBootyResults[thisHand] <- median(handsBootyDataB) - median(handsBootyDataA)
+    } else if ( calcType == "ratio") {
+      bigBootyResults[thisHand] <- median(handsBootyDataB) / median(handsBootyDataA)
+    }
+      
+  }
+  return(bigBootyResults)
+}
+
+quantilefx <- function( data, quantile=97.5 ) {
+  sort(data) -> sortedData
+  return(sortedData[round(length(sortedData)*(quantile/100))])
+}
+
+# use this when it is assumed that the populations are different
+dualBooty <- function( dataA, dataB, deals, calcType="minus") {
+  #
+  # Null Hypothesis : median(population_a) == median(population_b) | population_a != population_b
+  #
+  # "What is the probability of finding equal medians, 
+  #    given the assumption that the two populations are different."
+  
+  dualBootyResults <- rep(NA, deals)
+  
+  if ( calcType == "minus" ) {
+    # center the boxes
+    boxA <- dataA - median(dataA)
+    boxB <- dataB - median(dataB)
+  } else if ( calcType == "ratio") {
+    # the goal here is to center the distribution around 1, and linearize the calculations
+    boxA <- dataA / median(dataA)
+    boxB <- dataB / median(dataB)
+  } else {
+    print(paste("dualBooty doesn't implement ", str(type), " !!!"))
+    return(dualBootyResults)
+  }
+    
+  for ( thisHand in 1:deals) {
+    handsBootyDataA <- sample( boxA, length(dataA), replace = T)
+    handsBootyDataB <- sample( boxB, length(dataB), replace = T)
+    if ( calcType == "minus" ) {
+      dualBootyResults[thisHand] <- median(handsBootyDataB) - median(handsBootyDataA)
+    } else if ( calcType == "ratio") {
+      dualBootyResults[thisHand] <- median(handsBootyDataB) / median(handsBootyDataA)
+    }
+  }
+  return(dualBootyResults)
+}
+
+madam <- function(data) {
+  return(median(abs(data-median(data))))
+}
+
+
+compareBinning <- function(data=NULL, numBins=c(10,20,40,80)) {
+  if ( is.null(data) ) {
+    warning('compareBinning is not going to histogram nothing.')
+    return
+  }
+  if ( length(numBins) != 4 ) {
+    warning('compareBinning is only using the first 4 values!')
+  }
+  
+  plot.new()
+  frame()
+  par(mfrow = c(2,2))
+  #
+  for (binIdx in 1:4) {
+    hist( data, breaks = numBins[binIdx], main = paste("All Densities, ", numBins[binIdx],"Bins"), xlab="cell density", col="lightgreen", density=60, xlim=c(min(data) * .95, max( data) * 1.05), axes = FALSE)
+    axis( 1, lwd=0, lwd.ticks = 1 )
+    axis( 2, las=1, lwd=0, lwd.ticks = 1 )
+    
+    addGaussianMetrics( dabdata$counts, 0.5 ) 
+  }
+}
+
+
+calcPvalue <- function( observedValue, valueDistribution ) {
+
+  pivotValue = round(median(valueDistribution))
+  # this is the center of the null hypothesis; it will be the most likely result of the bootstrap
+  # rounding because simulation will return approximate answers
+  # examples :
+  #   ratio -- pivot should be 1 
+  #   difference -- pivot should be zero
+  if (observedValue < pivotValue ) {
+    sortDecreasing = FALSE
+    # ASSUMES LINEARIZED COMPARISON DISTRO
+    evilTwin = pivotValue + ( pivotValue - observedValue )
+    # for example, ratio pivotValue = 1, observed =  0.8 => evilTwin would be 1.2
+    # for example, diff. pivotValue = 0, observed = -0.3 => evilTwin would be 0.3
+  } else {
+    sortDecreasing = TRUE
+    evilTwin = pivotValue + ( pivotValue - observedValue )
+    # for example, ratio pivotValue = 1, observed =  1.3 => evilTwin would be 0.7
+    # for example, diff. pivotValue = 0, observed = 0.13 => evilTwin would be -0.13
+  }
+  
+  # calculate both tails
+  partOne = which(sort(c(observedValue, valueDistribution), decreasing = sortDecreasing)==observedValue )
+  partTwo = which(sort(c(evilTwin, valueDistribution), decreasing = !sortDecreasing)==evilTwin )
+
+  # min value is 2 because the above will return two ones as indices, so subtract 2 to correct
+  # this will return zero when the observed value is beyond the observations
+  pval = ( partOne + partTwo - 2 ) / length(valueDistribution)
+  prec = floor(log10(length(valueDistribution)))
+  
+  pvalCorrected = round(pval, prec)
+  
+  # return the pvalue rounded to an appropriate precision based on the available samples
+  return(pvalCorrected)
+}
+
+
+bootHist <- function( ratioBootyData, center, n = -1, mainText = '', xText='' ) {
+  tempHist <- hist(ratioBootyData, breaks=50, plot = FALSE)
+  
+  lowerTwoish = quantilefx(ratioBootyData, 2.5)
+  upperNinetySeventhish = quantilefx(ratioBootyData, 97.5)
+  
+  # calculate these ridiculous indices
+  #this is terrible.
+  cyanRealLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 1) ))
+  cyanRealHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 99)))
+  # arg.
+  
+  greenLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 2.5) )) - cyanRealLow
+  greenHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 97.5))) - cyanRealHigh
+  redCount = length(tempHist$mids) - ( greenHigh + greenLow + cyanRealLow + cyanRealHigh + 1 )
+  
+  plot(tempHist,col=c(rep("cyan",cyanRealLow), rep("green",greenLow), rep("lightgrey",redCount), rep("green", greenLow), rep("cyan",cyanRealHigh)), xlab=xText, main=mainText, las=1, xlim = range(c(tempHist$breaks, center)), ylim = c(0, max(tempHist$counts)*1.2))
+  #
+  # this is very poor programming...
+  lines(c(quantilefx(ratioBootyData, 97.5), quantilefx(ratioBootyData, 97.5)),c(0, max(tempHist$counts)*.99), lwd=2, col='green', lty=3)
+  text( quantilefx(ratioBootyData, 97.5), max(tempHist$counts)*1.05, paste('97.5%\n', round(quantilefx(ratioBootyData, 97.5),2)), col = 'darkgreen')
+  
+  lines(c(quantilefx(ratioBootyData, 2.5), quantilefx(ratioBootyData, 2.5)),c(0, max(tempHist$counts)*.99), lwd=2, col='green', lty=3)
+  text( quantilefx(ratioBootyData, 2.5), max(tempHist$counts)*1.05, paste('2.5%\n', round(quantilefx(ratioBootyData, 2.5),2)), col = 'darkgreen')
+
+  lines(c(center, center),c(0, max(tempHist$counts)*1.05), lwd=2, col = 'blue')
+  pv <- calcPvalue( center, ratioBootyData )
+  # this is terrible.
+  if ( pv == 0 ) {
+    pv = 1/length(ratioBootyData)
+    text( center, max(tempHist$counts)*1.09, substitute( atop(tilde(x) == a, p < b), list(a=center,b=pv ) ), pos = 2, col = 'blue' )
+  } else {
+    text( center, max(tempHist$counts)*1.09, substitute( atop(tilde(x) == a, p == b), list(a=center,b=pv ) ), pos = 2, col = 'blue' )
+  }
+  if ( n != -1 ) {
+    text( center, max(tempHist$counts)*.95, substitute( n == c, list( c=n ) ), pos = 2, col = 'blue' )
+  }
+}
+
+
+```
+
+###Vascular Endothelial Growth Factor (VEGF)
+
+####1.1 VEGF Levels at Each Timepoint
+
+Summary Statistics for VEGF Timepoints :
+
+```{r, echo=FALSE}
+dcastvegf<-dcast( vegfdata, PID~Time.Point, value.var = "VEGF")
+dcastvegf<-dcastvegf[-1] # this is annoying.
+apply( dcastvegf, FUN=summary, MARGIN=2 )
+print('MADAM')
+apply( dcastvegf, FUN=madam, MARGIN=2 )
+```
+
+Visualization of VEGF data at two different timepoints.
+
+```{r, echo=FALSE}
+plot(
+  1, 1, yaxt = 'n', axes=FALSE, type = 'n',  
+  ylim = c(0, 9), 
+  xlim = range(vegfdata$VEGF), 
+  xlab = 'VEGF Concentration (pg/mL)',     
+  ylab = 'Timepoint of Measurement', 
+  main='VEGF Distributions'
+)
+boxplot( 
+  dcastvegf, 
+  at=c(2,6),
+  col=c("green","lightblue"),
+  main='',  ylab='',  xlab='', 
+  horizontal=TRUE, axes=FALSE, add=TRUE
+)
+stripchart( 
+  dcastvegf, 
+  at=c(3,7), 
+  method='jitter', add=TRUE, vertical = FALSE, 
+  pch=22, cex=1, col=NA, bg=c("#00000033","#00000033")
+)
+# make Gaussian visualization
+themeans=apply(dcastvegf,2,FUN = mean)
+thestdevs=apply(dcastvegf,2,FUN = sd)
+points(c(themeans, themeans+thestdevs, themeans-thestdevs,themeans+2*thestdevs, themeans-2*thestdevs), c(1,5,1,5,1,5,1,5,1,5), pch=c('X','X',')',')','(','(','}','}','{','{'), col='red')
+# make axes
+axis(2, at = c(2,6), labels = c('1', '2'), las=1, line=NA, lwd=0, lwd.ticks = 0)
+axis(1, at = seq(from = floor(min(vegfdata$VEGF)), to=ceiling(max(vegfdata$VEGF)), by=100), lwd=0, lwd.ticks = 1)
+text(1623,7.5,"n(1,2)=(22,22)")
+
+```
+
+####1.2 QQ Plots of VEGF Data
+
+```{r, echo=FALSE}
+# I appreciate the utility of cast data because it should work like SQL return tables,
+# BUT
+# it refuses to cooperate in an easily identifiable manner with plots.
+
+qqnorm(vegftime1, main="QQ Plot for VEGF Time 1", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgreen", las=1)
+qqline(vegftime1, col="red")
+legend(-1,1200, c("real data", "perfect"), col=c("darkgreen", "red"), pch=c("o",NA), lty=c(NA,1))
+```
+
+```{r, echo=FALSE}
+# I appreciate the utility of cast data because it should work like SQL return tables,
+# BUT
+# it refuses to cooperate in an easily identifiable manner with plots.
+qqnorm(vegftime2, main="QQ Plot for VEGF Time 2", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgreen", las=1)
+qqline(vegftime2, col="red")
+legend(-1,1200,c("real data", "perfect"), col=c("darkgreen", "red"), pch=c("o",NA), lty=c(NA,1))
+```
+
+####1.3 Summary and Appropriate Descriptors
+
+At both timepoints, VEGF data is skewed, with data concentrated to the left of the median and spread to the right of the median, giving the data a fat right tail. Each time point only has 22 measurements associated with it, rendering histograms less helpful. Instead, a stripchart is displayed alongside a boxplot and Gaussian summary statistics (red symbols where the mean is the X and one and two standard deviations away from the mean are depicted with parenthesis and curly braces, respectively).
+
+Both data sets contain outliers in the high end of VEGF concentration. In both cases, the outliers pull the means of the data away from the median.
+
+At timepoint one, there is a relatively tight group of data concentrated in the 25th percentile. 
+
+Combined with the observations in the QQ plot, it is fairly clear that this data cannot be appropriately described with Gaussian summary statistics. Central tendency is best described by the median.
+
+**Median**
+
+```{r, echo=FALSE}
+print('timepoint')
+apply( dcastvegf, 2, FUN=median)
+```
+
+**MAD**
+
+```{r, echo=FALSE}
+print('timepoint')
+apply( dcastvegf, 2, FUN=madam)
+```
+
+####2. Bootstrapping
+
+**Median Bootstraping**
+
+*This list apply function does not seem to want to provide anything but the first title. It should be titled T1 and then T2.
+
+```{r, echo=FALSE}
+vegfMedianBoots <- apply( dcastvegf, 2, FUN=booting, deals=10000, stat=median)
+bh<-apply( vegfMedianBoots, 2, FUN=hist, breaks=25, plot=FALSE)
+lapply(bh, FUN = plot, xlab=list('VEGF medians (pg/mL)','VEGF medians (pg/mL)'), main=list('T1 VEGF Median Bootstraps','T2 VEGF Median Bootstraps'))
+```
+
+**MAD Bootstrapping**
+
+*This list apply function does not seem to want to provide anything but the first title. It should be titled T1 and then T2.
+
+```{r, echo=FALSE}
+vegfMadamBoots <- apply( dcastvegf, 2, FUN=booting, deals=10000, stat=madam)
+bh<-apply( vegfMadamBoots, 2, FUN=hist, breaks=25, plot=FALSE)
+lapply(bh, FUN = plot, xlab=list('VEGF MADs (pg/mL)','VEGF MADs (pg/mL)'), main=list('T1 VEGF MAD Bootstraps','T2 VEGF MAD Bootstraps'))
+```
+
+
+####Bootstrapped Summary Statistics
+
+**Median Bootstrap Summary Stats**
+
+```{r, echo=FALSE}
+apply( vegfMedianBoots, 2, FUN = summary)
+```
+
+**MAD Bootstrap Summary Stats**
+
+```{r, echo=FALSE}
+apply( vegfMadamBoots, 2, FUN = summary )
+```
+
+####95% Confidence Intervals on Medians
+
+**Lower 95% CI :**
+
+```{r, echo=FALSE}
+print('timepoint')
+apply( vegfMedianBoots, 2, FUN = quantilefx, quantile = 2.5)
+```
+
+**Median :**
+
+```{r, echo=FALSE}
+apply( dcastvegf, 2, FUN=median)
+```
+
+**Upper 95% CI**
+
+```{r, echo=FALSE}
+apply( vegfMedianBoots, 2, FUN = quantilefx, quantile = 97.5)
+```
+
+####95% Confidence Intervals on MADs
+
+**Lower 95% CI :**
+
+```{r, echo=FALSE}
+print('timepoint')
+apply( vegfMadamBoots, 2, FUN = quantilefx, quantile = 2.5)
+```
+
+**Madam :**
+
+```{r, echo=FALSE}
+apply( dcastvegf, 2, FUN=median)
+```
+
+**Upper 95% CI :**
+
+```{r, echo=FALSE}
+apply( vegfMadamBoots, 2, FUN = quantilefx, quantile = 97.5)
+```
+
+####3. Bootstrapped Effect Size with Confidence Intervals
+
+**Effect Size**
+
+```{r, echo=FALSE}
+indvEffectSizes = dcastvegf[2]-dcastvegf[1]
+
+plot(
+  1, 1, yaxt = 'n', axes=FALSE, type = 'n',  
+  ylim = c( 0, 4 ), 
+  xlim = range( indvEffectSizes ), 
+  xlab = 'VEGF Concentration Difference (pg/mL)',     
+  ylab = '', 
+  main='Change in VEGF ( T2 - T1 )'
+)
+boxplot( 
+  indvEffectSizes, 
+  at=c(2),
+  col=c("green","lightblue"),
+  main='',  ylab='',  xlab='', 
+  horizontal=TRUE, axes=FALSE, add=TRUE
+)
+stripchart( 
+  indvEffectSizes, 
+  at=c(3), 
+  method='jitter', add=TRUE, vertical = FALSE, 
+  pch=22, cex=1, col=NA, bg=c("#00000033","#00000033")
+)
+# make Gaussian visualization
+themeans=apply(indvEffectSizes,2,FUN = mean)
+thestdevs=apply(indvEffectSizes,2,FUN = sd)
+points(c(themeans, themeans+thestdevs, themeans-thestdevs,themeans+2*thestdevs, themeans-2*thestdevs), c(1,1,1,1,1), pch=c('X',')','(','}','{'), col='red')
+# make axes
+axis(2, at = c(2), labels = '', las=1, line=NA, lwd=0, lwd.ticks = 0)
+  axis(1, at = seq(from = floor(min(indvEffectSizes)), to=ceiling(max(indvEffectSizes)), by=100), lwd=0, lwd.ticks = 1)
+text(-75,3.5,"n = 22")
+```
+
+**Assuming the populations are different :**
+
+```{r, echo=FALSE}
+dualBooted<-dualBooty(dataA = vegftime2, dataB = vegftime1, deals = 10000, calcType = "minus")
+# I think this is an INappropriate bootstrap.
+bootHist(dualBooted,center=median(vegftime2-vegftime1), mainText='2-Box Bootstrapped VEGF Difference', xText='VEGF Difference (after-before)')
+```
+
+**Assuming the populations are the same :**
+
+```{r, echo=FALSE}
+bigBooted<-bigBooty(dataA = vegftime2, dataB = vegftime1, deals = 10000, calcType = "minus")
+# I think this is an INappropriate bootstrap.
+bootHist(bigBooted,center=median(vegftime2-vegftime1), mainText='Big Box Bootstrapped VEGF Difference', xText='VEGF Difference (after-before)')
+```
+
+The difference before and after surgery is not significant.
+
+###Statistical Independence
+
+Are these cytokine levels related?
+
+####1. Cytokine Pair Scatterplot
+
+```{r, echo=FALSE, warning=FALSE}
+panel.hist <- function(x,...) {
+  # Winston Chang. "O'Reilly Media, Inc.", 2013, ch.5; p.114; 
+  usr <- par('usr')
+  on.exit(par(usr))
+  par(usr = c(usr[1:2], 0, 1.5))
+  h <- hist(x, plot=FALSE)
+  breaks <-h$breaks
+  nB <- length(breaks)
+  y <- h$counts
+  y <- y/max(y)
+  rect( breaks[-nB], 0, breaks[-1], y, col='white', ...)
+}
+
+# contour plot, but I don't have time to make it work the way this demonstrates
+# http://stackoverflow.com/questions/28182872/how-to-use-different-sets-of-data-in-lower-and-upper-panel-of-pairs-function-in
+
+pnl.lg <- function( x, y, ... ) {
+  usr <- par('usr')
+  on.exit(par(usr))
+  # inefficient, but in a hurry.
+  #lgplt <- plot(log(x),log(y))
+  #par(usr = c( 0, 5, 0, 5 ))
+  xlim=range(log(x), na.rm = TRUE)
+  ylim=range(log(y), na.rm = TRUE)
+  par(usr = c( floor(xlim[1]), ceiling(xlim[2]), floor(ylim[1]), ceiling(ylim[2])  ))
+  points( log(x), log(y), pch=20, col='blue' ) # this will cause errors.
+  lines(loess.smooth(log(x),log(y)), col='brown')
+  text(x = floor(xlim[1]), y = ylim[2], 'log-log', pos=4)
+}
+fixedCyto <- cytodata[complete.cases(cytodata),]
+pairs( fixedCyto, lower.panel = panel.smooth, pch=20, diag.panel = panel.hist, upper.panel = pnl.lg )
+```
+
+Histograms of the data are plotted along the identity line of the matrix. Upper panels contain log-log plots (blue points) with Loess smoothed x-y lines (red) plotted through the points. Lower panels contain raw data plots with smoothed x-y lines (red). Each plot contains `r dim(cytodata)` columns by all possible pairs of the second dimension.
+
+None of these plots are characteristically Gaussian bivariate distributions. 
+
+Each linear (lower panels) plot contains at least one clear outlier.
+
+These plots reveal that IL.1b vs IFN.g is heteroskedastic (in the y axis in the lower panel).
+
+#####An Appropriate Measure of Association
+
+Given the assumptions of Gaussian characteristics for Pearson correlation and linear regression, neither approach is appropriate with these data sets. Instead, I will use Spearman correlation.
+
+####2. Estimation of Association
+
+**Spearman Correlation** of :
+
+*cytodata$IL.1b X cytodata$IL.10*
+
+```{r,echo=FALSE}
+cor( cytodata$IL.1b, cytodata$IL.10, method='spearman', use = "pairwise.complete.ob")
+```
+
+*cytodata$IL.1b X cytodata$IFN.g*
+
+```{r,echo=FALSE}
+cor( cytodata$IL.1b, cytodata$IFN.g, method='spearman', use = "pairwise.complete.ob")
+```
+
+*cytodata$IL.1b X cytodata$IL.10*
+
+```{r,echo=FALSE}
+cor( cytodata$IL.1b, cytodata$IL.10, method='spearman', use = "pairwise.complete.ob")
+```
+
+##### Bootstraps on Estimation
+
+```{r, echo=FALSE}
+# I'm too sleepy to match functions right now.
+ciSpearman <- function( dataA, dataB, deals = 10000) {
+  ciSpearmanResults <- rep(NA, deals)
+  idxs = c( 1:length(dataA) )
+  for ( thisHand in 1:deals) {
+    bootyIdxs <- sample( idxs, length(dataA), replace = T )
+    ciSpearmanResults[thisHand] <- cor( dataA[bootyIdxs], dataB[bootyIdxs], method = 'spearman', use = "pairwise.complete.ob" )
+  }
+  return(ciSpearmanResults)
+}
+```
+
+*Confidence Intervals for Spearman Correlation*
+
+Here, we repeatedly test the correlation coefficient with resampling of the available data to estimate the range of the correlation statistic.
+
+```{r, echo=FALSE}
+ciSpearmanBootsILbIL10 <- ciSpearman( cytodata$IL.1b, cytodata$IL.10 )
+bootHist(ratioBootyData = ciSpearmanBootsILbIL10, center = cor(cytodata$IL.1b, cytodata$IL.10, method = 'spearman', use = "pairwise.complete.ob" ), mainText = 'Spearman Corr. Coeff. 95% CI Bootstrap\nIL.1b X IL.10', xText = 'Spearman Correlation' )
+```
+
+```{r, echo=FALSE}
+ciSpearmanBootsILbIFN <- ciSpearman( cytodata$IL.1b, cytodata$IFN.g )
+bootHist(ratioBootyData = ciSpearmanBootsILbIFN, center = cor(cytodata$IL.1b, cytodata$IFN.g, method = 'spearman', use = "pairwise.complete.ob" ), mainText = 'Spearman Corr. Coeff. 95% CI Bootstrap\nIL.1b X IFN.g', xText = 'Spearman Correlation' )
+```
+
+```{r, echo=FALSE}
+ciSpearmanBootsIL10IFN <- ciSpearman( cytodata$IL.10, cytodata$IFN.g )
+bootHist(ratioBootyData = ciSpearmanBootsIL10IFN, center = cor(cytodata$IL.10, cytodata$IFN.g, method = 'spearman', use = "pairwise.complete.ob" ), mainText = 'Spearman Corr. Coeff. 95% CI Bootstrap\nIL.10 X IFN.g', xText = 'Spearman Correlation' )
+```
+
+####3. Null Hypothesis Significance Test (NHST) for Spearman
+
+
+```{r, echo=FALSE}
+bhstSpearman <- function( dataA, dataB, deals = 10000) {
+  bhstSpearmanResults <- rep(NA, deals)
+  idxs = c( 1:length(dataA) )
+  for ( thisHand in 1:deals) {
+    bootyIdxs <- sample( idxs, length(dataA), replace = F )
+    bhstSpearmanResults[thisHand] <- cor( dataA[bootyIdxs], dataB, method = 'spearman', use = "pairwise.complete.ob" )
+  }
+  return(bhstSpearmanResults)
+}
+```
+
+*NHST for Spearman Correlation*
+
+Here, we test significance by repeatedly breaking the pairings of the data points; if there is a correlation present in the data, breaking the pairings should reduce the correlation. Then, we compare the observed correlation value to the population of broken-pair correlations to estimate whether a correlation exists.
+
+```{r, echo=FALSE}
+bhstSpearmanBootsILbIL10 <- bhstSpearman( cytodata$IL.1b, cytodata$IL.10 )
+bootHist(ratioBootyData = bhstSpearmanBootsILbIL10, center = cor(cytodata$IL.1b, cytodata$IL.10, method = 'spearman', use = "pairwise.complete.ob" ), n=length(cytodata$IL.10), mainText = 'Spearman NHST Bootstrap\nIL.1b X IL.10', xText = 'Spearman Correlation' )
+```
+
+```{r, echo=FALSE}
+bhstSpearmanBootsILbIFN <- bhstSpearman( cytodata$IL.1b, cytodata$IFN.g )
+bootHist(ratioBootyData = bhstSpearmanBootsILbIFN, center = cor(cytodata$IL.1b, cytodata$IFN.g, method = 'spearman', use = "pairwise.complete.ob" ), n=length(cytodata$IFN.g), mainText = 'Spearman NHST Bootstrap\nIL.1b X IFN.g', xText = 'Spearman Correlation' )
+```
+
+```{r, echo=FALSE}
+bhstSpearmanBootsIL10IFN <- bhstSpearman( cytodata$IL.10, cytodata$IFN.g )
+bootHist(ratioBootyData = bhstSpearmanBootsIL10IFN, center = cor(cytodata$IL.10, cytodata$IFN.g, method = 'spearman', use = "pairwise.complete.ob" ), n=length(cytodata$IL.10), mainText = 'Spearman NHST Bootstrap\nIL.10 X IFN.g', xText = 'Spearman Correlation' )
+
+```
+
+
+####4. *Follow All the Porter Rules*
+
+1. Failure to clearly report sample size in text
+  + *see above*
+2. Failure to provide 95% confidence interval for a correlation coefficient
+  + *see plot*
+3. Inappropriate regression line in plot when only correlation is calculated
+  + *no regression provided because only correlation calculated*
+4. Failure to address or exclude outliers in plots and calculations
+  + *outliers commented upon in text*
+  + *calculations are rank based (Spearman) mitigating outlier effects*
+5. Inappropriate use of a correlation coefficient when either of the following is true :
+  + sample size is small -- *sample size should be addequate*
+  + data plot suggests a non-linear association -- *rank based correlation should help mitigate the effect of non-linearity; some non-linear association is suggested by the vaguely linear associations in the log-log pair plot (upper panels)*
+6. Inappropriate use of Pearson (linear) correlation coefficient when Spearman (monotonic nonlinear) correlation coefficient is appropriate
+  + *used Spearman instead of Pearson because the assumptions of Pearson were not fulfilled (see above)*
+7. Failure to identify and address heteroscedasticity (variation in variance)
+  + *Heteroscedasticity commented upon above; rank based correlation should help mitigate this effect*
+8. Inappropriate satisfaction with an outcome based solely on significance value
+  + *n/a*
+9. Failure to report sample size in figure
+  + *see figures*
+10. Confusion of correlation with regression
+  + *n/a*
+11. Failure to provide anything but a correlation coefficient on data plot
+  + *n/a*
+12. Failure to state the type of regression line plotted
+  + *see text above; lines provided on scatter plots are smoothed Loess trend lines, not regression*
+13. Failure to depict 95% confidence interval around an appropriate regression line
+  + *no regression drawn; 95% CI provided for correlation*
+14. Failure to provide hyperbolic 95% confidence intervals for the regression line
+  + *n/a*
+15. Inappropriate comparison of regression slope instead of analysis of covariance statistic
+  + *n/a*
+
+####5. Commentary on the Correlations
+
+
+#####IL.1b X IL.10
+
+The two IL.1x factors do not appear to have a useful correlation. The 95% CI for the correlation spans zero, and the correlation is overall low. The NHST for this pairing failed to reach significance in the NHST bootstrap. Examining the raw correlations further, the linear axes plot almost seems to have two orthagonal trends in it, supporting the conclusion that these are likely unrelated factors. The log-log plot brings the outliers close to the body of the data, and spreads the lower points in a way that allows better visualization. In the log-log plot, the orthagonal components remain, although they are much less obvious. The data is not completely decorrelated, as the data does not occupy all the available space in either scale of the scatter plot, but there is no clear association either.
+
+#####IL.1b X IFN.g
+
+IL.1b and IFN.g appear to be correlated, although the correlation is not very strong. The 95% CI for the correlation does not span zero, but a correlation of ~.5 ( 0.2, 0.6 ) is weak. The NHST testing suggests that the correlation is real, despite its weakness. Returning to the raw correlation data, the linear plot data is a bit difficult to interpret, but there appears to be some sort of potential upward correlation, although there is a large amount of variability in in IFN.g when IL.1b is low. The log-log version of the plot spreads the lower data and compresses the outlier data to allow a better understanding of this particular data set. In this case, there seems to be a fairly clear linear trend in the log-log version of the scatterplot, although it is noisy. This suggests that there is indeed some non-linear correlation of these two factors.
+
+#####IL.10 X IFN.g
+
+IL.10 and IFN.g appear to be correlated, although the correlation is not very strong. The 95% CI for the correlation does not span zero, but a correlation of ~.5 ( 0.2, 0.6 ) is weak. The NHST testing suggests that the correlation is real, despite its weakness. Returning to the raw correlation data, the linear plot data is a bit difficult to interpret, but there appears to be some sort of potential upward correlation, although there is a large amount of variability in in IFN.g when IL.10 is low. The log-log version of the plot spreads the lower data and compresses the outlier data to allow a better understanding of this particular data set. In this case, there seems to be a fairly clear linear trend in the log-log version of the scatterplot, although it is noisy. This suggests that there is indeed some non-linear correlation of these two factors.
+
+####6. Maximal Information Coefficient
+
+**MIC Values**
+
+```{r, echo=FALSE}
+cytodataFixed <- cytodata[complete.cases(cytodata),] # how do I get the width?
+micData <- mine(cytodataFixed)
+micData$MIC
+# OK, so if I had hours, I'd scrape the HTML and auto-select an appropriate CSV, but instead, I'll cheat.
+download.file('http://www.exploredata.net/ftp/Pvalues/n=120,alpha=0.6.csv','./micPvalues.csv')
+micPvalues <- read.csv( file = '~/micPvalues.csv', sep=",", skip=12, stringsAsFactors = FALSE )
+# ok. I'll cheat a lot because this file is annoying.
+micPvalsMyData <- micData$MIC
+micCisMyData <- micData$MIC
+mcpvdim <- dim(micPvalsMyData)
+for ( i in 1:mcpvdim[1] ) {
+  for ( j in 1:mcpvdim[2] ) {
+    micPvalsMyData[i,j] <- micPvalues[min(which(micPvalues$MIC....x < micData$MIC[i,j] )),2]
+    micCisMyData[i,j] <- micPvalues[min(which(micPvalues$MIC....x < micData$MIC[i,j] )),3]
+  }
+}
+```
+
+In each table, the entry value correponds to the value indicated in the title above the table, and the relation measured corresponds to the row-column label pair. NA means that the value was outside the range of the lookup table (i.e. not significant). Each table is symmetric.
+
+**MIC P-Values**
+
+```{r,echo=FALSE}
+micPvalsMyData
+```
+
+**MIC 95% CIs**
+
+```{r,echo=FALSE}
+micCisMyData
+```
+
+**Compare & Contrast MIC with Null Hypothesis Significance Testing**
+
+Overall, the MIC supports similar conclusions to those supported by NHST. The MIC concludes that the association of IL.1b and IL.10 is small, and not significant. MIC concludes that IFN.g with IL.1b is significant, although the correlation provided by MIC is about 25% less than the value provided by Spearman correlation. MIC concludes that IFN.g with IL.10 is borderline significant (on the not-significant side of the arbitrary p=0.05 threshold); the correlation provided by MIC is about 25% less than the value provided by Spearman correlation.
+
+###References
+
+Further Reading :
+
+AM Porter. "Misuse of correlation and regression in three medical journals." *Journal of the Royal Society of Medicine*, 92 (3):123-128, 1999.
+
+Sepsis Data :
+
+A Elixhauser, B Friedman & E Stranges. "Septicemia in US hospitals, 2009." *Agency for Healthcare Research and Quality,* 348(62):1-13, 2011.
+
+Made with R 
+```{r, echo=FALSE}
+version
+```

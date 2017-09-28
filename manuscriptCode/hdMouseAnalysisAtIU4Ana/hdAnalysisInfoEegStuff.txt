@@ -1,0 +1,163 @@
+hdnex
+	version			% - 
+	comment			% - 
+	freq			% - 
+	tbeg			% time of record start (seconds)
+	tend			% time of record end (seconds)
+	neurons{}
+		{1,1}
+			name	'sig005a'
+			varVersion
+			wireNumber
+			unitNumber
+			xPos
+			yPos
+			timestamps[]
+		{2,1}
+			name	'sig007a'
+			varVersion
+			wireNumber
+			unitNumber
+			xPos
+			yPos
+			timestamps[]
+		{3,1}
+			name	'sig008a'
+			varVersion
+			wireNumber
+			unitNumber
+			xPos
+			yPos
+			timestamps[]
+	events{}
+		{1,1}
+			name	'CrossingFilter'
+			varVersion
+			timestamps[]
+		{2,1}
+			name	'Event001'
+			varVersion
+			timestamps[]
+		{3,1}
+			name	'Event010'
+			varVersion
+			timestamps[]
+		{4,1}
+			name	'Event011'
+			varVersion
+			timestamps[]
+		{5,1}
+			name	'Event012'
+			varVersion
+			timestamps[]
+		{6,1}
+			name	'Event013'
+			varVersion
+			timestamps[]
+		{7,1}
+			name	'Event014'
+			varVersion
+			timestamps[]
+		{8,1}
+			name	'Start'
+			varVersion
+			timestamps[]
+		{9,1}
+			name	'End'
+			varVersion
+			timestamps[]
+	intervals{}
+		{1,1}
+			name	'AllFile'
+			varVersion
+			intStarts
+			intEnds
+		{2,1}
+			name	'OneSecAfter'
+			varVersion
+			intStarts
+			intEnds
+		{3,1}
+			name	'OneSecAroundCenter'
+			varVersion
+			intStarts
+			intEnds
+		{4,1}
+			name	'OneSecBefore'
+			varVersion
+			intStarts
+			intEnds
+	waves{}
+		{1,1}
+			name	'sig005a_wf'
+			varVersion
+			NPointsWave
+			WFrequency
+			wireNumber
+			unitNumber
+			ADtoMV
+			MVOffset
+			ADFrequency
+			timestamps[t]
+			waveforms[x,t]
+		{2,1}
+			name	'sig007a_wf'
+			varVersion
+			NPointsWave
+			WFrequency
+			wireNumber
+			unitNumber
+			ADtoMV
+			MVOffset
+			ADFrequency
+			timestamps[t]
+			waveforms[x,t]
+		{3,1}
+			name	'sig008a_wf'
+			varVersion
+			NPointsWave
+			WFrequency
+			wireNumber
+			unitNumber
+			ADtoMV
+			MVOffset
+			ADFrequency
+			timestamps[t]
+			waveforms[x,t]
+	contvar{}
+		{1,1}
+			name	'AD01'
+			varVersion
+			ADtoMV
+			MVOffset
+			ADFrequency
+			timestamps
+			fradmentStarts
+			data[]
+		{2,1}
+			name	'AD02'
+			varVersion
+			ADtoMV
+			MVOffset
+			ADFrequency
+			timestamps
+			fradmentStarts
+			data[]
+		{3,1}
+			name	'AD03'
+			varVersion
+			ADtoMV
+			MVOffset
+			ADFrequency
+			timestamps
+			fradmentStarts
+			data[]
+		{4,1}
+			name	'AD04'
+			varVersion
+			ADtoMV
+			MVOffset
+			ADFrequency
+			timestamps
+			fradmentStarts
+			data[]

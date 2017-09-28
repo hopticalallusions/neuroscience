@@ -1,0 +1,772 @@
+---
+title: "Biostatistics M200 Homework 2"
+author: "Andrew Howe"
+date: "April 12, 2015"
+output: html_document
+---
+
+###Part I
+####Further Reading Questions
+
+1. How does one decide when to assume two data sets come from the same underlying populations?
+  + Two sample populations will exhibit random variations within a given population. Comparison of the random variation in each population to the difference of the mean of the populations hints at whether the samples were actually drawn from the same population -- the magnitude of the random variation should be small when compared with the difference in the population means. More formally, it is possible to calculate a probability that the samples in the two test populations were drawn from the same underlying population; this value is commonly known as a p-value. 
+2. How do sample size and "noise" affect statistical significance tests?
+  + Sample size scales the uncertainty of the mean. Noise affects tests for p-values concerning whether the samples were derived from the same population or not.
+3. How should a researcher interpret results that don’t reject the null hypothesis?
+  + It implies that there is insufficient evidence to support the inference that the differential manipulation had an effect on the groups. It **does not** imply that there is no effect of the manipulation -- such a conclusion requires a different test. When the effect size is small, it may be necesarry to collect a large number of samples to achieve a statistically significant result (note : collecting data until statistical significance is achieved is inappropriate -- one must study the statistical power required to properly design the study.)
+4. Does "statistically significant" imply "biologically significant"?
+  + No, statistically significant does not imply biologically significant. It is possible to find statistically significant results that are based on poorly developed biological theory.
+5. What is "effect size" and how does it differ from a null hypothesis significance test?
+  + The effect size refers to the magnitude of the manipulation on the measure of interest. Following the example given with the frogs, implanting a group of frogs with tiny helium balloons might have a statistically significant, but small effect on jump distance -- perhaps the frogs only gain on average around 200 mm with baloons. Injecting a group of frogs with frog steriods would be expected to have a fairly large effect because we would expect that it will make their muscles much stronger and therefore dramatically increase jumping distance -- perhaps by a whole meter or more, on average.
+
+###Part II
+
+#### Part II.A : What does the data look like?
+
+
+```{r, echo=FALSE, message=FALSE, results='hide'}
+
+#####
+# Initialization block.
+#####
+
+chooseCRANmirror(ind=88) # go Bruin
+
+#include (couldn't resist the joke)
+require("aplpack") || { install.packages("aplpack"); library(aplpack) } # for bagplot
+require("vioplot") || { install.packages("vioplot"); library(vioplot) } # for violin plots
+require("ggplot2") || { install.packages("ggplot2"); library(ggplot2) } # for ggplot2 does many cool things
+require("shiny") || { install.packages("shiny"); library(shiny) } # ooouuuuu shiiiiny
+
+require("dplyr") || { install.packages("dplyr"); library(dplyr) } # 
+#require("tidyr") || { install.packages("tidyr"); library(tidyr) } # 
+# tidr and dplyr allow data summaries and other fun stuff
+
+require("reshape2") || { install.packages("reshape2"); library(reshape2) } # 
+
+# set the directory
+if ( Sys.info()["nodename"] == "andrewhowes-MacBook-Pro.local") { 
+  # interestingly, the UCLA VPN screws up this trick.
+  dir <- "/Users/andrewhowe/toSort/m200-stats/homeworks/Problem Set 2/" 
+} else  { 
+  setwd(".") 
+  dir <- "./"
+} 
+
+filename = "Dab1.csv"
+
+read.csv( file = file.path( dir, filename ), head=TRUE, sep="," ) -> dabdata
+
+# establish some nice functions here
+
+
+
+# Khris, for the record, the explanation of the numbers in this data are quite confusing because counts of cells generally aren't fractional. The density explanation makes sense, but that is not at all clear from the homework paper description.
+
+# Khris, the code in this file is awful. Sorry you have to look at it.
+
+
+# Khris's cast
+# this is nice.
+
+castData <- acast( dabdata, animal~genotype+box, value.var = "counts")
+
+# apply command might do something helpful
+
+#function(dat, repats, stat=NULL, ...) {
+#  stat<- if(~is.null(stat)){match.fun(stat)}
+#  
+#}
+
+# for a and b
+
+# bootstrap ratio and then bootstrap difference
+# we will have 4 total bootstraps
+
+# division of medial to lateral
+# repeat the above, but take the difference
+
+# two different  
+
+addGaussianMetrics <- function( theData, whereAt=1, giveString=FALSE) {
+  xbar=mean( theData )
+  stdev=sd( theData )
+  if  (giveString) {
+    return( c( str(round(xbar, digits = 3 )), "±", str(round(stdev, digits = 3 )) ))
+  } else {
+    points( x=c( xbar, xbar-stdev, xbar+stdev, xbar-2*stdev, xbar+2*stdev), y=rep(x=whereAt, times=5), pch=c( "x", "(", ")", "{", "}"), col="red", cex=.8)
+    #return
+  }
+}
+
+
+bigBooty <- function( dataA, dataB, deals, calcType="minus" ) {
+  
+  dataAB <- c( dataA, dataB)
+  bigBootyResults <- rep(NA, deals)
+  
+  if ( calcType == "minus" ) {
+    temp <- 0 # geez. lazy.
+  } else if ( calcType == "ratio") {
+      temp <- 0 # geez. lazy.
+  } else {
+    print(paste("bigBooty doesn't implement ", str(type), " !!!"))
+  }
+  
+  for ( thisHand in 1:deals) {
+    handsBootyDataA <- sample( dataAB, length(dataA), replace = T)
+    handsBootyDataB <- sample( dataAB, length(dataB), replace = T)
+    if ( calcType == "minus" ) {
+      bigBootyResults[thisHand] <- median(handsBootyDataB) - median(handsBootyDataA)
+    } else if ( calcType == "ratio") {
+      bigBootyResults[thisHand] <- median(handsBootyDataB) / median(handsBootyDataA)
+    }
+      
+  }
+  return(bigBootyResults)
+}
+
+quantilefx <- function( data, quantile=97.5 ) {
+  sort(data) -> sortedData
+  return(sortedData[round(length(sortedData)*(quantile/100))])
+}
+
+# use this when it is assumed that the populations are different
+dualBooty <- function( dataA, dataB, deals, calcType="minus") {
+  
+  dualBootyResults <- rep(NA, deals)
+  
+  if ( calcType == "minus" ) {
+    temp <- 0 # :/ r complained with nothing here...
+  } else if ( calcType == "ratio") {
+      temp <- 0 # :/ r complained with nothing here...
+  } else {
+    print(paste("dualBooty doesn't implement ", str(type), " !!!"))
+    return(dualBootyResults)
+  }
+  
+  # center the boxes
+  boxA <- dataA - median(dataA)
+  boxB <- dataB - median(dataB)  
+  if ( calcType == "ratio" ) {
+    boxA <- dataA + 1
+    boxB <- dataB + 1
+  }
+  
+  for ( thisHand in 1:deals) {
+    handsBootyDataA <- sample( boxA, length(dataA), replace = T)
+    handsBootyDataB <- sample( boxB, length(dataB), replace = T)
+    if ( calcType == "minus" ) {
+      dualBootyResults[thisHand] <- median(handsBootyDataB) - median(handsBootyDataA)
+    } else if ( calcType == "ratio") {
+      dualBootyResults[thisHand] <- median(handsBootyDataB) / median(handsBootyDataA)
+    }
+  }
+  return(dualBootyResults)
+}
+
+
+```
+
+
+####Introduction
+
+The central nervous system and spinal chord form from flat, planar tissue curling, later curling into a tubular form. Many cell types are born within the core of the tube, and must migrate at the proper time to the proper place in order to correctly form the nervous system. The reelin signaling system plays a critical role in proper cellular migration.
+
+Disabled-1 (dab-1) is a key protein found within the reelin signaling system. Disruption of dab-1 severly impairs normal neural migration patterns in cortical and other gray-matter regions of the central nervous system (CNS).
+
+Spinal chord contains a core gray matter section, but the effect of dab-1 on spinal chord cell migration is not well characterized. Given the disruption observed in CNS, it is reasonable to expect that patterning of cell types in spinal chord would be disrupted as well. A simple method for assessing disruption of patterning would be to compare the densities of a key neuron type in dab-1 knockout animals and wild-type control animals in different anatomically-discrete locations.
+
+####Data Collection
+
+The primary data consists of the density of Choline Acetyltransferase (ChAT) labeled neurons found in coronal sections of lumbar spinal chord L4 and L5. Therefore, they have a constrained range of zero (no ChAT neurons, not observed in this data) to a value constrained by the physical packing density possible in these spinal chord regions (value unknown due to lack of information.)
+
+####Shape of the Data
+
+It is always important to consider the data and its form to determine a suitable way to display and analyze it. Few data sets follow Gaussian distributions, and many common, popular tests rely on assumptions of Gaussian distributions. As implied above, this data is unlikely to be well described by Gaussian distributions because its range is hard bound at zero to some real, non-infinite positive number; true Gaussian distributions range from negative to positive infinity.
+
+
+
+```{r, echo=FALSE}
+plot.new()
+frame()
+par(mfrow = c(2,2))
+#
+hist( dabdata$counts, breaks = 10, main = "All Densities, 10 Bins", xlab="cell density", col="lightgreen", density=60, xlim=c(min(dabdata$counts) * .95, max( dabdata$counts) * 1.05), axes = FALSE)
+axis( 2, las=1, lwd=0, lwd.ticks = 1 )
+axis( 1, lwd=0, lwd.ticks = 1 )
+addGaussianMetrics( dabdata$counts, 0.5 )
+#
+hist( dabdata$counts, breaks = 20, main = "All Densities, 20 Bins", xlab="cell density", col="lightgreen", density=60, xlim=c(min(dabdata$counts) * .95, max( dabdata$counts) * 1.05), axes = FALSE)
+axis( 2, las=1, lwd=0, lwd.ticks = 1 )
+axis( 1, lwd=0, lwd.ticks = 1 )
+addGaussianMetrics( dabdata$counts, 0.5 )
+#
+hist( dabdata$counts, breaks = 40, main = "All Densities, 40 Bins", xlab="cell density", col="lightgreen", density=60, xlim=c(min(dabdata$counts) * .95, max( dabdata$counts) * 1.05), axes = FALSE)
+axis( 2, las=1, lwd=0, lwd.ticks = 1 )
+axis( 1, lwd=0, lwd.ticks = 1 )
+addGaussianMetrics( dabdata$counts, 0.5 )
+#
+hist( dabdata$counts, breaks = 80, main = "All Densities, 80 Bins", xlab="cell density", col="lightgreen", density=60, xlim=c(min(dabdata$counts) * .95, max( dabdata$counts) * 1.05), axes = FALSE)
+axis( 2, las=1, lwd=0, lwd.ticks = 1 )
+axis( 1, lwd=0, lwd.ticks = 1 )
+addGaussianMetrics( dabdata$counts, 0.5 )
+```
+
+Pooling all the ratio data together, it appears that this data has some central tendencies that might be well approximated by conventional (common) tests which rely on Gaussian assumptions. It should be noted that out of `r length((dabdata$counts))` there are only `r length(unique(dabdata$counts))` unique values. Actual Gaussian dsitributed data effectively does not have repeated values, as it is a continuous distribution. The repeated values allow visualization of a psuedo-histogram of the values with stacked stripcharts, as shown in the next figure.
+
+
+```{r, echo=FALSE}
+plot(1, 1, ylim = c(-1, 13), xlim = range(dabdata$counts), type = 'n', xlab = 'cell density', ylab = '', yaxt = 'n', axes=FALSE)
+boxplot(
+  dabdata$counts[which(dabdata$genotype=='wt')], 
+  dabdata$counts[which(dabdata$genotype=='scm')], 
+  dabdata$counts,
+  main='Cell Densities by Genotype', 
+  ylab='', 
+  xlab='', 
+  horizontal=TRUE, 
+  axes=FALSE, 
+  add=TRUE, 
+  at=c(0,4,7)
+)
+stripchart( 
+  dabdata$counts[which(dabdata$genotype=='wt')], 
+  add=TRUE, 
+  at=0.6, 
+  vertical = FALSE, 
+  pch=18, 
+  method='stack', 
+  col='green', 
+  cex=0.8 
+)
+stripchart( 
+  dabdata$counts[which(dabdata$genotype=='scm')], 
+  add=TRUE, 
+  at=4.6, 
+  vertical = FALSE, 
+  pch=17, 
+  method='stack', 
+  col='red', 
+  cex=0.8 
+)
+stripchart( 
+  dabdata$counts, 
+  add=TRUE, 
+  at=7.6, 
+  vertical = FALSE, 
+  pch=20, 
+  method='stack', 
+  col='gray', 
+  cex=0.8
+)
+
+addGaussianMetrics( dabdata$counts[which(dabdata$genotype=='wt')], -0.7 )
+addGaussianMetrics( dabdata$counts[which(dabdata$genotype=='scm')], 3.3 )
+addGaussianMetrics( dabdata$counts, 6.3 )
+
+axis( 2, at = c(0,4,7), labels = c('wt', 'scm', 'all'), las=1, line=NA, lwd=0, lwd.ticks = 0 )
+axis( 1, at = seq(from = floor(min(dabdata$counts)), to=ceiling(max(dabdata$counts)), by=1 ), lwd=0, lwd.ticks = 1 )
+```
+
+The figure above depicts the pooled lateral and medial ratios for all animals (grey circles), wild-type animals (green diamonds) and dab-1 knockouts (red triangles). A boxplot under each stacked stripchart shows the median, quartiles and extreme values. Comparing the the box plots to the Gaussian approximations ( mean is the red x and one and two standard deviations away from the mean are depicted by parenthesis and curly braces, respectively), these values seem fairly symmetric about the median in all three data sets. None of the data sets appear to be stand out as clearly different from each other with this visualization method; the total pooled data set is displayed as a way to visually approximate the null hypothesis that in fact there is no difference of the genetic manipulation and that both populations were drawn from the same underlying population. The wild-type data appears to have more of a central tendency than the dab-1 knockout, but it is fairly clear that the data sets exhibit considerable overlap when partitioned solely by genotype.
+
+
+```{r, echo=FALSE}
+plot(1, 1, ylim = c(-1, 13), xlim = range(dabdata$counts), type = 'n', xlab = 'cell density', ylab = '', yaxt = 'n', axes=FALSE)
+
+boxplot(
+  dabdata$counts[which(dabdata$box=='Lateral')],
+  dabdata$counts[which(dabdata$box=='Medial')],       
+  dabdata$counts, main='Cell Density by Location', ylab='', xlab='', horizontal=TRUE, axes=FALSE, add=TRUE, at=c(0,3,7))
+
+stripchart( dabdata$counts[which(dabdata$box=='Lateral')], add=TRUE, at=0.6, vertical = FALSE, pch=20, method='stack', col='orange', cex=0.7 )
+stripchart( dabdata$counts[which(dabdata$box=='Medial')], add=TRUE, at=3.6, vertical = FALSE, pch=20, method='stack', col='blue', cex=0.7 )
+stripchart( dabdata$counts, add=TRUE, at=7.6, vertical = FALSE, pch=20, method='stack', col='gray', cex=0.7)
+
+addGaussianMetrics( dabdata$counts[which(dabdata$box=='Lateral')], -0.7 )
+addGaussianMetrics( dabdata$counts[which(dabdata$box=='Medial')], 2.3 )
+addGaussianMetrics( dabdata$counts, 6.3 )
+
+axis(2, at = c(0,3,7), labels = c('Lateral', 'Medial', 'all'), las=1, line=NA, lwd=0, lwd.ticks = 0)
+axis(1, at = seq(from = floor(min(dabdata$counts)), to=ceiling(max(dabdata$counts)), by=1 ), lwd=0, lwd.ticks = 1)
+```
+
+Again, the distributions appear to be fairly symmetric about the median (and mean as shown by the red X). Additionally, the data appears to approximately fall within the right bounds for one and two deviations away from the mean, suggesting that Gaussian style statistics might be appropriate.
+
+A cursory examination does not reveal a striking difference of either group from the pooled data. The lateral data set has only a slight central tendency, which is suspicious for a Gaussian distributed data set -- central values should be much more likely than data in the extreme quartiles, and here they do not appear to follow this pattern. Medial data is somewhat more centrally focused, although the stacked stripchart is not a remarkable example of Gaussian distributed data either (in fact, stripchart(rnorm(1000), method='stack') produces no stacking at all because the values occur along an infinite grain, effectively never repeating and therefore never stacking.)
+
+Now we can split the groups further to see if any of the more precisely defined groups contains a striking distribution.
+
+```{r, echo=FALSE}
+selectLateralWt <- with(dabdata,box=='Lateral' & genotype=='wt')
+selectMedialWt <- with(dabdata,box=='Medial' & genotype=='wt')
+selectLateralScm <- with(dabdata,box=='Lateral' & genotype=='scm')
+selectMedialScm <- with(dabdata,box=='Medial' & genotype=='scm')
+
+par(mar=c(5.1, 5.5, 4.1, 2.1)) # bottom, left, top, right
+
+plot(1, 1, ylim = c(-1, 18), xlim = c(floor(min(dabdata$counts)), ceiling(max(dabdata$counts))), type = 'n', xlab = 'cell density', ylab = '', yaxt = 'n', axes=FALSE)
+
+boxplot(
+  dabdata$counts[selectLateralWt], 
+  dabdata$counts[selectMedialWt],
+  dabdata$counts, 
+  dabdata$counts[selectLateralScm],
+  dabdata$counts[selectMedialScm],
+  horizontal=TRUE,
+  axes=FALSE,
+  add=TRUE,
+  at=c(0,3,8,13,17)
+)
+
+stripchart( dabdata$counts[selectLateralWt], add=TRUE, at=0.6, vertical = FALSE, pch=18, method='stack', col='gold', cex=0.8 )
+stripchart( dabdata$counts[selectMedialWt], add=TRUE, at=3.6, vertical = FALSE, pch=18, method='stack', col='lightblue', cex=0.8 )
+stripchart( dabdata$counts, add=TRUE, at=8.6, vertical = FALSE, pch=20, method='stack', col='gray', cex=0.8)
+stripchart( dabdata$counts[selectLateralScm], add=TRUE, at=13.6, vertical = FALSE, pch=17, method='stack', col='gold', cex=0.8 )
+stripchart( dabdata$counts[selectMedialScm], add=TRUE, at=17.6, vertical = FALSE, pch=17, method='stack', col='lightblue', cex=0.8 )
+
+addGaussianMetrics( dabdata$counts[selectLateralWt], -0.7 )
+addGaussianMetrics( dabdata$counts[selectMedialWt], 2.3 )
+addGaussianMetrics( dabdata$counts, 7.3 )
+addGaussianMetrics( dabdata$counts[selectLateralScm], 12.3 )
+addGaussianMetrics( dabdata$counts[selectMedialScm], 16.3 )
+
+axis(
+  2, 
+  at=c(0,3,8,13,16),
+  labels = c('Wt-Lateral', 'Wt-Medial', 'all', 'Scm-Lateral', 'Scm-Medial'), 
+  las=1, 
+  line=NA, 
+  lwd=0, 
+  lwd.ticks = 0
+)
+axis( 1, at = seq(from = floor(min(dabdata$counts)), to=ceiling(max(dabdata$counts)), by=1 ),  lwd=0,  lwd.ticks = 1)
+
+title('Genotype-Box Group Distributions')
+```
+
+Here, the medial slices in both genotypes appear fairly similar, displaying reasonable symmetry and centrality of data (although the wildtype data is much more centralized.) The lateral slices seperated by genotype display some potential differentiation. Wildtype and Scm (knockout) lateral slice counts are both skewed -- excluding them from examination with tools which assume Gaussian distributions -- and they appear to skew in the opposite direction.
+
+####Part II.B : Anatomical Location Ratios
+#####Convert the Densities to Ratios
+
+```{r,echo=FALSE}
+wtMedLatRatios  <- dabdata$counts[selectMedialWt]/dabdata$counts[selectLateralWt]
+scmMedLatRatios <- dabdata$counts[selectMedialScm]/dabdata$counts[selectLateralScm]
+allMedLatRatios <- c( wtMedLatRatios, scmMedLatRatios ) # ram is cheap.
+
+plot(1, 1, ylim = c(-1, 10), xlim = c(floor(min(allMedLatRatios)),ceiling(max(allMedLatRatios))), type = 'n', xlab = 'ratio', ylab = '', yaxt = 'n', axes=FALSE)
+
+boxplot( wtMedLatRatios, scmMedLatRatios, allMedLatRatios, main='Ratio of Med/Lat Cell Count', ylab='', xlab='', horizontal=TRUE, axes=FALSE, add=TRUE, at=c(1,5,9))
+
+stripchart( wtMedLatRatios, method='jitter', cex=1, col=NA, pch=22, bg="#00FF0033", at=2, add=TRUE )
+stripchart( scmMedLatRatios, method='jitter', cex=1, col=NA, pch=22, bg="#FF000033", at=6, add=TRUE )
+stripchart( allMedLatRatios, method='jitter', cex=1, col=NA, pch=22, bg="#00000033", at=10, add=TRUE )
+
+addGaussianMetrics( wtMedLatRatios, 0 )
+addGaussianMetrics( scmMedLatRatios, 4 )
+addGaussianMetrics( allMedLatRatios, 8 )
+
+axis( 2, at = c(1,5,9), labels = c('wt', 'scm', 'all'), las=1, line=NA, lwd=0, lwd.ticks = 0 )
+# fix the ticks 
+axis( 1, at = seq(from = floor(min(allMedLatRatios)), to=ceiling(max(allMedLatRatios)), by=1 ), lwd=0, lwd.ticks = 1 )
+
+```
+
+The figure above displays a a Gaussian approximation (bottom red symbol array, a box chart (black box and whiskers) and a distribution in the form of color intensity with overlayed symbols. The Gaussian approximation is depiected with the mean (red x), one standard deviation and two standard deviations away from the mean (the red parenthesis and red curly braces, respectively.) Box plots are unaltered, and diaplay outliers as circles and the median as a thick black central line.
+
+The figure above displays the ratio of medial to lateral counts, by genotype. All ratio data pooled toegether has some significant large outliers. The large outliers derive from the wild-type population, while the small outliers derive from the dab-1 knockout, suggesting that the ratio collections for the knockouts and wild-type animals are slightly skewed, and skewed in opposite directions. Excluding the outliers, the box plot analysis is fairly symmetric for the pooled data and the knock-outs, while the wild-type appears to be skewed towards the larger values. At least the wild-type data is unlikely to conform to the an underlying Gaussian distribution, excluding this data from traditional analysis techniques which assume Gaussian distributed data.
+
+There is a probability that the wild-type and knockouts are from different underlying populations, as the median knockout value is less than the median for the pooled data, and the wild-type data is greater than the pooled data. Furthermore, the 75% and 25% quartile for the knockout and wild-type, respectively, are near the median of the pooled data, suggesting that they may have come from different underlying populations.
+
+Comparing the data visually to the Gaussian approximation reveals that none of these are well approximated by a Gaussian distribution. Additionally, the data consists of densities which cannot be negative, and true Gaussian distributions encompass negative values, however unlikely. Furthermore, it can be seen that the data does not pile up well around the mean and deviations as one would expect. The closest data that one might be tempted to fit with a Gaussian approximation would be the Scm (dab-1 knockout).
+
+```{r, echo=FALSE}
+plot.new()
+frame()
+par(mfrow = c(2,2))
+qqnorm(wtMedLatRatios, main="QQ Plot for wt Ratios", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgreen", las=1)
+qqline(wtMedLatRatios, col="red")
+legend(-3,16, c("real data", "perfect"), col=c("darkgreen", "red"), pch=c("o",NA), lty=c(NA,1))
+#
+qqnorm(scmMedLatRatios, main="QQ Plot for scm Ratios", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgreen", las=1)
+qqline(scmMedLatRatios, col="red")
+legend(-3,16, c("real data", "perfect"), col=c("darkgreen", "red"), pch=c("o",NA), lty=c(NA,1))
+#
+qqnorm(allMedLatRatios, main="QQ Plot for all Ratios", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgreen", las=1)
+qqline(allMedLatRatios, col="red")
+legend(-3,16, c("real data", "perfect"), col=c("darkgreen", "red"), pch=c("o",NA), lty=c(NA,1))
+```
+
+As expected, the data do not conform well to Gaussian distributions.
+
+To verify the conclusion in the previous paragraph, the data is displayed above as a QQ plot.
+
+####Part II.C : Bootstrapping the Anatomical Location Data
+#####Big Box Bootstrap Difference the Ratios
+
+```{r, echo=FALSE}
+
+# use big booty if the thought is that all the data came from the same underlying distribution
+
+diffBootyData <- bigBooty( wtMedLatRatios, scmMedLatRatios, 10000, "minus" )
+
+tempHist <- hist(diffBootyData, breaks=50, plot = FALSE)
+
+lowerTwoish = quantilefx(diffBootyData, 2.5)
+upperNinetySeventhish = quantilefx(diffBootyData, 97.5)
+
+# calculate these ridiculous indices
+#this is terrible.
+cyanRealLow = max(which(tempHist$mids< quantilefx(diffBootyData, 1) ))
+cyanRealHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(diffBootyData, 99)))
+greenLow = max(which(tempHist$mids< quantilefx(diffBootyData, 2.5) )) - cyanRealLow
+greenHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(diffBootyData, 97.5))) - cyanRealHigh
+redCount = length(tempHist$mids) - ( greenHigh + greenLow + cyanRealLow + cyanRealHigh + 1 )
+
+plot(tempHist,col=c(rep("cyan",cyanRealLow), rep("green",greenLow), rep("lightgrey",redCount), rep("green", greenLow), rep("cyan",cyanRealHigh)), xlab='Difference', main='Bootstrapped Significance of \nObserved Median Ratio Difference')
+actualMedianDiff = median(scmMedLatRatios) - median(wtMedLatRatios)
+lines(c(actualMedianDiff, actualMedianDiff),c(0, quantilefx(tempHist$counts,83)), lwd=2)
+#points( c(actualMedianDiff,actualMedianDiff), c(quantilefx(tempHist$counts,87), quantilefx(tempHist$counts,87)*1.04), pch=c('x', '~')) # good grief. setting up LaTeX was taking too long
+#
+
+
+lines(c(quantilefx(diffBootyData, 97.5), quantilefx(diffBootyData, 97.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(diffBootyData, 97.5), max(tempHist$counts)*.85, paste('97.5%\n', round(quantilefx(diffBootyData, 97.5),2)))
+
+lines(c(quantilefx(diffBootyData, 2.5), quantilefx(diffBootyData, 2.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(diffBootyData, 2.5), max(tempHist$counts)*.85, paste('2.5%\n', round(quantilefx(diffBootyData, 2.5),2)))
+
+diffPval <- which(sort(c(actualMedianDiff, diffBootyData))==actualMedianDiff )/length(c(actualMedianDiff, diffBootyData)) + which(sort(c(-actualMedianDiff, diffBootyData),decreasing = TRUE)==-actualMedianDiff )/length(c(-actualMedianDiff, diffBootyData))
+
+text(actualMedianDiff, quantilefx(tempHist$counts,88), paste("X=", round(actualMedianDiff,3), "\np=",round(diffPval,4)))
+
+```
+
+Here we have assumed the null hypothesis. Specifically, we have assumed that both data sets were drawn from the same underlying population. If this was the case, the difference of the medians should be zero. The plot above shows 10,000 simulated datasets where these data were pooled together and the resulting simulated differences. The gray bars represent the region where 95% of the differences lie (not consisdered significantly different from the null hypothesis). The green and cyan regions combined represent 5% of the data while the cyan region represent 1% of differences. The actual observed difference (effect size) of dab-1 knockout ratios minus wildtype ratios is  `r round(median(scmMedLatRatios) - median(wtMedLatRatios), 3)`, which is actually expected in approximately `r round( which(sort(c(actualMedianDiff, diffBootyData))==actualMedianDiff )/length(c(actualMedianDiff, diffBootyData)) *100,2)`% of cases where the null hypothesis is true. In other words, it is highly unlikely that these populations are the same, suggesting that dab-1 knockout have a significant effect on lateral to medial neuronal migration.
+
+
+#####Big Box Bootstrap Ratio the Ratios
+
+```{r echo=FALSE}
+
+
+ratioBootyData <- bigBooty( wtMedLatRatios, scmMedLatRatios, 10000, "ratio" )
+
+tempHist <- hist(ratioBootyData, breaks=50, plot = FALSE)
+
+lowerTwoish = quantilefx(ratioBootyData, 2.5)
+upperNinetySeventhish = quantilefx(ratioBootyData, 97.5)
+
+# calculate these ridiculous indices
+#this is terrible.
+cyanRealLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 1) ))
+cyanRealHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 99)))
+# arg.
+
+greenLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 2.5) )) - cyanRealLow
+greenHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 97.5))) - cyanRealHigh
+redCount = length(tempHist$mids) - ( greenHigh + greenLow + cyanRealLow + cyanRealHigh +1 )
+
+plot(tempHist,col=c(rep("cyan",cyanRealLow), rep("green",greenLow), rep("lightgrey",redCount), rep("green", greenLow), rep("cyan",cyanRealHigh)), xlab='Ratio', main='Bootstrapped Significance of \nObserved Median Ratio Ratio')
+actualMedianRatio = median(scmMedLatRatios) / median(wtMedLatRatios)
+lines(c(actualMedianRatio, actualMedianRatio),c(0, quantilefx(tempHist$counts,84)), lwd=2)
+#points( c(actualMedianRatio,actualMedianRatio), c(quantilefx(tempHist$counts,87), quantilefx(tempHist$counts,87)*1.04), pch=c('x', '~')) # good grief. setting up LaTeX was taking too long
+#
+
+
+
+lines(c(quantilefx(ratioBootyData, 97.5), quantilefx(ratioBootyData, 97.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(ratioBootyData, 97.5), max(tempHist$counts)*.85, paste('97.5%\n', round(quantilefx(diffBootyData, 97.5),2)))
+
+lines(c(quantilefx(ratioBootyData, 2.5), quantilefx(ratioBootyData, 2.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(ratioBootyData, 2.5), max(tempHist$counts)*.85, paste('2.5%\n', round(quantilefx(ratioBootyData, 2.5),2)))
+
+# this is very poor programming...
+
+ratPval <- 
+  which(sort(c(1+actualMedianRatio, ratioBootyData), decreasing = TRUE)==1+actualMedianRatio )/length(c(1-actualMedianRatio, ratioBootyData))
++   which(sort(c(actualMedianRatio, ratioBootyData),decreasing = FALSE)==actualMedianRatio )/length(c(actualMedianRatio, ratioBootyData))
+
+# remember that this function always needs to be symmetric around the "no effect" pivot point, in this case 1. So, the ratio observed is less than 1, which means one should be added. If it were greater than 1, it would need to flipped over by subtraction.
+
+text(actualMedianRatio, quantilefx(tempHist$counts,89), paste("X=", round(actualMedianRatio,3), "\np=",round(ratPval,4)))
+
+```
+
+
+Wow! Both the ratio and the difference bootstrap on these density ratio populations strongly suggest that the underlying populations are different. Biologically speaking, taking the ratio between the two anatomical areas answers the question "is the density in location A greater than location B?", or approximately in this case, "did neurons prefer one location over another?". Here, it seems that more neurons in the knockout migrate to the lateral area as compared to the medial area. The wild-type is closer to an equal density in both regions.
+
+
+#### Alternate Version with Dual Booty
+#### Part II.C : Bootstrapping the Anatomical Location Data
+##### Big Box Bootstrap Difference the Ratios
+
+```{r, echo=FALSE}
+
+# use big booty if the thought is that all the data came from the same underlying distribution
+
+diffBootyData <- dualBooty( wtMedLatRatios, scmMedLatRatios, 10000, "minus" )
+
+tempHist <- hist(diffBootyData, breaks=50, plot = FALSE)
+
+lowerTwoish = quantilefx(diffBootyData, 2.5)
+upperNinetySeventhish = quantilefx(diffBootyData, 97.5)
+
+# calculate these ridiculous indices
+#this is terrible.
+cyanRealLow = max(which(tempHist$mids< quantilefx(diffBootyData, 1) ))
+cyanRealHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(diffBootyData, 99)))
+greenLow = max(which(tempHist$mids< quantilefx(diffBootyData, 2.5) )) - cyanRealLow
+greenHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(diffBootyData, 97.5))) - cyanRealHigh
+redCount = length(tempHist$mids) - ( greenHigh + greenLow + cyanRealLow + cyanRealHigh + 1 )
+
+plot(tempHist,col=c(rep("cyan",cyanRealLow), rep("green",greenLow), rep("lightgrey",redCount), rep("green", greenLow), rep("cyan",cyanRealHigh)), xlab='Difference', main='Bootstrapped Significance of \nObserved Median Ratio Difference')
+actualMedianDiff = median(scmMedLatRatios) - median(wtMedLatRatios)
+lines(c(actualMedianDiff, actualMedianDiff),c(0, quantilefx(tempHist$counts,65)), lwd=2)
+#points( c(actualMedianDiff,actualMedianDiff), c(quantilefx(tempHist$counts,827), quantilefx(tempHist$counts,87)*1.04), pch=c('x', '~')) # good grief. setting up LaTeX was taking too long
+#
+
+
+lines(c(quantilefx(diffBootyData, 97.5), quantilefx(diffBootyData, 97.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(diffBootyData, 97.5), max(tempHist$counts)*.85, paste('97.5%\n', round(quantilefx(diffBootyData, 97.5),2)))
+
+lines(c(quantilefx(diffBootyData, 2.5), quantilefx(diffBootyData, 2.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(diffBootyData, 2.5), max(tempHist$counts)*.85, paste('2.5%\n', round(quantilefx(diffBootyData, 2.5),2)))
+
+diffPval <- mean(which(sort(c(actualMedianDiff, diffBootyData))==actualMedianDiff )/length(c(actualMedianDiff, diffBootyData)) + which(sort(c(-actualMedianDiff, diffBootyData),decreasing = TRUE)==-actualMedianDiff )/length(c(-actualMedianDiff, diffBootyData)))
+
+text(actualMedianDiff, quantilefx(tempHist$counts,70), paste("X=", round(actualMedianDiff,3), "\np=",round(diffPval,4)))
+
+```
+
+
+<FIX OLD TEXT>
+
+Here we have assumed the null hypothesis. Specifically, we have assumed that both data sets were drawn from the same underlying population. If this was the case, the difference of the medians should be zero. The plot above shows 10,000 simulated datasets where these data were pooled together and the resulting simulated differences. The gray bars represent the region where 95% of the differences lie (not consisdered significantly different from the null hypothesis). The green and cyan regions combined represent 5% of the data while the cyan region represent 1% of differences. The actual observed difference (effect size) of dab-1 knockout ratios minus wildtype ratios is  `r round(median(scmMedLatRatios) - median(wtMedLatRatios), 3)`, which is actually expected in approximately `r round( which(sort(c(actualMedianDiff, diffBootyData))==actualMedianDiff )/length(c(actualMedianDiff, diffBootyData)) *100,2)`% of cases where the null hypothesis is true. In other words, it is highly unlikely that these populations are the same, suggesting that dab-1 knockout have a significant effect on lateral to medial neuronal migration.
+
+
+#####Big Box Bootstrap Ratio the Ratios
+
+```{r echo=FALSE}
+
+### check if this actually works correctly.~~!!!
+
+ratioBootyData <- dualBooty( wtMedLatRatios, scmMedLatRatios, 10000, "ratio" )
+
+tempHist <- hist(ratioBootyData, breaks=50, plot = FALSE)
+
+lowerTwoish = quantilefx(ratioBootyData, 2.5)
+upperNinetySeventhish = quantilefx(ratioBootyData, 97.5)
+
+# calculate these ridiculous indices
+#this is terrible.
+cyanRealLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 1) ))
+cyanRealHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 99)))
+# arg.
+
+greenLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 2.5) )) - cyanRealLow
+greenHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 97.5))) - cyanRealHigh
+redCount = length(tempHist$mids) - ( greenHigh + greenLow + cyanRealLow + cyanRealHigh +1 )
+
+plot(tempHist,col=c(rep("cyan",cyanRealLow), rep("green",greenLow), rep("lightgrey",redCount), rep("green", greenLow), rep("cyan",cyanRealHigh)), xlab='Ratio', main='Bootstrapped Significance of \nObserved Median Ratio Ratio')
+actualMedianRatio = median(scmMedLatRatios) / median(wtMedLatRatios)
+lines(c(actualMedianRatio, actualMedianRatio),c(0, quantilefx(tempHist$counts,84)), lwd=2)
+#points( c(actualMedianRatio,actualMedianRatio), c(quantilefx(tempHist$counts,87), quantilefx(tempHist$counts,87)*1.04), pch=c('x', '~')) # good grief. setting up LaTeX was taking too long
+#
+
+
+
+lines(c(quantilefx(ratioBootyData, 97.5), quantilefx(ratioBootyData, 97.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(ratioBootyData, 97.5), max(tempHist$counts)*.85, paste('97.5%\n', round(quantilefx(diffBootyData, 97.5),2)))
+
+lines(c(quantilefx(ratioBootyData, 2.5), quantilefx(ratioBootyData, 2.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(ratioBootyData, 2.5), max(tempHist$counts)*.85, paste('2.5%\n', round(quantilefx(ratioBootyData, 2.5),2)))
+
+# this is very poor programming...
+
+ratPval <- 
+  which(sort(c(1+actualMedianRatio, ratioBootyData), decreasing = TRUE)==1+actualMedianRatio )/length(c(1-actualMedianRatio, ratioBootyData))
++   which(sort(c(actualMedianRatio, ratioBootyData),decreasing = FALSE)==actualMedianRatio )/length(c(actualMedianRatio, ratioBootyData))
+
+# remember that this function always needs to be symmetric around the "no effect" pivot point, in this case 1. So, the ratio observed is less than 1, which means one should be added. If it were greater than 1, it would need to flipped over by subtraction.
+
+text(actualMedianRatio, quantilefx(tempHist$counts,89), paste("X=", round(actualMedianRatio,3), "\np=",round(ratPval,4)))
+
+```
+
+
+<<FIX OLD TEXT>>
+
+Wow! Both the ratio and the difference bootstrap on these density ratio populations strongly suggest that the underlying populations are different. Biologically speaking, taking the ratio between the two anatomical areas answers the question "is the density in location A greater than location B?", or approximately in this case, "did neurons prefer one location over another?". Here, it seems that more neurons in the knockout migrate to the lateral area as compared to the medial area. The wild-type is closer to an equal density in both regions.
+
+
+
+####Part II.D : 
+#####Difference the Densities
+
+```{r,echo=FALSE}
+wtMedLatDiff  <- dabdata$counts[selectMedialWt]-dabdata$counts[selectLateralWt]
+scmMedLatDiff <- dabdata$counts[selectMedialScm]-dabdata$counts[selectLateralScm]
+allMedLatDiff <- c( wtMedLatDiff, scmMedLatDiff ) # ram is cheap.
+
+plot(1, 1, ylim = c(-1, 10), xlim = c(floor(min(allMedLatDiff)),ceiling(max(allMedLatDiff))), type = 'n', xlab = 'difference', ylab = '', yaxt = 'n', axes=FALSE)
+
+boxplot( wtMedLatDiff, scmMedLatDiff, allMedLatDiff, main='Med-Lat Cell Density', ylab='', xlab='', horizontal=TRUE, axes=FALSE, add=TRUE, at=c(1,5,9))
+
+addGaussianMetrics( wtMedLatDiff, 0 )
+stripchart(wtMedLatDiff, method='jitter', cex=1, col=NA, pch=22, bg="#00FF0033", at=2, add=TRUE)
+
+addGaussianMetrics( scmMedLatDiff, 4 )
+stripchart(scmMedLatDiff, method='jitter', cex=1, col=NA, pch=22, bg="#FF000033", at=6, add=TRUE)
+
+addGaussianMetrics( allMedLatDiff, 8 )
+stripchart(allMedLatDiff, method='jitter', cex=1, col=NA, pch=22, bg="#00000033", at=10, add=TRUE)
+
+axis(2, at = c(1,5,9), labels = c('wt', 'scm', 'all'), las=1, line=NA, lwd=0, lwd.ticks = 0)
+axis(1, at = seq(from = floor(min(allMedLatDiff)), to=ceiling(max(allMedLatDiff)), by=2 ), lwd=0, lwd.ticks = 1)
+```
+
+The stripchart, boxplot and Gaussian approximation graphs reveal that the data looks like it might be fairly well approximated by Gaussian distributions. The wild-type data is somewhat skewed with respect to the Gaussian.
+
+There's a reasonably good chance that these data were drawn from different underlying populations, but we'll assume they were drawn from the same population because there is a fair amount of overlap. Using bootstrapping, we'll test the hypothesis that they were drawn from the same population.
+
+```{r, echo=FALSE}
+plot.new()
+frame()
+par(mfrow = c(2,2))
+qqnorm(wtMedLatDiff, main="QQ Plot for wt Diff", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgreen", las=1)
+qqline(wtMedLatDiff, col="red")
+legend(-3,16, c("real data", "perfect"), col=c("darkgreen", "red"), pch=c("o",NA), lty=c(NA,1))
+#
+qqnorm(scmMedLatDiff, main="QQ Plot for scm Diff", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgreen", las=1)
+qqline(scmMedLatDiff, col="red")
+legend(-3,16, c("real data", "perfect"), col=c("darkgreen", "red"), pch=c("o",NA), lty=c(NA,1))
+#
+qqnorm(allMedLatDiff, main="QQ Plot for all Diff", xlab="Gaussian Quantiles", ylab="Empircal Quantiles", col="darkgreen", las=1)
+qqline(allMedLatDiff, col="red")
+legend(-3,16, c("real data", "perfect"), col=c("darkgreen", "red"), pch=c("o",NA), lty=c(NA,1))
+```
+
+These data conform reasonably well to Gaussian distributions, especially the knockout and pooled data. The wild-type difference data is skewed.
+
+
+####Part II.E : 
+#####Big Box Bootstrap Difference the Differences
+
+The difference in density speaks to the absolute number of cells found in each anatomical location. If there is no preference, we would expect the difference values to center around zero, which is approximately true for the wild-type. The knockout 
+
+```{r, echo=FALSE}
+
+#to use this terrible code...
+
+# ** < change input data >
+diffBootyData <- bigBooty( wtMedLatDiff, scmMedLatDiff, 10000, "minus" )
+
+tempHist <- hist( diffBootyData, breaks=50, plot = FALSE )
+
+lowerTwoish = quantilefx( diffBootyData, 2.5 )
+upperNinetySeventhish = quantilefx( diffBootyData, 97.5 )
+
+# calculate these ridiculous indices
+# this is terrible.
+cyanRealLow = max(which(tempHist$mids< quantilefx(diffBootyData, 1) ))
+cyanRealHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(diffBootyData, 99)))
+greenLow = max(which(tempHist$mids< quantilefx(diffBootyData, 2.5) )) - cyanRealLow
+greenHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(diffBootyData, 97.5))) - cyanRealHigh
+redCount = length(tempHist$mids) - ( greenHigh + greenLow + cyanRealLow + cyanRealHigh + 1 )
+
+plot(tempHist,col=c(rep("cyan",cyanRealLow), rep("green",greenLow), rep("lightgrey",redCount), rep("green", greenLow), rep("cyan",cyanRealHigh)), xlab='Difference', main='Bootstrapped Significance of \nObserved Median Difference Difference', las=1)
+#
+# ** < change input data > of next line
+#
+actualMedianDiff = median(scmMedLatRatios) - median(wtMedLatRatios)
+lines(c(actualMedianDiff, actualMedianDiff),c(0, max(tempHist$counts)*.85), lwd=2, col="red")
+#points( c(actualMedianDiff,actualMedianDiff), c(max(tempHist$counts)*.95, max(tempHist$counts)*.98), pch=c('x', '~')) # good grief. setting up LaTeX was taking too long
+#
+
+lines(c(quantilefx(diffBootyData, 97.5), quantilefx(diffBootyData, 97.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(diffBootyData, 97.5), max(tempHist$counts)*.85, paste('97.5%\n', round(quantilefx(diffBootyData, 97.5),2)))
+
+lines(c(quantilefx(diffBootyData, 2.5), quantilefx(diffBootyData, 2.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(diffBootyData, 2.5), max(tempHist$counts)*.85, paste('2.5%\n', round(quantilefx(diffBootyData, 2.5),2)))
+
+diffPval <- which(sort(c(actualMedianDiff, diffBootyData))==actualMedianDiff )/length(c(actualMedianDiff, diffBootyData)) + which(sort(c(-actualMedianDiff, diffBootyData),decreasing = TRUE)==-actualMedianDiff )/length(c(-actualMedianDiff, diffBootyData))
+
+text( actualMedianDiff*1.8, max(tempHist$counts)*.95, paste("X=", round(actualMedianDiff,3), "\np=",round(diffPval,4)),lwd=2, col="red")
+
+```
+
+Here we have assumed the null hypothesis and we are testing the effect size (difference) in the medians between the two populations. Specifically, we have assumed that both data sets were drawn from the same underlying population. If this was the case, the difference of the medians should be zero. The plot above shows 10,000 simulated datasets where these data were pooled together and the resulting simulated differences. The gray bars represent the region where 95% of the differences lie (not consisdered significantly different from the null hypothesis). The green and cyan regions combined represent 5% of the data while the cyan region represent 1% of differences. The actual observed difference (effect size) of dab-1 knockout differences minus wildtype ratios is  `r round(median(scmMedLatDiff) - median(wtMedLatDiff), 3)`, which is actually expected in approximately `r round( which(sort(c(actualMedianDiff, diffBootyData))==actualMedianDiff )/length(c(actualMedianDiff, diffBootyData)) *100,2)`% of cases where the null hypothesis is true. This data set does not allow the conclusion that these data sets are different. The effect size of the differences in density is fairly small (close to zero), so it might be possible to conclude that they are different with more samples.
+
+
+####Part II.F : 
+#####Big Box Bootstrap Ratio the Differences
+
+```{r echo=FALSE}
+
+
+ratioBootyData <- bigBooty( wtMedLatDiff, scmMedLatDiff, 10000, "ratio" )
+
+tempHist <- hist(ratioBootyData, breaks=50, plot = FALSE)
+
+lowerTwoish = quantilefx(ratioBootyData, 2.5)
+upperNinetySeventhish = quantilefx(ratioBootyData, 97.5)
+
+# calculate these ridiculous indices
+#this is terrible.
+cyanRealLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 1) ))
+cyanRealHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 99)))
+# arg.
+
+greenLow = max(which(tempHist$mids< quantilefx(ratioBootyData, 2.5) )) - cyanRealLow
+greenHigh = length(tempHist$mids) - min(which(tempHist$mids>quantilefx(ratioBootyData, 97.5))) - cyanRealHigh
+redCount = length(tempHist$mids) - ( greenHigh + greenLow + cyanRealLow + cyanRealHigh + 1 )
+
+plot(tempHist,col=c(rep("cyan",cyanRealLow), rep("green",greenLow), rep("lightgrey",redCount), rep("green", greenLow), rep("cyan",cyanRealHigh)), xlab='Ratio', main='Bootstrapped Significance of \nObserved Median Difference Ratio', las=1)
+actualMedianRatio = median(scmMedLatDiff) / median(wtMedLatDiff)
+lines(c(actualMedianRatio, actualMedianRatio),c(0, quantilefx(tempHist$counts,84)), lwd=2)
+#points( c(actualMedianRatio,actualMedianRatio), c(quantilefx(tempHist$counts,87), quantilefx(tempHist$counts,87)*1.04), pch=c('x', '~')) # good grief. setting up LaTeX was taking too long
+#
+
+# this is very poor programming...
+
+
+lines(c(quantilefx(ratioBootyData, 97.5), quantilefx(ratioBootyData, 97.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(ratioBootyData, 97.5), max(tempHist$counts)*.85, paste('97.5%\n', round(quantilefx(ratioBootyData, 97.5),2)))
+
+lines(c(quantilefx(ratioBootyData, 2.5), quantilefx(ratioBootyData, 2.5)),c(0, max(tempHist$counts)*.80), lwd=2, col='green', lty=3)
+text( quantilefx(ratioBootyData, 2.5), max(tempHist$counts)*.85, paste('2.5%\n', round(quantilefx(ratioBootyData, 2.5),2)))
+
+ratPval <- 
+  which(sort(c(1+actualMedianRatio, ratioBootyData), decreasing = TRUE)==1+actualMedianRatio )/length(c(1-actualMedianRatio, ratioBootyData))
++   which(sort(c(actualMedianRatio, ratioBootyData),decreasing = FALSE)==actualMedianRatio )/length(c(actualMedianRatio, ratioBootyData))
+
+# remember that this function always needs to be symmetric around the "no effect" pivot point, in this case 1. So, the ratio observed is less than 1, which means one should be added. If it were greater than 1, it would need to flipped over by subtraction.
+
+text( actualMedianRatio, quantilefx(tempHist$counts,87), paste("X=", actualMedianRatio, "\np=",round(ratPval,4)))
+
+```
+
+
+Here, the ratio of the differences is highly unlikely to result from the same underlying population. When we compare the median difference in density from medial to lateral of the two genotypes using a ratio instead of a difference (effect size), the ratio between these two values is highly unlikely to arise from the same population. This distribution is skewed because when the difference between the wild-type is near zero (i.e. fractional), it will multiply the difference in the knockout, occasionally producing fairly large values. If we used a 2 box bootstrap, we would expect large ratios, because more than 50% of the difference data for the wild-type resides between (-1, 1), implying that probably about 50% of the time, the knockout's values will be multiplied and exagerated. However, this bootstrap pools the data, so most of the ratios are centered around 1 because the pooled data set is not biased to produce large differences. The ratio might not be the best metric to examine whether differences are different because of this problem (feature).
+
+
+
+
+
+
+####References
+
+Gordon B. Drummond and Brian D M Tom. How can we tell if frogs jump further? British Journal of Pharmacology, 164(2):209–212, 2011. ISSN 00071188. doi: 10.1111/j.1476-5381.2011.01493.x
+
+Autumn D. Abadesco, Marianne Cilluffo, Griselda M. Yvone, Ellen M. Carpenter, Brian W. Howell, and Patricia E. Phelps. Novel Disabled-1-expressing neurons identified in adult brain and spinal cord. Euro- pean Journal of Neuroscience, 39(October 2013):579–592, 2014. ISSN 0953816X. doi: 10.1111/ejn.12416.
+
+
+
+
+Made with R 
+```{r, echo=FALSE}
+version
+```
