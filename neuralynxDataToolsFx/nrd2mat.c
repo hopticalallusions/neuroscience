@@ -24,12 +24,13 @@ int main( int argc, char *argv[] ) {
 	 ******************** */
 	
 	bool processTimestamps = true;
-	bool processTtls = true;
+	bool processTtls = false;
 	bool processHeader = true;
 	bool processChannels = true;
 	bool displayHelp = false;
 	bool verboseOutput = false;
 	bool obeyErrorLimit = true;
+	bool extractChannels = true;
 	char * strWhere;
 
 	unsigned int errorLimit = 1000;
@@ -42,20 +43,29 @@ int main( int argc, char *argv[] ) {
 	
 	// flags will subtract functionality, because on the first run, you probably want all these outputs
 	for ( unsigned int idx=0; idx < argc; idx++ ) {
+//		printf("%lu chars ;; %s/n", strlen(argv[idx]), argv[idx]);
 		strWhere = strstr (argv[idx],".nrd"); if ( strWhere != NULL ) { argvIdxToFile = idx; printf("INFO : argument %u detected as the data file\n", idx); }
-		strWhere = strstr (argv[idx],"-t");	  if ( strWhere != NULL ) { processTimestamps = false; printf("INFO : NO timestamp output\n"); }
-		strWhere = strstr (argv[idx],"-T");	  if ( strWhere != NULL ) { processTtls = false; printf("INFO : NO TTLs output\n"); }
-		strWhere = strstr (argv[idx],"-H");	  if ( strWhere != NULL ) { processHeader = false; printf("INFO : NO header output\n"); }
-		strWhere = strstr (argv[idx],"-h");	  if ( strWhere != NULL ) { displayHelp = true; }
-		strWhere = strstr (argv[idx],"-v");	  if ( strWhere != NULL ) { verboseOutput = true; }
-		strWhere = strstr (argv[idx],"-e");	  if ( strWhere != NULL ) { obeyErrorLimit = false; }
-		argChannel = strtol( argv[idx], &ptrToEnd, 10 ); 
+		strWhere = strstr (argv[idx],"-t");	  if ( ( strlen(argv[idx]) < 3 ) && strWhere != NULL ) { processTimestamps = false; printf("INFO : NO timestamp output\n"); }
+		strWhere = strstr (argv[idx],"+T");	  if ( ( strlen(argv[idx]) < 3 ) && strWhere != NULL ) { processTtls = false; printf("INFO : TTLs will be output\n"); }
+		strWhere = strstr (argv[idx],"-H");	  if ( ( strlen(argv[idx]) < 3 ) && strWhere != NULL ) { processHeader = false; printf("INFO : NO header output\n"); }
+		strWhere = strstr (argv[idx],"-h");	  if ( ( strlen(argv[idx]) < 3 ) && strWhere != NULL ) { displayHelp = true; }
+		strWhere = strstr (argv[idx],"-v");	  if ( ( strlen(argv[idx]) < 3 ) && strWhere != NULL ) { verboseOutput = true; }
+		strWhere = strstr (argv[idx],"-e");	  if ( ( strlen(argv[idx]) < 3 ) && strWhere != NULL ) { obeyErrorLimit = false; }
+		//strWhere = strstr (argv[idx],"-c ");	  if ( strWhere != NULL ) { extractChennels = false; printf("INFO : NO channel data output\n"); }
+		// I want to make a mode where it doesn't process everything, but that gets complicated in case you want timestamps or TTLs b/c you must process the packets to get those...
+		argChannel = strtol( argv[idx], &ptrToEnd, 10 ); // try converting the argument string to a long base 10 number
 		if ( !*ptrToEnd ) { 
 				// check whether the channels are rational later.
 				arrayOfChannelsToExtract[numberOfChannelsToExtract] = (int)argChannel;
 				numberOfChannelsToExtract++;
 		} // else { printf( "%s is not a number \n", ptrToEnd); }
 	}
+
+	/* TODO
+	fix channels
+		duplicate channels
+		out of range channels
+	*/
 
 	if ( displayHelp ) {
 	
@@ -71,7 +81,7 @@ int main( int argc, char *argv[] ) {
 		printf("|                                                              |\n");
 		printf("| FLAGS   : each flag must be preceded by a -; e.g. -t -h ...  |\n");
 		printf("|           -t  -- do not output timestamp file                |\n");
-		printf("|           -T  -- do not output TTL file                      |\n");
+		printf("|           +T  -- output TTL file                             |\n");
 		printf("|           -h  -- do not output header file                   |\n");
 		printf("|           -H  -- display this help & quit                    |\n");
 		printf("|           -v  -- verbose output                              |\n");

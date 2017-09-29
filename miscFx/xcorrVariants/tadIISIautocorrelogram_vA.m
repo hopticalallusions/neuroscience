@@ -1,4 +1,4 @@
-function acor = autocorrelogram(spiketimes, binsize, maxISI)
+function acor = tadIISIautocorrelogram_vA(spiketimes, binsize, maxISI)
 
 %maxISI=0.5;% + thstart*.002;
 auto_edges = 0:binsize:maxISI;

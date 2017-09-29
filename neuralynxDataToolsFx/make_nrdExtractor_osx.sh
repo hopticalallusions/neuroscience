@@ -1,2 +1,2 @@
 #!/bin/sh
-gcc -o ~/Applications/nrdExtractor nrd2mat.c
+gcc -o ~/Applications/bin/nrdExtractor nrd2mat.c
