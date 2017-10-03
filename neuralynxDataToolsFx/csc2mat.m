@@ -1,4 +1,6 @@
-function [data, fulltimestamps, header, channel, sampFreq, nValSamp ]=csc2mat(fname, recordStart, recordEnd)
+function [data, fulltimestamps, header, ADBitVolts, sampFreq, channel, nValSamp ]=csc2mat(fname, recordStart, recordEnd)
+
+% now returns microvolts
 
 % Jeffrey Erlich, March 5, 2007
 % jerlich@princeton.edu
@@ -151,6 +153,8 @@ end
 % there are others, but this one was a new one.
 tmpIdx = strfind(header, 'ADBitVolts');
 ADBitVolts = sscanf(header(tmpIdx(1) + length('ADBitVolts'):end), '%g', 1);
+data = data * ADBitVolts * 1000; % milivolts
+
 
 fclose(fid);
 

@@ -1,9 +1,56 @@
 %function sharpWaveDetector
 
+
+
+% SWR filter bands
+% 
+%  80-200 hz   figure 12
+% 120-250 hz   figure 15
+% 100-250 hz   figure 16
+%     175 hz   figure 14
+%  50-250 hz   figure  3
+% 180-200 hz   figure 27
+% 100-300 hz   figure 41
+% 
+% 
+% "wideband LFP"
+% 1-625 hz   f3
+% 
+% fast gamma
+% 110 hz
+% 
+% units  300-3000 hz  figure 12
+% 
+% 
+% unfiltered heights
+% 
+% ca1 pyr  ~.2 mV, ~50 ms
+% 1mV, .3 mV, .3 mV  pyr slice; clusters
+% .3 mV   f9
+% 
+% low pass filter (for height detection)
+% 1-50 Hz filter  f1
+% 
+% 
+% 
+% clusters -- 1 to 6 events. most often 2, vast majority, 1 to 3 events
+% event -- series of ripple waves; typically 3-9 waves; could be 3 in ~600 ms
+% 
+% 
+% probabilities of sharp wave ripple wave events
+% 
+% sws                      .5  hz ripples
+% immobile homecage --     .2  hz
+% immobile/consume maze -- .15 hz
+% generally                .1 hz  figure 16
+
+
+
+
 %
 %% load the CSC file
 %
-[ theta12swr16, nlxCscTimestampstheta12, cscHeadertheta12, channelx, sampFreqx, nValSampx ] = csc2mat(['/Users/andrewhowe/blairLab/blairlab_data/Theta12/day4ish/' '/CSC' num2str(16) '.ncs']);
+[ lfptheta12swr16, nlxCscTimestampstheta12, cscHeadertheta12, ~, ~, ~ ] = csc2mat(['/Users/andrewhowe/blairLab/blairlab_data/Theta12/day4ish/' '/CSC' num2str(16) '.ncs']);
 %
 %% build a SWR band filter (see below for parameter choices. the Fc#
 % aren't fixed
@@ -18,11 +65,11 @@ Hdswr = design(h, 'butter');
 %
 %% let's see what happens if we filter an example signal.
 %
-exampleSwrSignal=filter(Hdswr, theta12swr16(19910133-50000:19910133+200000)); % this magic number came from finding the max of the whole trace.
+exampleSwrSignal=filter(Hdswr, lfptheta12swr16(19910133-50000:19910133+200000)); % this magic number came from finding the max of the whole trace.
 exampleSwrSignalTime=(1:length(exampleSwrSignal))/32000;
 figure;
 subplot(2,1,1);
-plot(exampleSwrSignalTime , theta12swr16(19910133-50000:19910133+200000), 'Color', [ .7 .7 .7 ]);
+plot(exampleSwrSignalTime , lfptheta12swr16(19910133-50000:19910133+200000), 'Color', [ .7 .7 .7 ]);
 subplot(2,1,2);
 plot(exampleSwrSignalTime, exampleSwrSignal, 'b')
 %% Envelope
@@ -62,7 +109,7 @@ legend('filterd LFP','abs(LFP)','Envelope')
 % Instead, we'll translate the "x deviations from the mean" way of looking
 % at things into probabilities above which a point would need to be.
 %
-wholeEnvelope=abs(hilbert(filter(Hdswr, theta12swr16)));
+wholeEnvelope=abs(hilbert(filter(Hdswr, lfptheta12swr16)));
 [yyy,xxx]=hist(wholeEnvelope,1000);
 figure;
 plot(xxx(find(yyy)),yyy(find(yyy))/sum(yyy),'o');

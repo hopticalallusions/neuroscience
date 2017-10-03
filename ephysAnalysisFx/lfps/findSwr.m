@@ -19,12 +19,12 @@ rawLfp = rawLfp * ADBitVolts; % volts
 tmpIdx = strfind(header, 'SamplingFrequency'); 
 Fs = sscanf( header(tmpIdx(1) + length('SamplingFrequency'):end), '%g', 1);
 % build a SWR filter
-[A,B,C,D] = butter( 4, [125 250]/32000 );
+%[A,B,C,D] = butter( 4, [125 250]/32000 );
 swrFilter = designfilt( 'bandpassiir',                 ...
                         'FilterOrder',              8, ...
-                        'HalfPowerFrequency1',    125, ...
-                        'HalfPowerFrequency2',    250, ...
-                        'SampleRate',           32000);
+                        'HalfPowerFrequency1',    110, ...
+                        'HalfPowerFrequency2',    240, ...
+                        'SampleRate',           Fs);
 swrBandLfp = filtfilt( swrFilter, rawLfp);
 % find the enveclope (to limit the peak detection)
 swrBandLfpHilbert = hilbert( swrBandLfp );
@@ -38,6 +38,15 @@ swrLfpEnvelope = abs( swrBandLfpHilbert );
                           'MinPeakHeight',   prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
                           'MinPeakDistance', 0.05  ); % assumes "lockout" for SWR events; don't detect peaks within 50 ms on either side of peak
 
+
+                      
+
+% maybe also compare this with a few other methods
+%     low pass version
+%     get an event triggered LFP 2d version,
+%     check for outlier traces
+                      
+                      
 %
 % testing
 %
