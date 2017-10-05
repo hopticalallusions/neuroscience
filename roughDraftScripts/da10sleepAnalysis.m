@@ -153,12 +153,31 @@ figure; plot(temp)
     speed=(1:length(temp)-100);
     figure;
     h = surface([x(:), x(:)], [y(:), y(:)], [z(:), z(:)], [speed(:), speed(:)], ...
-                 'EdgeColor', 'flat', 'FaceColor','none', 'LineWidth', 1.5);
-    colormap( build_NOAA_colorgradient ); colorbar;
+                 'EdgeColor', 'flat', 'FaceColor','none', 'LineWidth', 1);
+    colormap( flip(build_NOAA_colorgradient) ); colorbar;
     title('place by speed plot');
     legend(legendText);
 
+    
+hilbertTemp=hilbert(temp); tsTemp=(1:length(temp))/(1000);
+figure; subplot(4,1,1); plot(tsTemp,real(hilbertTemp)); hold on; plot(tsTemp,abs(hilbertTemp)); xlim([255 260]);
+subplot(4,1,2); plot( tsTemp, real(hilbertTemp)); hold on; plot(tsTemp,imag(hilbertTemp)); xlim([255 260]);
+subplot(4,1,3); plot( tsTemp, angle(hilbertTemp)); xlim([255 260]);
+subplot(4,1,4); plot( tsTemp, real(hilbertTemp)); hold on; plot(tsTemp,abs(((temp)))); xlim([255 260]);
 
+energy=zeros(size(temp));
+windowSize=150;
+for idx=windowSize+1:length(energy)
+    %energy(idx)=sqrt(sum(temp(idx:idx+windowSize).^2)); % actual energy calculation
+    energy(idx)=sum(abs(temp(idx-windowSize:idx))); % cheaper calculation
+end
+subplot(4,1,4); hold off; plot( tsTemp, real(hilbertTemp)); hold on; plot(tsTemp,energy/(10*max(energy))); xlim([225 280]);
+
+
+
+subplot(4,1,4); plot( tsTemp(2:end), 1000*diff(unwrap(angle(hilbertTemp)))); xlim([255 260]);
+    
+    
 
 %% filter low ranges to obtain wall electric noise signal
 deltaFilter = designfilt( 'bandpassiir',                 ...
@@ -202,6 +221,19 @@ figure; subplot(3,1,1); plot( timestampSeconds(ii), lfp76(ii)); ylim([ -0.25 0.2
 % Most chewing probably occurs in the 4-5 Hz range per crunch?
 % the LFP contains other frequencies of the noise
 
+
+
+swrFilter = designfilt( 'bandpassiir',                 ...
+                        'FilterOrder',              8, ...
+                        'HalfPowerFrequency1',    110, ...
+                        'HalfPowerFrequency2',    240, ...
+                        'SampleRate',           32000);
+swrLfp = filtfilt( swrFilter, lfp61);
+figure; 
+subplot(4,1,1); plot(timestampSeconds, lfp61); %ylim([ -0.25 0.1  ]);; 
+subplot(4,1,2); plot(timestampSeconds, swrLfp);% ylim([ -0.25 0.1  ]);
+subplot(4,1,3); plot(timestampSeconds, lfp61-swrLfp); %ylim([ -0.25 0.1  ]);
+subplot(4,1,4); plot(timestampSeconds, abs(hilbert(swrLfp)));% ylim([ -0.25 0.1  ]);
 
 
 return; 

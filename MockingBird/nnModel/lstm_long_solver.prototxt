@@ -1,0 +1,11 @@
+net: "lstm_long_5.prototxt"
+base_lr: 0.1
+gamma: 0.1
+stepsize: 20000
+momentum: 0.90
+lr_policy: "step"
+display: 200
+max_iter: 120000
+solver_mode: CPU
+average_loss: 200
+
