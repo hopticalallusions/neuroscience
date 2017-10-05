@@ -1,4 +1,4 @@
-function nlxstruct = MB_bandpassHPP( nlxstruct, Fstop1, Fpass1, Fpass2, Fstop2, Astop1, Apass, Astop2, tshift, plotflag, blocksize, outreal_mean, input_scalefact )
+function nlxstruct = MB_filtfilt( nlxstruct, dfh, tshift, plotflag, blocksize, outreal_mean, input_scalefact )
                                                                 
 %%%ADD TRUNCATION WARNINGS IF VALUES <0 OR >1 ARE OBTAINED
 
@@ -50,19 +50,19 @@ function nlxstruct = MB_bandpassHPP( nlxstruct, Fstop1, Fpass1, Fpass2, Fstop2, 
  
 %%% RETURN VALUES:
 
-if nargin<9
+if nargin<3
     tshift=0; %default is do not plot graphs
 end
 
-if nargin<10
+if nargin<4
     plotflag=0; %default is do not plot graphs
 end
 
-if nargin<11
+if nargin<5
     blocksize=100; %default blocksize is 100
 end
 
-if nargin<12
+if nargin<6
     outreal_mean=.12; %default envelope amplitude for target signal is .12
 end
 
@@ -158,7 +158,7 @@ std_lfp=std(abs(scaled_lfp));
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% FILTER THE DATA %%%%%%%%%%%%%%%%%%%%%%%%
 
 %create the bandpass filter using 'designfilt' from the MATLAB signal processing toolbox
-dfh = designfilt('bandpassiir', 'StopbandFrequency1', Fstop1, 'PassbandFrequency1', Fpass1, 'PassbandFrequency2', Fpass2, 'StopbandFrequency2', Fstop2, 'StopbandAttenuation1', Astop1, 'PassbandRipple', Apass, 'StopbandAttenuation2', Astop2, 'SampleRate', srate);
+%dfh = designfilt('bandpassiir', 'StopbandFrequency1', Fstop1, 'PassbandFrequency1', Fpass1, 'PassbandFrequency2', Fpass2, 'StopbandFrequency2', Fstop2, 'StopbandAttenuation1', Astop1, 'PassbandRipple', Apass, 'StopbandAttenuation2', Astop2, 'SampleRate', srate);
 
 %apply the filter to compute F[u(t)]
 training_target=filtfilt(dfh,lfp);
@@ -196,8 +196,10 @@ while ~(button==32)
     [x, y, button]=ginput(1);
     if button==115
             numf=length(nlxstruct.filtered)+1;
-            nlxstruct.filtered(numf).description = ['ButterWorth BandPass shift=' num2str(tshift) '; passband(' num2str(Fpass1) ',' num2str(Fpass2) '); stopband(' num2str(Fstop1) ',' num2str(Fstop2) '); attenuation(' num2str(Astop1) ',' num2str(Astop2) '); passband ripple=' num2str(Apass)];
+            nlxstruct.filtered(numf).filter = dfh;
             nlxstruct.filtered(numf).teaching_signal = training_target;
+            nlxstruct.filtered(numf).training_output = NaN;
+            nlxstruct.filtered(numf).testing_output = NaN;
             nlxstruct.filtered(numf).input_scalefact = scalefact;
             nlxstruct.filtered(numf).training_segment = NaN;
             nlxstruct.filtered(numf).testing_segment = NaN;

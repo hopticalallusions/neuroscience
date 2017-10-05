@@ -1,8 +1,8 @@
-function nlxstruct = MB_nrd2hpp( fname, channelsRequested, DS, DCO, plotflag )
+function nlxstruct = MB_nrd2struct( fname, channelNums, DS, DCO, plotflag )
 
 % ARGUMENTS
 % fname = name of input nrd file to process (e.g., '/CheetahData/RawDataFile.nrd')
-% channelRequested = vector of Neuralynx channels numbers (0 based counting) to process (e.g., [63 88 121])
+% channelNums = vector of Neuralynx channels numbers (0 based counting) to process (e.g., [63 88 121])
 % DS = vector of integer factors by which to downsample each channel (e.g., [200 25 9])
 % DCO = vector of DCO window widths (length must be same as DS, values must be powers of 2) for removing drift from the LFP (e.g., [256 128 32])
 % plotflag = 1=plot graphs, 0=no plotting (default is 0 if omitted)
@@ -27,7 +27,10 @@ end
 %     recordStart = 1;
 % end
 
-
+channelsRequested=num2str(channelNums(1));
+for i=2:length(channelNums)
+    channelsRequested=[channelsRequested ' ' num2str(channelNums(i))];
+end
 status=unix(['nrdExtractor -T ' fname ' ' channelsRequested]);
 d=importdata('headerOutputFile.txt',' ',13); %read in header file
 samplerate=d.data(1); %get sampling rate
@@ -69,14 +72,10 @@ end
 prefixts=fixts;
 fixts=temp;
 
-spdex=strfind(channelsRequested,' ');
-if ~isempty(spdex)
-    sdex=1;
-    for i=1:length(spdex)
+    for i=1:length(channelNums)
         DCOwin = [ones(1,DCO(i)) zeros(1,DCO(i))]/DCO(i);
         gapthresh=1+round(.0065/((1.04/((samplerate/DS(i))/12))/12)); %wacky formula computes maximum allowable gap size
-        chnum=channelsRequested(sdex:(spdex(i)-1));
-        sdex=spdex(i)+1;
+        chnum=num2str(channelNums(i));
         chData = loadCExtractedNrdChannelData( ['rawChannel_' chnum '.dat'] );
         if ~isempty(negstamps) %if there are redundant copies of data spliced into nrd file
         temp=chData(1:negstamps(1));
@@ -125,106 +124,3 @@ if ~isempty(spdex)
           title(['ch#' num2str(nlxstruct(i).channel) ' DS-' num2str(nlxstruct(i).dsfactor) ' DCO-' num2str(nlxstruct(i).dcowidth)]);
         end
     end
-    DCOwin = [ones(1,DCO(end)) zeros(1,DCO(end))]/DCO(end);
-    gapthresh=round(.0065/((1.04/((samplerate/DS(end))/12))/12)); %wacky formula computes maximum allowable gap size
-    chnum=channelsRequested(sdex:end);
-    chData = loadCExtractedNrdChannelData( ['rawChannel_' chnum '.dat'] );
-    if ~isempty(negstamps) %if there are redundant copies of data spliced into nrd file
-    temp=chData(1:negstamps(1));
-    for ii=1:length(negstamps)-1
-        temp=[temp; chData((bigstamps(bigoff+(ii-1)*2)+1):negstamps(ii+1))];
-    end
-    chData=temp;
-    end
-%     if bigoff>1
-%         temp=temp((bigstamps(bigoff-1)+5):end);
-%     end
-    temp=chData(1:fxbig(1));
-    for ii=1:length(fxbig)
-        newvals=[(chData(fxbig(ii))+dt):dt:(chData(fxbig(ii)+1)-dt)]';
-        newdat=interp1([prefixts(fxbig(ii)) prefixts(fxbig(ii)+1)],[chData(fxbig(ii)) chData(fxbig(ii)+1)],newtimes(ii).ts)*NaN;
-        if ii<length(fxbig)
-            temp=[temp; newdat; chData((fxbig(ii)+1):fxbig(ii+1))];
-        else
-            temp=[temp; newdat; chData((fxbig(ii)+1):end)];
-        end
-    end
-    [chData, gapstart, gaplength] = jumpfill1D(fixts(1:DS(end):end), temp(1:DS(end):end), gapthresh); %downsample and interpolate across small NaN gaps
-        if ~isempty(gapstart)
-            ['WARNING!! ch# ' chnum ' data contains ' num2str(length(gapstart)) ' NaN gaps!']
-            nlxstruct(length(spdex)+1).gapstart = gapstart;
-            nlxstruct(length(spdex)+1).gaplength = gaplength;
-        else
-            nlxstruct(length(spdex)+1).gapstart = [];
-            nlxstruct(length(spdex)+1).gaplength = [];
-        end
-    truncdata=chData-conv(chData,DCOwin,'same'); truncdata=truncdata(DCO(end)+1:end);
-    chData = [str2num(chnum); DS(end); DCO(end); truncdata];
-%     fileID = fopen(['rawChannel_' chnum '.hpp'],'w');
-%     fprintf(fileID,'%d\n',chData);
-%     fclose(fileID);
-    nlxstruct(length(spdex)+1).channel = str2num(chnum);
-    nlxstruct(length(spdex)+1).dsfactor = DS(end);
-    nlxstruct(length(spdex)+1).dt = nlxstruct(length(spdex)+1).dsfactor/samplerate;
-    nlxstruct(length(spdex)+1).dcowidth = DCO(end);
-    nlxstruct(length(spdex)+1).data = round(chData(4:end));
-    nlxstruct(length(spdex)+1).filtered = [];
-    if plotflag
-        figure; clf;
-        tempts=fixts(1:DS(end):end);
-        plot(tempts(DCO(end)+1:end),nlxstruct(length(spdex)+1).data);
-        title(['ch#' num2str(nlxstruct(length(spdex)+1).channel) ' DS-' num2str(nlxstruct(length(spdex)+1).dsfactor) ' DCO-' num2str(nlxstruct(length(spdex)+1).dcowidth)]);
-    end
-else
-    DCOwin = [ones(1,DCO) zeros(1,DCO)]/DCO;
-    gapthresh=round(.0065/((1.04/((samplerate/DS)/12))/12)); %wacky formula computes maximum allowable gap size
-    chData = loadCExtractedNrdChannelData( ['rawChannel_' channelsRequested '.dat'] );
-    if ~isempty(negstamps) %if there are redundant copies of data spliced into nrd file
-    temp=chData(1:negstamps(1));
-    for ii=1:length(negstamps)-1
-        temp=[temp; chData((bigstamps(bigoff+(ii-1)*2)+1):negstamps(ii+1))];
-    end
-    chData=temp;
-    end
-%     if bigoff>1
-%         temp=temp((bigstamps(bigoff-1)+5):end);
-%     end
-    temp=chData(1:fxbig(1));
-    for ii=1:length(fxbig)
-        newvals=[(chData(fxbig(ii))+dt):dt:(chData(fxbig(ii)+1)-dt)]';
-        newdat=interp1([prefixts(fxbig(ii)) prefixts(fxbig(ii)+1)],[chData(fxbig(ii)) chData(fxbig(ii)+1)],newtimes(ii).ts)*NaN;
-        if ii<length(fxbig)
-            temp=[temp; newdat; chData((fxbig(ii)+1):fxbig(ii+1))];
-        else
-            temp=[temp; newdat; chData((fxbig(ii)+1):end)];
-        end
-    end
-    [chData, gapstart, gaplength] = jumpfill1D(fixts(1:DS:end), temp(1:DS:end), gapthresh); %downsample and interpolate across small NaN gaps
-        if ~isempty(gapstart)
-            ['WARNING!! ch# ' chnum ' data contains ' num2str(length(gapstart)) ' NaN gaps!']
-            nlxstruct(i).gapstart = gapstart;
-            nlxstruct(i).gaplength = gaplength;
-        else
-            nlxstruct(i).gapstart = [];
-            nlxstruct(i).gaplength = [];
-        end
-    truncdata=chData-conv(chData,DCOwin,'same'); truncdata=truncdata(DCO+1:end);
-    chData = [str2num(chnum); DS; DCO; truncdata];
-%     fileID = fopen(['rawChannel_' chnum '.hpp'],'w');
-%     fprintf(fileID,'%d\n',chData);
-%     fclose(fileID);
-    nlxstruct.channel = str2num(chnum);
-    nlxstruct.dsfactor = DS;
-    nlxstruct.dt = nlxstruct.dsfactor/samplerate;
-    nlxstruct.dcowidth = DCO;
-    nlxstruct.data = round(chData(4:end));
-    nlxstruct.filtered = [];
-    if plotflag
-        figure; clf;
-        tempts=fixts(1:DS:end);
-        plot(tempts(DCO+1:end),nlxstruct.data);
-        title(['ch#' num2str(nlxstruct.channel) ' DS-' num2str(nlxstruct.dsfactor) ' DCO-' num2str(nlxstruct.dcowidth)]);
-    end
-end
-
-
