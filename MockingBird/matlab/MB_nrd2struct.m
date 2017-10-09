@@ -27,14 +27,24 @@ end
 %     recordStart = 1;
 % end
 
+%string conversion of channels numbers
+uchan=unique(channelNums); %don't need to extract any channel more than once
+channelsRequested=num2str(uchan(1));
+for i=2:length(uchan)
+    channelsRequested=[channelsRequested ' ' num2str(uchan(i))];
+end
+delete('rawChannel_*.dat'); %remove any prior channel data on the disk
+status=unix(['nrdExtractor -T ' fname ' ' channelsRequested]); %use nrd extractor to fetch neuralynx data
+
+%redo string conversion of channels numbers, this time without eliminating redundant channels
 channelsRequested=num2str(channelNums(1));
 for i=2:length(channelNums)
     channelsRequested=[channelsRequested ' ' num2str(channelNums(i))];
 end
-status=unix(['nrdExtractor -T ' fname ' ' channelsRequested]);
+
 d=importdata('headerOutputFile.txt',' ',13); %read in header file
 samplerate=d.data(1); %get sampling rate
-disp(['Neuralynx sampling rate is ' num2str(samplerate) ' Hz'])
+['Neuralynx sampling rate is ' num2str(samplerate) ' Hz']
 [ timestamps ] = loadCExtractedNrdTimestampData( 'timestamps.dat' );
 timestamps=(timestamps-timestamps(1))/1000000;
 temp=diff(timestamps);
@@ -42,6 +52,7 @@ negstamps=find(temp<0);
 bigstamps=find(temp>=(2/samplerate));
 
 if ~isempty(negstamps) %if there are redundant copies of data spliced into nrd file
+    ['WARNING!! Data contains misordered time stamps; attempting to correct...']
     bigoff=find(bigstamps==negstamps(1)+128);
     %remove any redundant copies of data spliced into nrd file
     fixts=timestamps(1:negstamps(1));
@@ -58,7 +69,7 @@ end
 %interpolate timestamps across any remaining gaps
 fxdif=diff(fixts);
 fxbig=(find(fxdif>=(2/samplerate)));
-dt=mean(fxdif);
+dt=1/samplerate;
 temp=fixts(1:fxbig(1));
 for ii=1:length(fxbig)
     newtimes(ii).ts=[(fixts(fxbig(ii))+dt):dt:(fixts(fxbig(ii)+1)-dt)]';
@@ -114,6 +125,7 @@ fixts=temp;
         nlxstruct(i).channel = str2num(chnum);
         nlxstruct(i).dsfactor = DS(i);
         nlxstruct(i).dt = nlxstruct(i).dsfactor/samplerate;
+        nlxstruct(i).start = fixts(1+DS(i)*DCO(i));
         nlxstruct(i).dcowidth = DCO(i);
         nlxstruct(i).data = round(chData(4:end));
         nlxstruct(i).filtered = [];

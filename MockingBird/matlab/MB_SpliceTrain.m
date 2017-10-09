@@ -10,7 +10,7 @@ function nlxstruct = MB_SpliceTrain( nlxstruct, filternum )
 %    nlxstruct.dcowidth = DCO window size for this data
 %    nlxstruct.data = 24 bit signed integer data, downsampled and DCO filtered (centered at zero)
 %    nlxstruct.filtered(i) = substructure containing filtered versions of the data
-%    filternum = index of nlxstruct.filtered(i) to splice (default = 1)
+% filternum = index of nlxstruct.filtered(i) to splice (default = 1)
 
 if nargin<2
     filternum=1; %default is first filter

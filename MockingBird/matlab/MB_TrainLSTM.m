@@ -1,4 +1,4 @@
-function nlxstruct = MB_TrainLSTM( FEMfile, nlxstruct, numf )
+function nlxstruct = MB_TrainLSTM( FEMfile, nlxstruct, numf, blocksize )
 
 % This function trains two LSTM networks within a MockingBird filter emulator module (FEM), and  
 % stores the resulting weight parameters to an FEM file
@@ -17,6 +17,10 @@ if nargin<3
     numf = 1; %default filter number is 1
 end
 
+if nargin<4
+    blocksize = 100; %default filter number is 1
+end
+
 trainerpath=[pwd '/'];
 
 %---------------------------------- TRAINING ------------------------------
@@ -26,18 +30,33 @@ lfp=nlxstruct.data(nlxstruct.filtered(numf).training_segment(1):nlxstruct.filter
 lfp=(lfp+2^(nlxstruct.filtered(numf).input_scalefact-1))/2^(nlxstruct.filtered(numf).input_scalefact-15);
 lfp(find(lfp>2^15))=2^15; lfp(find(lfp<0))=0;
 lfp=lfp/(2^15);
-save([trainerpath 'input.hpp'],'lfp','-ascii');
+cutlen=mod(length(lfp),blocksize);
+lfp=lfp(1:end-cutlen);
+%save([trainerpath 'input.hpp'],'lfp','-ascii');
+fileID = fopen('input.hpp','w');
+fprintf(fileID,'%10.8f\n',lfp);
+fclose(fileID);
 
 %train real LSTM
 temp=real(nlxstruct.filtered(numf).teaching_signal(nlxstruct.filtered(numf).training_segment(1):nlxstruct.filtered(numf).training_segment(2))); %extract real component of the target vector
-save([trainerpath 'target.hpp'],'temp','-ascii'); %save target data file for use by the LSTM trainer
+temp=temp(1:end-cutlen);
+temp(find(temp>1))=1; temp(find(temp<-1))=-1;
+%save([trainerpath 'target.hpp'],'temp','-ascii'); %save target data file for use by the LSTM trainer
+fileID = fopen('target.hpp','w');
+fprintf(fileID,'%10.8f\n',temp);
+fclose(fileID);
 status = system([trainerpath 'TrainLSTM ' trainerpath]); %execute the LSTM trainer from the Windows command prompt
 realweights=importdata([trainerpath 'weight.hpp']); %read in the weight file
 realweights=round(4096*realweights); %convert weights to fixed point
 
 %train imaginary LSTM
-temp=real(nlxstruct.filtered(numf).teaching_signal(nlxstruct.filtered(numf).training_segment(1):nlxstruct.filtered(numf).training_segment(2))); %extract imaginary component of the target vector
-save([trainerpath 'target.hpp'],'temp','-ascii'); %save target data file for use by the LSTM trainer
+temp=imag(nlxstruct.filtered(numf).teaching_signal(nlxstruct.filtered(numf).training_segment(1):nlxstruct.filtered(numf).training_segment(2))); %extract imaginary component of the target vector
+temp=temp(1:end-cutlen);
+temp(find(temp>1))=1; temp(find(temp<-1))=-1;
+%save([trainerpath 'target.hpp'],'temp','-ascii'); %save target data file for use by the LSTM trainer
+fileID = fopen('target.hpp','w');
+fprintf(fileID,'%10.8f\n',temp);
+fclose(fileID);
 status = system([trainerpath 'TrainLSTM ' trainerpath]); %execute the LSTM trainer from the Windows command prompt
 imagweights=importdata([trainerpath 'weight.hpp']); %read in the weight file
 imagweights=round(4096*imagweights); %convert weights to fixed point
@@ -55,6 +74,7 @@ fclose(fileID);
 %---------------------------------- TESTING ------------------------------
 
 %compute output for training data
+lfp=nlxstruct.data(nlxstruct.filtered(numf).training_segment(1):nlxstruct.filtered(numf).training_segment(2)); %input data
 fileID = fopen('test_input.hpp','w');
 fprintf(fileID,'%d\n',lfp);
 fclose(fileID);
@@ -64,10 +84,10 @@ nlxstruct.filtered(numf).training_output=complex(test_output(:,1),test_output(:,
 
 
 %compute output for testing data
-lfp=nlxstruct.data(nlxstruct.filtered(numf).testing_segment(1):nlxstruct.filtered(numf).testing_segment(2));
-lfp=(lfp+2^(nlxstruct.filtered(numf).input_scalefact-1))/2^(nlxstruct.filtered(numf).input_scalefact-15);
-lfp(find(lfp>2^15))=2^15; lfp(find(lfp<0))=0;
-lfp=lfp/(2^15);
+lfp=nlxstruct.data(nlxstruct.filtered(numf).testing_segment(1):nlxstruct.filtered(numf).testing_segment(2)); %input data
+% lfp=(lfp+2^(nlxstruct.filtered(numf).input_scalefact-1))/2^(nlxstruct.filtered(numf).input_scalefact-15);
+% lfp(find(lfp>2^15))=2^15; lfp(find(lfp<0))=0;
+% lfp=lfp/(2^15);
 fileID = fopen('test_input.hpp','w');
 fprintf(fileID,'%d\n',lfp);
 fclose(fileID);
