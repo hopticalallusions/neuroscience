@@ -1,5 +1,5 @@
 %find SWR events
-function [ swrBandLfp, timestamps, swrLfpEnvelope, peakValues, peakTimes, peakProminances, peakWidths ] = findSwr( filename, percentile )
+function [ swrBandLfp, swrLfpEnvelope, peakValues, peakTimes, peakProminances, peakWidths ] = findSwr( filename, percentile )
 
 if nargin < 2
     percentile = 98;

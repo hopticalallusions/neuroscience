@@ -9,6 +9,12 @@
 % fast Gamma wave ? (90 ? 130 Hz)
 % sharp wave ? (130 ? 250 Hz)
 
+
+% Buzsaki SWR review 2015 says gamma is :
+%     slow  30-80  Hz
+%     mid   60-120 Hz
+%     fast  >100Hz
+
 % from https://en.wikipedia.org/wiki/Gamma_wave
 % see also the Table here :
 % https://en.wikipedia.org/wiki/Electroencephalography 

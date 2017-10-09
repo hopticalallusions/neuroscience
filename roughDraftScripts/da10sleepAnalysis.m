@@ -10,6 +10,10 @@ dir='/Users/andrewhowe/data/ratData/ephysAndTelemetry/da10/da10_2017-09-22_11-57
 
 [ xpos, ypos, xytimestamps, ~, ~ ]=nvt2mat([ dir 'VT0.nvt']);
 xpos=nlxPositionFixer(xpos); ypos=nlxPositionFixer(ypos);
+pxPerCm = 2.706;   % sqrt((298-75)^2+(232-425)^2) px/109 cm {half maze width}
+lagTime = 1.5; % seconds
+speed=calculateSpeed(xpos, ypos, lagTime, pxPerCm);
+xytimestampSeconds=(xytimestamps-xytimestamps(1))/1e6;
 
 % tested : all the LFP timestamps are the same
 [ lfp88, lfpTimestamps ] = csc2mat([ dir 'CSC88.ncs']); % inverted SWR; below layer
@@ -223,17 +227,149 @@ figure; subplot(3,1,1); plot( timestampSeconds(ii), lfp76(ii)); ylim([ -0.25 0.2
 
 
 
-swrFilter = designfilt( 'bandpassiir',                 ...
-                        'FilterOrder',              8, ...
-                        'HalfPowerFrequency1',    110, ...
-                        'HalfPowerFrequency2',    240, ...
-                        'SampleRate',           32000);
-swrLfp = filtfilt( swrFilter, lfp61);
+swrFilter = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',    110, 'HalfPowerFrequency2',    240, 'SampleRate',           32000);
+swrFilter = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',    110, 'HalfPowerFrequency2',    240, 'SampleRate',           32000);
+swrLfp = filtfilt( swrFilter, lfp61); dsRate=10;
 figure; 
-subplot(4,1,1); plot(timestampSeconds, lfp61); %ylim([ -0.25 0.1  ]);; 
-subplot(4,1,2); plot(timestampSeconds, swrLfp);% ylim([ -0.25 0.1  ]);
-subplot(4,1,3); plot(timestampSeconds, lfp61-swrLfp); %ylim([ -0.25 0.1  ]);
-subplot(4,1,4); plot(timestampSeconds, abs(hilbert(swrLfp)));% ylim([ -0.25 0.1  ]);
+subplot(6,1,1); plot( downsample(timestampSeconds,dsRate) , downsample(lfp88,dsRate) );
+subplot(6,1,2); plot( downsample(timestampSeconds,dsRate), downsample(lfp61,dsRate) ); %ylim([ -0.25 0.1  ]);; 
+subplot(6,1,3); plot( downsample(timestampSeconds,dsRate), downsample(swrLfp,dsRate) );% ylim([ -0.25 0.1  ]);
+subplot(6,1,4); plot( downsample(timestampSeconds,dsRate), downsample(lfp61-swrLfp,dsRate) ); %ylim([ -0.25 0.1  ]);
+subplot(6,1,5); plot( downsample(timestampSeconds,dsRate), downsample(abs(hilbert(swrLfp)),dsRate) );% ylim([ -0.25 0.1  ]);
+subplot(6,1,6); plot( xytimestampSeconds, speed ); ylabel('cm/s')
+
+startIdx = 1691.5; for ii=1:6; subplot(6,1,ii); xlim([ startIdx startIdx+3 ]); end;
+
+1692
+1838
+
+
+%% da10 August 21
+
+dir='/Users/andrewhowe/data/sampleData/sampleRawNlxNrd/da10/2017-08-21/';
+
+[ xpos, ypos, xytimestamps, ~, ~ ]=nvt2mat([ dir 'VT0.nvt']);
+xpos=nlxPositionFixer(xpos); ypos=nlxPositionFixer(ypos);
+pxPerCm = 2.0;   % ???? in cage... sqrt((298-75)^2+(232-425)^2) px/109 cm {half maze width}
+lagTime = 1.5; % seconds
+speed=calculateSpeed(xpos, ypos, lagTime, pxPerCm);
+xytimestampSeconds=(xytimestamps-xytimestamps(1))/1e6;
+
+% tested : all the LFP timestamps are the same
+lfp88=loadCExtractedNrdChannelData([ dir 'rawChannel_88.dat']);
+lfp61=loadCExtractedNrdChannelData([ dir 'rawChannel_61.dat']);
+lfp76=loadCExtractedNrdChannelData([ dir 'rawChannel_76.dat']);
+lfpTimestamps=loadCExtractedNrdTimestampData([ dir 'timestamps.dat']);
+timestampSeconds=(lfpTimestamps-lfpTimestamps(1))/1e6;
+
+% Buzsaki says gamma is :
+%     slow  30-80  Hz
+%     mid   60-120 Hz
+%     fast  >100Hz
+
+% Delta wave ? (0.1 ? 4 Hz)
+% Theta wave ? (4 ? 8 Hz)
+% Alpha wave ? (8 ? 14 Hz)
+%       Mu wave ? (7 ? 13 Hz) (sensirimotor)
+%       SMR wave ? (12.5 ? 15.5 Hz)
+% Beta wave ? (14 ? 31 Hz)
+% Gamma wave ? (32 ? 90 Hz)
+% fast Gamma wave ? (90 ? 130 Hz)
+% sharp wave ? (130 ? 250 Hz)
+
+deltaFilter     = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',   0.1, 'HalfPowerFrequency2',      4, 'SampleRate',           32000);
+slowSwrFilter   = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',     1, 'HalfPowerFrequency2',     50, 'SampleRate',           32000);
+thetaFilter     = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',     4, 'HalfPowerFrequency2',     12, 'SampleRate',           32000);
+alphaFilter  = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',     8, 'HalfPowerFrequency2',     14, 'SampleRate',           32000);
+betaFilter      = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',    14, 'HalfPowerFrequency2',     31, 'SampleRate',           32000);
+lowGammaFilter  = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',    30, 'HalfPowerFrequency2',     80, 'SampleRate',           32000);
+midGammaFilter  = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',    60, 'HalfPowerFrequency2',    120, 'SampleRate',           32000);
+swrFilter       = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',    99, 'HalfPowerFrequency2',    260, 'SampleRate',           32000);
+highLfpFilter   = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',   250, 'HalfPowerFrequency2',    600, 'SampleRate',           32000);
+spikeFilter     = designfilt( 'bandpassiir', 'FilterOrder',              8, 'HalfPowerFrequency1',   600, 'HalfPowerFrequency2',   6000, 'SampleRate',           32000);
+
+deltaLfp     = filtfilt( deltaFilter, lfp88);
+slowSwrLfp   = filtfilt( slowSwrFilter, lfp88);
+thetaLfp     = filtfilt( thetaFilter, lfp88);
+alphaSwrLfp  = filtfilt( alphaFilter, lfp88);
+betaLfp      = filtfilt( betaFilter, lfp88);
+lowGammaLfp  = filtfilt( lowGammaFilter, lfp88);
+midGammaLfp  = filtfilt( midGammaFilter, lfp88);
+swrLfp       = filtfilt( swrFilter, lfp88);
+highLfp      = filtfilt( highLfpFilter, lfp88);
+spikeLfp     = filtfilt( spikeFilter, lfp88);
+
+
+deltaLfpEnv     = abs(hilbert(deltaLfp));
+slowSwrLfpEnv   = abs(hilbert(slowSwrLfp));
+thetaLfpEnv     = abs(hilbert(thetaLfp));
+alphaSwrLfpEnv  = abs(hilbert(alphaSwrLfp));
+betaLfpEnv      = abs(hilbert(betaLfp));
+lowGammaLfpEnv  = abs(hilbert(lowGammaLfp));
+midGammaLfpEnv  = abs(hilbert(midGammaLfp));
+swrLfpEnv       = abs(hilbert(swrLfp));
+highLfpEnv      = abs(hilbert(highLfp));
+spikeLfpEnv     = abs(hilbert(spikeLfp));
+
+
+deltaLfpNorm     = (deltaLfpEnv-min(deltaLfpEnv))/max(deltaLfpEnv-min(deltaLfpEnv));
+slowSwrLfpNorm   = (slowSwrLfpEnv-min(slowSwrLfpEnv))/max(slowSwrLfpEnv-min(slowSwrLfpEnv));
+thetaLfpNorm     = (thetaLfpEnv-min(thetaLfpEnv))/max(thetaLfpEnv-min(thetaLfpEnv));
+alphaSwrLfpNorm  = (alphaSwrLfpEnv-min(alphaSwrLfpEnv))/max(alphaSwrLfpEnv-min(alphaSwrLfpEnv));
+betaLfpNorm      = (betaLfpEnv-min(betaLfpEnv))/max(betaLfpEnv-min(betaLfpEnv));
+lowGammaLfpNorm  = (lowGammaLfpEnv-min(lowGammaLfpEnv))/max(lowGammaLfpEnv-min(lowGammaLfpEnv));
+midGammaLfpNorm  = (midGammaLfpEnv-min(midGammaLfpEnv))/max(midGammaLfpEnv-min(midGammaLfpEnv));
+swrLfpNorm       = (swrLfpEnv-min(swrLfpEnv))/max(swrLfpEnv-min(swrLfpEnv));
+highLfpNorm      = (highLfpEnv-min(highLfpEnv))/max(highLfpEnv-min(highLfpEnv));
+spikeLfpNorm     = (spikeLfpEnv-min(spikeLfpEnv))/max(spikeLfpEnv-min(spikeLfpEnv));
+
+figure; imagesc([deltaLfpNorm     ,...
+slowSwrLfpNorm   ,...
+thetaLfpNorm     ,...
+alphaSwrLfpNorm  ,...
+betaLfpNorm      ,...
+lowGammaLfpNorm  ,...
+midGammaLfpNorm  ,...
+swrLfpNorm       ,...
+highLfpNorm      ,...
+spikeLfpNorm     ]); colormap(build_NOAA_colorgradient); colorbar;
+
+
+
+figure; plot(slowLfp(ii)-slowLfp(ii-3200)); hold on; plot(abs(hilbert(slowLfp(ii)-slowLfp(ii-3200)))); 
+plot(cumsum(slowLfp(ii)-slowLfp(ii-3200)));
+
+
+
+
+startIdx = 1+round( 110 * 32000); endIdx = startIdx + 5*32000; ii=(startIdx:endIdx); % 110 to +5 has a good couple examples?
+
+startIdx = 1+round( 80 * 32000); endIdx = startIdx + 35*32000; ii=(startIdx:endIdx);
+
+figure(2); 
+subplot(6,1,1); hold off; plot( timestampSeconds(ii), lfp61(ii) ); ylabel('c61');  axis tight;
+hold on; plot( timestampSeconds(ii), lfp76(ii) ); ylabel('c76');   axis tight;
+subplot(6,1,2); plot( timestampSeconds(ii), swrLfp(ii), 'Color', [ .9 .1 .2 ] );  ylabel('swr');  axis tight;
+subplot(6,1,3); plot( timestampSeconds(ii), midGamLfp(ii), 'Color', [ .2 .9 .3 ] ); ylabel('{\gamma}_{mid}');   axis tight;
+subplot(6,1,4); plot( timestampSeconds(ii), gamLfp(ii), 'Color', [ .3 .3 .3 ] ); ylabel('{\gamma}_{slow}');   axis tight;
+subplot(6,1,5); plot( timestampSeconds(ii), lfp88(ii) ); hold on; plot(timestampSeconds(ii), slowLfp(ii)); plot(timestampSeconds(ii), slowLfp(ii)-slowLfp(ii-3200)); ylabel('c88'); hold off;  axis tight;
+subplot(6,1,6); plot( xytimestampSeconds(1+round(29.97*ii/32000)), speed(1+round(29.97*ii/32000))); axis tight; ylabel('cm/s')
+
+peakLag=slowLfp(ii)-slowLfp(ii-3200);
+
+startIdx = 1691.5; for ii=1:6; subplot(6,1,ii); xlim([ startIdx startIdx+3 ]); end;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 return; 

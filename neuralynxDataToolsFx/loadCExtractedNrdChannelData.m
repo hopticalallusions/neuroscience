@@ -17,4 +17,7 @@ function [ chData ] = loadCExtractedNrdChannelData( filename )
     % close the file
     fclose(channelsFileId);
     
+    chData = chData * 0.000015624999960550667 ; 
+
+    
 end

@@ -71,6 +71,8 @@ function correctedPosition = nlxPositionFixer( positions, smoothFactor, runFilte
         end
         delta= linspace(positions(start-1),positions(last+1),last-start+1);
         correctedPosition(start:last) = delta;
+    else
+        correctedPosition = positions;
     end
 
     %% II. Use a median filter -- this is a simple way to eliminate big jumps

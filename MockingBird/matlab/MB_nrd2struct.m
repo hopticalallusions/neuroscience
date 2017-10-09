@@ -34,7 +34,7 @@ end
 status=unix(['nrdExtractor -T ' fname ' ' channelsRequested]);
 d=importdata('headerOutputFile.txt',' ',13); %read in header file
 samplerate=d.data(1); %get sampling rate
-['Neuralynx sampling rate is ' num2str(samplerate) ' Hz']
+disp(['Neuralynx sampling rate is ' num2str(samplerate) ' Hz'])
 [ timestamps ] = loadCExtractedNrdTimestampData( 'timestamps.dat' );
 timestamps=(timestamps-timestamps(1))/1000000;
 temp=diff(timestamps);
