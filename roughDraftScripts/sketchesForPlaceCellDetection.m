@@ -38,7 +38,7 @@ bucketStartIdx = 26289;
 plotTwoDHistogramByEpoch( xpos, ypos, 5)
 
 %% plot a 3D version of the rat's trajectory in time 
-figure; plot3((xytimestamps-xytimestamps(1))/60e6,xpos,ypos);
+figure; plot3( (xytimestamps-xytimestamps(1))/60e6, xpos, ypos );
 
 %% smooth the speed out
 % estimating from the graph of the locations

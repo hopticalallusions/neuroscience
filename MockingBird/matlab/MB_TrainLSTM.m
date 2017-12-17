@@ -33,7 +33,7 @@ lfp=lfp/(2^15);
 cutlen=mod(length(lfp),blocksize);
 lfp=lfp(1:end-cutlen);
 %save([trainerpath 'input.hpp'],'lfp','-ascii');
-fileID = fopen('input.hpp','w');
+fileID = fopen('~/src/neuroscience/MockingBird/input.hpp','w');
 fprintf(fileID,'%10.8f\n',lfp);
 fclose(fileID);
 
@@ -42,7 +42,7 @@ temp=real(nlxstruct.filtered(numf).teaching_signal(nlxstruct.filtered(numf).trai
 temp=temp(1:end-cutlen);
 temp(find(temp>1))=1; temp(find(temp<-1))=-1;
 %save([trainerpath 'target.hpp'],'temp','-ascii'); %save target data file for use by the LSTM trainer
-fileID = fopen('target.hpp','w');
+fileID = fopen('~/src/neuroscience/MockingBird/target.hpp','w');
 fprintf(fileID,'%10.8f\n',temp);
 fclose(fileID);
 status = system([trainerpath 'TrainLSTM ' trainerpath]); %execute the LSTM trainer from the Windows command prompt
@@ -54,15 +54,15 @@ temp=imag(nlxstruct.filtered(numf).teaching_signal(nlxstruct.filtered(numf).trai
 temp=temp(1:end-cutlen);
 temp(find(temp>1))=1; temp(find(temp<-1))=-1;
 %save([trainerpath 'target.hpp'],'temp','-ascii'); %save target data file for use by the LSTM trainer
-fileID = fopen('target.hpp','w');
+fileID = fopen('~/src/neuroscience/MockingBird/target.hpp','w');
 fprintf(fileID,'%10.8f\n',temp);
 fclose(fileID);
 status = system([trainerpath 'TrainLSTM ' trainerpath]); %execute the LSTM trainer from the Windows command prompt
-imagweights=importdata([trainerpath 'weight.hpp']); %read in the weight file
+imagweights=importdata([trainerpath '~/src/neuroscience/MockingBird/weight.hpp']); %read in the weight file
 imagweights=round(4096*imagweights); %convert weights to fixed point
 
 %store the weight file for use by the tester
-fileID = fopen('test_weight.hpp','w');
+fileID = fopen('~/src/neuroscience/MockingBird/test_weight.hpp','w');
 fprintf(fileID,'#SCALING_FACTOR %d\n',round(nlxstruct.filtered(numf).input_scalefact));
 fprintf(fileID,'// LSTM0: real weights\n');
 fprintf(fileID,'%d\n',realweights);
@@ -75,11 +75,11 @@ fclose(fileID);
 
 %compute output for training data
 lfp=nlxstruct.data(nlxstruct.filtered(numf).training_segment(1):nlxstruct.filtered(numf).training_segment(2)); %input data
-fileID = fopen('test_input.hpp','w');
+fileID = fopen('~/src/neuroscience/MockingBird/test_input.hpp','w');
 fprintf(fileID,'%d\n',lfp);
 fclose(fileID);
 status = system([trainerpath 'TestLSTM ' trainerpath]); %execute the LSTM tester from the Windows command prompt
-test_output=importdata([trainerpath 'output.hpp']); %read in the output data file
+test_output=importdata([trainerpath '~/src/neuroscience/MockingBird/output.hpp']); %read in the output data file
 nlxstruct.filtered(numf).training_output=complex(test_output(:,1),test_output(:,2));
 
 
@@ -88,11 +88,11 @@ lfp=nlxstruct.data(nlxstruct.filtered(numf).testing_segment(1):nlxstruct.filtere
 % lfp=(lfp+2^(nlxstruct.filtered(numf).input_scalefact-1))/2^(nlxstruct.filtered(numf).input_scalefact-15);
 % lfp(find(lfp>2^15))=2^15; lfp(find(lfp<0))=0;
 % lfp=lfp/(2^15);
-fileID = fopen('test_input.hpp','w');
+fileID = fopen('~/src/neuroscience/MockingBird/test_input.hpp','w');
 fprintf(fileID,'%d\n',lfp);
 fclose(fileID);
 status = system([trainerpath 'TestLSTM ' trainerpath]); %execute the LSTM tester from the Windows command prompt
-test_output=importdata([trainerpath 'output.hpp']); %read in the output data file
+test_output=importdata([trainerpath '~/src/neuroscience/MockingBird/output.hpp']); %read in the output data file
 nlxstruct.filtered(numf).testing_output=complex(test_output(:,1),test_output(:,2));
 
 %status = unix(['cp ' trainerpath 'input.hpp ' trainerpath 'test_input.hpp']); %copy the training input data file to the test input data file

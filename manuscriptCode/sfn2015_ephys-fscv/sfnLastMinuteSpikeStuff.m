@@ -287,257 +287,262 @@
 % size((spikesSeven'))
 
 
+%% REMEMBER -- CSC2MAT NOW CONVERTS TO mV AUTOMATICALLY
+% THIS SCRIPT WILL FAIL IF THAT FEATURE IS NOT DISABLED 
+% (or maybe adjust the script...)
 
-if 0
+if 1
 
-%% start here maze
-close all; clear all;
-basedir='/Users/andrewhowe/blairLab/blairlab_data/v4/march5_twotasks1/';
-alignmentLag=getFscvNlxAlignmentLag([basedir '/fscv/maze/'],[basedir '/nlx/maze/'],7)
-% load the fscv data
-daConc=loadTarheelCsvData([basedir '/fscv/maze/'],.993);
-close all;
+    %% start here maze
+    close all; clear all;
+    basedir='/Users/andrewhowe/blairLab/blairlab_data/v4/march5_twotasks1/';
+    basedir='/Users/andrewhowe/data/ratData/ephysAndTelemetry/v4/march5_twotasks1/';
+    alignmentLag=getFscvNlxAlignmentLag([basedir '/fscv/maze/'],[basedir '/nlx/maze/'],7)
+    % load the fscv data
+    daConc=loadTarheelCsvData([basedir '/fscv/maze/'],.993);
+    close all;
 
-[ cscLFPSeven, nlxCscTimestampsSeven, cscHeaderSeven ] = csc2mat([basedir '/nlx/maze/CSC7.ncs']);
-[ correctedCscSeven, idxsSeven, mxValuesSeven, meanCscWindowSeven ] = cscCorrection( cscLFPSeven(8*60*32000:end), nlxCscTimestampsSeven(8*60*32000:end) );
+    [ cscLFPSeven, nlxCscTimestampsSeven, cscHeaderSeven ] = csc2mat([basedir '/nlx/maze/CSC7.ncs']);
+    [ correctedCscSeven, idxsSeven, mxValuesSeven, meanCscWindowSeven ] = cscCorrection( cscLFPSeven(8*60*32000:end), nlxCscTimestampsSeven(8*60*32000:end) );
 
 
-length(find(correctedCscSeven>2000))
-peakIdxsSeven=peakDetector(correctedCscSeven,2000,1,1);
-peakIdxsSeven=peakDetector(correctedCscSeven,2000,32,1);
-length(peakIdxsSeven)
+    length(find(correctedCscSeven>2000))
+    peakIdxsSeven=peakDetector(correctedCscSeven,2000,1,1);
+    peakIdxsSeven=peakDetector(correctedCscSeven,2000,32,1);
+    length(peakIdxsSeven)
 
-threshold = 2000; % currently arbitrary
-absoluteRefractorySamples = 32; % how many sample will we wait before accepting another super threshold crossing?
-thresholdExceededIdxs = find(correctedCscSeven > threshold);
-thresholdExceededIdxStarts = find(diff(thresholdExceededIdxs) > absoluteRefractorySamples);
-putativeSpikeIdxs = thresholdExceededIdxs(thresholdExceededIdxStarts);
-spikes=zeros(48,length(putativeSpikeIdxs));
-for spikesIdx = 1:length(putativeSpikeIdxs)
+    threshold = 2000; % currently arbitrary
+    absoluteRefractorySamples = 32; % how many sample will we wait before accepting another super threshold crossing?
+    thresholdExceededIdxs = find(correctedCscSeven > threshold);
+    thresholdExceededIdxStarts = find(diff(thresholdExceededIdxs) > absoluteRefractorySamples);
+    putativeSpikeIdxs = thresholdExceededIdxs(thresholdExceededIdxStarts);
+    spikes=zeros(48,length(putativeSpikeIdxs));
+    for spikesIdx = 1:length(putativeSpikeIdxs)
+        spikes(:,spikesIdx) = correctedCscSeven(putativeSpikeIdxs(spikesIdx)-16:putativeSpikeIdxs(spikesIdx)+31);
+    end
+    %figure; plot(spikes); %debugging; this figure makes matlab angry.
+
+    % make metrics
+    metrics.max=max(spikes);
+    metrics.max=max(spikes);
+    metrics.maxLocation=zeros(1,length(spikes));
+    for idx = 1:length(spikes)
+    metrics.maxLocation(idx)=find(spikes(:,idx)==max(spikes(:,idx)));
+    end
+    metrics.min=min(spikes);
+    metrics.minLocation=zeros(1,length(spikes));
+    for idx = 1:length(spikes)
+        metrics.minLocation(idx)=min(find(spikes(:,idx)==min(spikes(:,idx))));
+    end
+
+    metrics.width=abs(metrics.maxLocation-metrics.minLocation);
+    %amplitude
+    metrics.amplitude=metrics.max-metrics.min;
+    % average of signal
+    metrics.mean=mean(spikes);
+    % standard deviation of signal
+    metrics.std=std(spikes);
+    % median of signal
+    metrics.median=median(spikes);
+    for idx = 1:length(spikes)
+    metrics.madam(idx)=median(abs(spikes(:,idx)-metrics.median(idx)));
+    end
+    metrics.median=median(spikes);
+    metrics.madam=zeros(1,length(spikes));
+    for idx = 1:length(spikes)
+    metrics.madam(idx)=median(abs(spikes(:,idx)-metrics.median(idx)));
+    end
+
+    metrics.rmsSignal=sqrt(mean(spikes.^2));
+    metrics.rmsFreq=sqrt(sum(abs(fft(spikes)./length(spikes)).^2))
+    metrics.avgAbsVakue=mean(abs(spikes));
+    metrics.avgAbsValue=mean(abs(spikes));
+    metrics.medianAbsValue=median(abs(spikes));
+    metrics.madamMedianAbsValue=zeros(1,length(spikes));
+    for idx = 1:length(spikes)
+    metrics.madamMedianAbsValue(idx)=median(abs(spikes(:,idx)-metrics.medianAbsValue(idx)));
+    end
+    metrics.sqrtEnergy=sqrt(sum(spikes.^2));
+    metrics.peakCurvyness=zeros(1,length(spikes));
+    for idx=1:length(spikes)
+        % the min and the max here are in case there are more than one index
+        tempIdx=min(metrics.maxLocation(idx))-2:max(metrics.maxLocation(idx))+2;
+        if ( tempIdx(1) > 1 ) && ( tempIdx(end) <= length(spikes(:,idx) ) )
+            secondDerivPeak=diff(diff(spikes(tempIdx,idx)));
+            % is it negative? (i.e. convex pointing up, concave pointing down?)
+            metrics.peakPointyness(idx)=mean(secondDerivPeak<0); % this should be 1
+            % how curvy is it? maybe this tells us that?
+            metrics.peakCurvyness(idx)=mean(secondDerivPeak);
+        end
+    end
+    %figure;plot(spikes(:,21))
+    %plot(.5:46.5,diff(spikes(:,21)))
+    %plot(.5:45.5,diff(diff(spikes(:,21))))
+    % figure;plot(spikes(:,21));hold on;plot(1.5:47.5,diff(spikes(:,21)));plot(1.75:46.75,diff(diff(spikes(:,21))))
+    % figure; hist(metrics.max,100)
+    % figure; hist(metrics.rmsSignal,100)
+    % figure; hist(metrics.maxLocation,100)
+    % figure; hist(metrics.width,100)
+    % psuedo QA
+    metrics.group=zeros(1,length(metrics.max));
+    metrics.group(find(metrics.maxLocation>14))=1;
+    metrics.group(find((metrics.group>0).*(metrics.min<-500)))=1;
+    metrics.group(find((metrics.group>0).*(metrics.rmsFreq<1.5)))=1;
+    sum(metrics.group)/length(metrics.group)
+
+    goodSpikeIdxs=thresholdExceededIdxs(thresholdExceededIdxStarts);
+
+    sevenSpikeTimes=( (nlxCscTimestampsSeven(goodSpikeIdxs)-nlxCscTimestampsSeven(1)))/1e5; %ms
+    % 60 s/min * 32000 samples/s * 10 minutes
+    daConcPostPop=daConc(8*60*10+alignmentLag:end);
+    %figure; hist(daConcPostPop(round(sevenSpikeTimes)+1),100);
+    %7 seconds
+    % spike triggered average ...
+    before=50; after=50; % 100's of ms
+    daSpikeStack=zeros(length(sevenSpikeTimes), before+after+1 );
+    daConcPostPop=daConc(8*600:end);
+    for i=1:length(sevenSpikeTimes)
+        daSpikeStack(i,:)=interp1(1:length(daConcPostPop),daConcPostPop,(sevenSpikeTimes(i)-before):(sevenSpikeTimes(i)+after) );
+    end
+    figure; hold on;
+    shift=min(nanmean(daSpikeStack));
+    timeAxis=(-before:after)/10;
+    meanofdata=nanmean(daSpikeStack);
+    stder=nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes));
+    fill_between_lines(timeAxis,meanofdata-stder-shift,meanofdata+stder-shift,[.6 .7 .9])
+    plot(timeAxis,meanofdata-shift);
+    %plot(timeAxis,nanmean(daSpikeStack)-(nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes)))-shift,'b');
+    %plot(timeAxis,nanmean(daSpikeStack)+(nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes)))-shift,'b');
+    title(['Spike Triggered Avg \Delta DA n=' num2str(length(sevenSpikeTimes)) ' spikes'])
+    xlabel('relative time (s)');
+    ylabel('\Delta DA (nM)');
+    legend('std err','mean');
+
+else
+
+    %% start here platter
+    close all; clear all;
+    basedir='/Users/andrewhowe/blairLab/blairlab_data/v4/march5_twotasks1/';
+    basedir='/Users/andrewhowe/data/ratData/ephysAndTelemetry/v4/march5_twotasks1/';
+
+    alignmentLag=getFscvNlxAlignmentLag([basedir '/fscv/platter/'],[basedir '/nlx/platter/'],7)
+    % load the fscv data
+    daConc=loadTarheelCsvData([basedir '/fscv/platter/'],.993);
+    close all;
+
+    [ cscLFPSeven, nlxCscTimestampsSeven, cscHeaderSeven ] = csc2mat([basedir '/nlx/platter/CSC7.ncs']);
+    [ correctedCscSeven, idxsSeven, mxValuesSeven, meanCscWindowSeven ] = cscCorrection( cscLFPSeven(60*32000*10:end), nlxCscTimestampsSeven(60*32000*10:end) );
+
+
+    length(find(correctedCscSeven>2000))
+    peakIdxsSeven=peakDetector(correctedCscSeven,2000,1,1);
+    peakIdxsSeven=peakDetector(correctedCscSeven,2000,32,1);
+    length(peakIdxsSeven)
+
+    threshold = 2000; % currently arbitrary
+    absoluteRefractorySamples = 32; % how many sample will we wait before accepting another super threshold crossing?
+    thresholdExceededIdxs = find(correctedCscSeven > threshold);
+    thresholdExceededIdxStarts = find(diff(thresholdExceededIdxs) > absoluteRefractorySamples);
+    putativeSpikeIdxs = thresholdExceededIdxs(thresholdExceededIdxStarts);
+    spikes=zeros(48,length(putativeSpikeIdxs));
+    for spikesIdx = 1:length(putativeSpikeIdxs)
     spikes(:,spikesIdx) = correctedCscSeven(putativeSpikeIdxs(spikesIdx)-16:putativeSpikeIdxs(spikesIdx)+31);
-end
-%figure; plot(spikes); %debugging; this figure makes matlab angry.
-
-% make metrics
-metrics.max=max(spikes);
-metrics.max=max(spikes);
-metrics.maxLocation=zeros(1,length(spikes));
-for idx = 1:length(spikes)
-metrics.maxLocation(idx)=find(spikes(:,idx)==max(spikes(:,idx)));
-end
-metrics.min=min(spikes);
-metrics.minLocation=zeros(1,length(spikes));
-for idx = 1:length(spikes)
-    metrics.minLocation(idx)=min(find(spikes(:,idx)==min(spikes(:,idx))));
-end
-
-metrics.width=abs(metrics.maxLocation-metrics.minLocation);
-%amplitude
-metrics.amplitude=metrics.max-metrics.min;
-% average of signal
-metrics.mean=mean(spikes);
-% standard deviation of signal
-metrics.std=std(spikes);
-% median of signal
-metrics.median=median(spikes);
-for idx = 1:length(spikes)
-metrics.madam(idx)=median(abs(spikes(:,idx)-metrics.median(idx)));
-end
-metrics.median=median(spikes);
-metrics.madam=zeros(1,length(spikes));
-for idx = 1:length(spikes)
-metrics.madam(idx)=median(abs(spikes(:,idx)-metrics.median(idx)));
-end
-
-metrics.rmsSignal=sqrt(mean(spikes.^2));
-metrics.rmsFreq=sqrt(sum(abs(fft(spikes)./length(spikes)).^2))
-metrics.avgAbsVakue=mean(abs(spikes));
-metrics.avgAbsValue=mean(abs(spikes));
-metrics.medianAbsValue=median(abs(spikes));
-metrics.madamMedianAbsValue=zeros(1,length(spikes));
-for idx = 1:length(spikes)
-metrics.madamMedianAbsValue(idx)=median(abs(spikes(:,idx)-metrics.medianAbsValue(idx)));
-end
-metrics.sqrtEnergy=sqrt(sum(spikes.^2));
-metrics.peakCurvyness=zeros(1,length(spikes));
-for idx=1:length(spikes)
-    % the min and the max here are in case there are more than one index
-    tempIdx=min(metrics.maxLocation(idx))-2:max(metrics.maxLocation(idx))+2;
-    if ( tempIdx(1) > 1 ) && ( tempIdx(end) <= length(spikes(:,idx) ) )
-        secondDerivPeak=diff(diff(spikes(tempIdx,idx)));
-        % is it negative? (i.e. convex pointing up, concave pointing down?)
-        metrics.peakPointyness(idx)=mean(secondDerivPeak<0); % this should be 1
-        % how curvy is it? maybe this tells us that?
-        metrics.peakCurvyness(idx)=mean(secondDerivPeak);
     end
-end
-%figure;plot(spikes(:,21))
-%plot(.5:46.5,diff(spikes(:,21)))
-%plot(.5:45.5,diff(diff(spikes(:,21))))
-% figure;plot(spikes(:,21));hold on;plot(1.5:47.5,diff(spikes(:,21)));plot(1.75:46.75,diff(diff(spikes(:,21))))
-% figure; hist(metrics.max,100)
-% figure; hist(metrics.rmsSignal,100)
-% figure; hist(metrics.maxLocation,100)
-% figure; hist(metrics.width,100)
-% psuedo QA
-metrics.group=zeros(1,length(metrics.max));
-metrics.group(find(metrics.maxLocation>14))=1;
-metrics.group(find((metrics.group>0).*(metrics.min<-500)))=1;
-metrics.group(find((metrics.group>0).*(metrics.rmsFreq<1.5)))=1;
-sum(metrics.group)/length(metrics.group)
+    %figure; plot(spikes); %debugging; this figure makes matlab angry.
 
-goodSpikeIdxs=thresholdExceededIdxs(thresholdExceededIdxStarts);
-
-sevenSpikeTimes=( (nlxCscTimestampsSeven(goodSpikeIdxs)-nlxCscTimestampsSeven(1)))/1e5; %ms
-% 60 s/min * 32000 samples/s * 10 minutes
-daConcPostPop=daConc(8*60*10+alignmentLag:end);
-%figure; hist(daConcPostPop(round(sevenSpikeTimes)+1),100);
-%7 seconds
-% spike triggered average ...
-before=10; after=50; % 100's of ms
-daSpikeStack=zeros(length(sevenSpikeTimes), before+after+1 );
-daConcPostPop=daConc(8*600:end);
-for i=1:length(sevenSpikeTimes)
-    daSpikeStack(i,:)=interp1(1:length(daConcPostPop),daConcPostPop,(sevenSpikeTimes(i)-before):(sevenSpikeTimes(i)+after) );
-end
-figure; hold on;
-shift=min(nanmean(daSpikeStack));
-timeAxis=(-before:after)/10;
-meanofdata=nanmean(daSpikeStack);
-stder=nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes));
-fill_between_lines(timeAxis,meanofdata-stder-shift,meanofdata+stder-shift,[.6 .7 .9])
-plot(timeAxis,meanofdata-shift);
-%plot(timeAxis,nanmean(daSpikeStack)-(nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes)))-shift,'b');
-%plot(timeAxis,nanmean(daSpikeStack)+(nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes)))-shift,'b');
-title(['Spike Triggered Avg \Delta DA n=' num2str(length(sevenSpikeTimes)) ' spikes'])
-xlabel('relative time (s)');
-ylabel('\Delta DA (nM)');
-legend('std err','mean');
-
-end
-
-
-
-
-%% start here platter
-close all; clear all;
-basedir='/Users/andrewhowe/blairLab/blairlab_data/v4/march5_twotasks1/';
-alignmentLag=getFscvNlxAlignmentLag([basedir '/fscv/platter/'],[basedir '/nlx/platter/'],7)
-% load the fscv data
-daConc=loadTarheelCsvData([basedir '/fscv/platter/'],.993);
-close all;
-
-[ cscLFPSeven, nlxCscTimestampsSeven, cscHeaderSeven ] = csc2mat([basedir '/nlx/platter/CSC7.ncs']);
-[ correctedCscSeven, idxsSeven, mxValuesSeven, meanCscWindowSeven ] = cscCorrection( cscLFPSeven(60*32000*10:end), nlxCscTimestampsSeven(60*32000*10:end) );
-
-
-length(find(correctedCscSeven>2000))
-peakIdxsSeven=peakDetector(correctedCscSeven,2000,1,1);
-peakIdxsSeven=peakDetector(correctedCscSeven,2000,32,1);
-length(peakIdxsSeven)
-
-threshold = 2000; % currently arbitrary
-absoluteRefractorySamples = 32; % how many sample will we wait before accepting another super threshold crossing?
-thresholdExceededIdxs = find(correctedCscSeven > threshold);
-thresholdExceededIdxStarts = find(diff(thresholdExceededIdxs) > absoluteRefractorySamples);
-putativeSpikeIdxs = thresholdExceededIdxs(thresholdExceededIdxStarts);
-spikes=zeros(48,length(putativeSpikeIdxs));
-for spikesIdx = 1:length(putativeSpikeIdxs)
-spikes(:,spikesIdx) = correctedCscSeven(putativeSpikeIdxs(spikesIdx)-16:putativeSpikeIdxs(spikesIdx)+31);
-end
-%figure; plot(spikes); %debugging; this figure makes matlab angry.
-
-% make metrics
-metrics.max=max(spikes);
-metrics.max=max(spikes);
-metrics.maxLocation=zeros(1,length(spikes));
-for idx = 1:length(spikes)
-metrics.maxLocation(idx)=find(spikes(:,idx)==max(spikes(:,idx)));
-end
-metrics.min=min(spikes);
-metrics.minLocation=zeros(1,length(spikes));
-for idx = 1:length(spikes)
-metrics.minLocation(idx)=find(spikes(:,idx)==min(spikes(:,idx)));
-end
-
-metrics.width=abs(metrics.maxLocation-metrics.minLocation);
-%amplitude
-metrics.amplitude=metrics.max-metrics.min;
-% average of signal
-metrics.mean=mean(spikes);
-% standard deviation of signal
-metrics.std=std(spikes);
-% median of signal
-metrics.median=median(spikes);
-for idx = 1:length(spikes)
-metrics.madam(idx)=median(abs(spikes(:,idx)-metrics.median(idx)));
-end
-metrics.median=median(spikes);
-metrics.madam=zeros(1,length(spikes));
-for idx = 1:length(spikes)
-metrics.madam(idx)=median(abs(spikes(:,idx)-metrics.median(idx)));
-end
-
-metrics.rmsSignal=sqrt(mean(spikes.^2));
-metrics.rmsFreq=sqrt(sum(abs(fft(spikes)./length(spikes)).^2))
-metrics.avgAbsVakue=mean(abs(spikes));
-metrics.avgAbsValue=mean(abs(spikes));
-metrics.medianAbsValue=median(abs(spikes));
-metrics.madamMedianAbsValue=zeros(1,length(spikes));
-for idx = 1:length(spikes)
-metrics.madamMedianAbsValue(idx)=median(abs(spikes(:,idx)-metrics.medianAbsValue(idx)));
-end
-metrics.sqrtEnergy=sqrt(sum(spikes.^2));
-metrics.peakCurvyness=zeros(1,length(spikes));
-for idx=1:length(spikes)
-    % the min and the max here are in case there are more than one index
-    tempIdx=min(metrics.maxLocation(idx))-2:max(metrics.maxLocation(idx))+2;
-    if ( tempIdx(1) > 1 ) && ( tempIdx(end) <= length(spikes(:,idx) ) )
-        secondDerivPeak=diff(diff(spikes(tempIdx,idx)));
-        % is it negative? (i.e. convex pointing up, concave pointing down?)
-        metrics.peakPointyness(idx)=mean(secondDerivPeak<0); % this should be 1
-        % how curvy is it? maybe this tells us that?
-        metrics.peakCurvyness(idx)=mean(secondDerivPeak);
+    % make metrics
+    metrics.max=max(spikes);
+    metrics.max=max(spikes);
+    metrics.maxLocation=zeros(1,length(spikes));
+    for idx = 1:length(spikes)
+    metrics.maxLocation(idx)=find(spikes(:,idx)==max(spikes(:,idx)));
     end
-end
-figure;plot(spikes(:,21))
-plot(.5:46.5,diff(spikes(:,21)))
-plot(.5:45.5,diff(diff(spikes(:,21))))
-figure;plot(spikes(:,21));hold on;plot(1.5:47.5,diff(spikes(:,21)));plot(1.75:46.75,diff(diff(spikes(:,21))))
-figure; hist(metrics.max,100)
-figure; hist(metrics.rmsSignal,100)
-figure; hist(metrics.maxLocation,100)
-figure; hist(metrics.width,100)
-% psuedo QA
-metrics.group=zeros(1,length(metrics.max));
-metrics.group(find(metrics.maxLocation>14))=1;
-metrics.group(find((metrics.group>0).*(metrics.min<-500)))=1;
-metrics.group(find((metrics.group>0).*(metrics.rmsFreq<1.5)))=1;
-sum(metrics.group)/length(metrics.group)
+    metrics.min=min(spikes);
+    metrics.minLocation=zeros(1,length(spikes));
+    for idx = 1:length(spikes)
+    metrics.minLocation(idx)=find(spikes(:,idx)==min(spikes(:,idx)));
+    end
 
-goodSpikeIdxs=thresholdExceededIdxs(thresholdExceededIdxStarts(find(metrics.group)));
+    metrics.width=abs(metrics.maxLocation-metrics.minLocation);
+    %amplitude
+    metrics.amplitude=metrics.max-metrics.min;
+    % average of signal
+    metrics.mean=mean(spikes);
+    % standard deviation of signal
+    metrics.std=std(spikes);
+    % median of signal
+    metrics.median=median(spikes);
+    for idx = 1:length(spikes)
+    metrics.madam(idx)=median(abs(spikes(:,idx)-metrics.median(idx)));
+    end
+    metrics.median=median(spikes);
+    metrics.madam=zeros(1,length(spikes));
+    for idx = 1:length(spikes)
+    metrics.madam(idx)=median(abs(spikes(:,idx)-metrics.median(idx)));
+    end
 
-sevenSpikeTimes=( (nlxCscTimestampsSeven(goodSpikeIdxs)-nlxCscTimestampsSeven(1)))/1e5; %ms
-% 60 s/min * 32000 samples/s * 10 minutes
-daConcPostPop=daConc(60*10*10+alignmentLag:end);
-figure; hist(daConcPostPop(round(sevenSpikeTimes)+1),100);
-%7 seconds
-% spike triggered average ...
-before=50; after=50; % 100's of ms
-daSpikeStack=zeros(length(sevenSpikeTimes), before+after+1 );
-for i=1:length(sevenSpikeTimes)
-    daSpikeStack(i,:)=interp1(1:length(daConcPostPop),daConcPostPop,(sevenSpikeTimes(i)-before):(sevenSpikeTimes(i)+after) );
-end
-figure; hold on;
-shift=min(nanmean(daSpikeStack));
-timeAxis=(-before:after)/10;
-meanofdata=nanmean(daSpikeStack);
-stder=nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes));
-fill_between_lines(timeAxis,meanofdata-stder-shift,meanofdata+stder-shift,[.6 .7 .9])
-plot(timeAxis,meanofdata-shift);
-%plot(timeAxis,nanmean(daSpikeStack)-(nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes)))-shift,'b');
-%plot(timeAxis,nanmean(daSpikeStack)+(nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes)))-shift,'b');
-title(['Spike Triggered Avg \Delta DA n=' num2str(length(sevenSpikeTimes)) ' spikes'])
-xlabel('relative time (s)');
-ylabel('\Delta DA (nM)');
-legend('std err','mean');
+    metrics.rmsSignal=sqrt(mean(spikes.^2));
+    metrics.rmsFreq=sqrt(sum(abs(fft(spikes)./length(spikes)).^2))
+    metrics.avgAbsVakue=mean(abs(spikes));
+    metrics.avgAbsValue=mean(abs(spikes));
+    metrics.medianAbsValue=median(abs(spikes));
+    metrics.madamMedianAbsValue=zeros(1,length(spikes));
+    for idx = 1:length(spikes)
+    metrics.madamMedianAbsValue(idx)=median(abs(spikes(:,idx)-metrics.medianAbsValue(idx)));
+    end
+    metrics.sqrtEnergy=sqrt(sum(spikes.^2));
+    metrics.peakCurvyness=zeros(1,length(spikes));
+    for idx=1:length(spikes)
+        % the min and the max here are in case there are more than one index
+        tempIdx=min(metrics.maxLocation(idx))-2:max(metrics.maxLocation(idx))+2;
+        if ( tempIdx(1) > 1 ) && ( tempIdx(end) <= length(spikes(:,idx) ) )
+            secondDerivPeak=diff(diff(spikes(tempIdx,idx)));
+            % is it negative? (i.e. convex pointing up, concave pointing down?)
+            metrics.peakPointyness(idx)=mean(secondDerivPeak<0); % this should be 1
+            % how curvy is it? maybe this tells us that?
+            metrics.peakCurvyness(idx)=mean(secondDerivPeak);
+        end
+    end
+    figure;plot(spikes(:,21))
+    plot(.5:46.5,diff(spikes(:,21)))
+    plot(.5:45.5,diff(diff(spikes(:,21))))
+    figure;plot(spikes(:,21));hold on;plot(1.5:47.5,diff(spikes(:,21)));plot(1.75:46.75,diff(diff(spikes(:,21))))
+    figure; hist(metrics.max,100)
+    figure; hist(metrics.rmsSignal,100)
+    figure; hist(metrics.maxLocation,100)
+    figure; hist(metrics.width,100)
+    % psuedo QA
+    metrics.group=zeros(1,length(metrics.max));
+    metrics.group(find(metrics.maxLocation>14))=1;
+    metrics.group(find((metrics.group>0).*(metrics.min<-500)))=1;
+    metrics.group(find((metrics.group>0).*(metrics.rmsFreq<1.5)))=1;
+    sum(metrics.group)/length(metrics.group)
+
+    goodSpikeIdxs=thresholdExceededIdxs(thresholdExceededIdxStarts(find(metrics.group)));
+
+    sevenSpikeTimes=( (nlxCscTimestampsSeven(goodSpikeIdxs)-nlxCscTimestampsSeven(1)))/1e5; %ms
+    % 60 s/min * 32000 samples/s * 10 minutes
+    daConcPostPop=daConc(60*10*10+alignmentLag:end);
+    figure; hist(daConcPostPop(round(sevenSpikeTimes)+1),100);
+    %7 seconds
+    % spike triggered average ...
+    before=50; after=50; % 100's of ms
+    daSpikeStack=zeros(length(sevenSpikeTimes), before+after+1 );
+    for i=1:length(sevenSpikeTimes)
+        daSpikeStack(i,:)=interp1(1:length(daConcPostPop),daConcPostPop,(sevenSpikeTimes(i)-before):(sevenSpikeTimes(i)+after) );
+    end
+    figure; hold on;
+    shift=min(nanmean(daSpikeStack));
+    timeAxis=(-before:after)/10;
+    meanofdata=nanmean(daSpikeStack);
+    stder=nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes));
+    fill_between_lines(timeAxis,meanofdata-stder-shift,meanofdata+stder-shift,[.6 .7 .9])
+    plot(timeAxis,meanofdata-shift);
+    %plot(timeAxis,nanmean(daSpikeStack)-(nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes)))-shift,'b');
+    %plot(timeAxis,nanmean(daSpikeStack)+(nanstd(daSpikeStack)/sqrt(length(sevenSpikeTimes)))-shift,'b');
+    title(['Spike Triggered Avg \Delta DA n=' num2str(length(sevenSpikeTimes)) ' spikes'])
+    xlabel('relative time (s)');
+    ylabel('\Delta DA (nM)');
+    legend('std err','mean');
+
+end;

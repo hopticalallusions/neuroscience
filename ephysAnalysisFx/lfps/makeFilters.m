@@ -31,19 +31,19 @@ filters.ao.electric = designfilt( 'bandpassiir', 'StopbandFrequency1',   58, 'Pa
 filters.ao.spindle  = designfilt( 'bandpassiir', 'StopbandFrequency1',   10, 'PassbandFrequency1',   12, 'PassbandFrequency2',   14, 'StopbandFrequency2',   18, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', 32000); % sleep spindles occur before k-complexes, and must be ~500+microscends
 
 %report order
-filters.ao.order.delta=filtord(filters.delta    );
-filters.ao.order.lia=filtord(filters.lia      );
-filters.ao.order.theta=filtord(filters.theta    );
-filters.ao.order.alpha=filtord(filters.alpha    );
-filters.ao.order.beta=filtord(filters.beta     );
-filters.ao.order.lowGamma=filtord(filters.lowGamma );
-filters.ao.order.midGamma=filtord(filters.midGamma );
-filters.ao.order.swr=filtord(filters.swr      );
-filters.ao.order.highLfp=filtord(filters.highLfp  );
-filters.ao.order.spike=filtord(filters.spike    );
-filters.ao.order.nrem=filtord(filters.nrem     );
-filters.ao.order.chew=filtord(filters.chew     );
-filters.ao.order.electric=filtord(filters.electric );
-filters.ao.order.spindle=filtord(filters.spindle  );
+filters.ao.order.delta=filtord(filters.ao.delta    );
+filters.ao.order.lia=filtord(filters.ao.lia      );
+filters.ao.order.theta=filtord(filters.ao.theta    );
+filters.ao.order.alpha=filtord(filters.ao.alpha    );
+filters.ao.order.beta=filtord(filters.ao.beta     );
+filters.ao.order.lowGamma=filtord(filters.ao.lowGamma );
+filters.ao.order.midGamma=filtord(filters.ao.midGamma );
+filters.ao.order.swr=filtord(filters.ao.swr      );
+filters.ao.order.highLfp=filtord(filters.ao.highLfp  );
+filters.ao.order.spike=filtord(filters.ao.spike    );
+filters.ao.order.nrem=filtord(filters.ao.nrem     );
+filters.ao.order.chew=filtord(filters.ao.chew     );
+filters.ao.order.electric=filtord(filters.ao.electric );
+filters.ao.order.spindle=filtord(filters.ao.spindle  );
 
 

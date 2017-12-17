@@ -2,12 +2,14 @@ close all; clear all;
 
 %% get the lag
 basedir='/Users/andrewhowe/blairLab/blairlab_data/v4/march5_twotasks1/';
-%alignmentLag=getFscvNlxAlignmentLag([basedir '/fscv/platter/'],[basedir '/nlx/platter/'],7)
-alignmentLag=getFscvNlxAlignmentLag([basedir '/fscv/maze/'],[basedir '/nlx/maze/'],7)
+basedir='/Users/andrewhowe/data/ratData/ephysAndTelemetry/v4/march5_twotasks1/';
+
+alignmentLag=getFscvNlxAlignmentLag([basedir '/fscv/platter/'],[basedir '/nlx/platter/'],7)
+%alignmentLag=getFscvNlxAlignmentLag([basedir '/fscv/maze/'],[basedir '/nlx/maze/'],7)
 
 %% load the fscv data
-%daConc=loadTarheelCsvData([basedir '/fscv/platter/'],.993);
-daConc=loadTarheelCsvData([basedir '/fscv/maze/'],.993);
+daConc=loadTarheelCsvData([basedir '/fscv/platter/'],.993);
+%daConc=loadTarheelCsvData([basedir '/fscv/maze/'],.993);
 [daCorr,lag]=xcorr(daConc,daConc, 1800); %max lag of 3 minutes * 600 samples per minute
 [~,I]=max(abs(daCorr));
 % check that there are not 1 minute stitching artifacts
@@ -33,8 +35,8 @@ plotFft(daConc,10);
 
 
 %% get the video data and fix it
-%[xpos, ypos, xyPositionTimestamps, angles, header ] = nvt2mat([basedir '/nlx/platter/VT0.nvt']);
-[xpos, ypos, xyPositionTimestamps, angles, header ] = nvt2mat([basedir '/nlx/maze/VT0.nvt']);
+[xpos, ypos, xyPositionTimestamps, angles, header ] = nvt2mat([basedir '/nlx/platter/VT0.nvt']);
+%[xpos, ypos, xyPositionTimestamps, angles, header ] = nvt2mat([basedir '/nlx/maze/VT0.nvt']);
 xpos=nlxPositionFixer(xpos);
 ypos=nlxPositionFixer(ypos);
 figure;
@@ -50,8 +52,8 @@ subplot(2,2,3); plot(xpos(round(end*2/4):round(end*3/4)),ypos(round(end*2/4):rou
 subplot(2,2,4); plot(xpos(round(end*3/4):round(end*4/4)),ypos(round(end*3/4):round(end*4/4))); axis([ 0 720 0 480 ]); %legend('4th Qtr');
 
 %% load the events during recording
-%[ EventStrings, EventStamps, eventHeader, EventTTLs ] = nev2mat([basedir '/nlx/platter/Events.nev']);
-[ EventStrings, EventStamps, eventHeader, EventTTLs ] = nev2mat([basedir '/nlx/maze/Events.nev']);
+[ EventStrings, EventStamps, eventHeader, EventTTLs ] = nev2mat([basedir '/nlx/platter/Events.nev']);
+%[ EventStrings, EventStamps, eventHeader, EventTTLs ] = nev2mat([basedir '/nlx/maze/Events.nev']);
 
 %% make pretty graphs and find events
 % TODO make this more robust; nlx tells you the up and the down of all
@@ -183,8 +185,8 @@ title('\Delta DA (nM) Before & After'); ylabel('freq'); xlabel('bins');
 velocity=sqrt(cast(((diff(xpos)).^2+(diff(ypos)).^2), 'double'));
 
 %% set up triggered xyz's
-lookbackward=5; % dopamine samples
-lookforward=40; % dopamine samples
+lookbackward=50; % dopamine samples
+lookforward=50; % dopamine samples
 
 %% event triggered velocity
 %posIdx=ceil((EventStamps(zoneIdxs)-EventStamps(1))/(1e6/30)); % weirdly,
@@ -375,12 +377,12 @@ subplot(2,1,2); plot(lag/600, mycorr); legend('w/o slow oscillation');
 
 
 %%
-figure; 
-plot( decimate(xpos,3), daConc(6:28200-(28200-27809-5)),'.','Color',[ .4 .4 .4 .1], 'MarkerSize', 5);
-title('xpos vs DA'); xlabel('xpos'); ylabel('DA (nM)');
-figure; 
-plot( decimate(ypos,3), daConc(6:28200-(28200-27809-5)),'.','Color',[ .4 .4 .4 .1], 'MarkerSize', 5);
-title('ypos vs DA'); xlabel('ypos'); ylabel('DA (nM)');
+% figure; 
+% plot( decimate(xpos,3), daConc(6:28200-(28200-27809-5)),'.','Color',[ .4 .4 .4 .1], 'MarkerSize', 5);
+% title('xpos vs DA'); xlabel('xpos'); ylabel('DA (nM)');
+% figure; 
+% plot( decimate(ypos,3), daConc(6:28200-(28200-27809-5)),'.','Color',[ .4 .4 .4 .1], 'MarkerSize', 5);
+% title('ypos vs DA'); xlabel('ypos'); ylabel('DA (nM)');
 
 
 %% place preference 
