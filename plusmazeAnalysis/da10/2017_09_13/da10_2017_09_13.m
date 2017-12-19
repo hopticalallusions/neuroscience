@@ -69,13 +69,15 @@ dir='/Volumes/Seagate Expansion Drive/plusmaze-habit/da10/2017-09-13_/';
 visualizeAll=true;
 
 dir='/Volumes/Seagate Expansion Drive/plusmaze-habit/da10/2017-09-13_/';
+% FOR THIS PARTICULAR DAY, SKIP THE INTRODUCTION
+lfpStartIdx = 1954992;
 % 
 filelist = { 'CSC2.ncs'  'CSC6.ncs'  'CSC9.ncs'  'CSC13.ncs'  'CSC17.ncs'  'CSC21.ncs'  'CSC37.ncs'  'CSC45.ncs'  'CSC49.ncs'  'CSC53.ncs'  'CSC61.ncs'  'CSC65.ncs'  'CSC77.ncs'  'CSC88.ncs' };
-avgLfp=avgLfpFromList( dir, filelist );  % build average LFP
+avgLfp=avgLfpFromList( dir, filelist, lfpStartIdx );  % build average LFP
 
 % load a good SWR file
 % TODO (this one eventually has SWR, but check the turn log)
-[ lfp88, lfpTimestamps ] = csc2mat( [ dir 'CSC88.ncs' ] );
+[ lfp88, lfpTimestamps ] = csc2mat( [ dir 'CSC88.ncs' ], lfpStartIdx );
 timestampSeconds=(lfpTimestamps-lfpTimestamps(1))/1e6;
 
 makeFilters;
@@ -197,7 +199,7 @@ end
 % == DETECT PEAKS OF CHEWING EPISODES ==
 filters.ao.nomnom    = designfilt( 'bandpassiir', 'StopbandFrequency1', 3, 'PassbandFrequency1',  4, 'PassbandFrequency2',    6, 'StopbandFrequency2',    8, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', chewCrunchEnvSampleRate);
 filters.ao.brux    = designfilt( 'bandpassiir', 'StopbandFrequency1', 8, 'PassbandFrequency1',  9, 'PassbandFrequency2',    15, 'StopbandFrequency2',    18, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', chewCrunchEnvSampleRate); 
-filters.ao.nombrux    = designfilt( 'bandpassiir', 'StopbandFrequency1', 3, 'PassbandFrequency1',  4, 'PassbandFrequency2',    15, 'StopbandFrequency2',    18, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', chewCrunchEnvSampleRate);
+%filters.ao.nombrux    = designfilt( 'bandpassiir', 'StopbandFrequency1', 3, 'PassbandFrequency1',  4, 'PassbandFrequency2',    15, 'StopbandFrequency2',    18, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', chewCrunchEnvSampleRate);
 % VISUALIZE
 %figure; hold on; plot(chewEnvTimes,temp); plot(chewEnvTimes, abs(hilbert(temp)));  temp=filtfilt( filters.ao.brux, chewEnv ); plot(chewEnvTimes, abs(hilbert(temp))); 
 %
@@ -244,7 +246,7 @@ clear chewEpisodeIdxs
 % threshold for a while (rather heuristic)
 %
 plotMarkers = {'+','o','*','.','x','s','d','^','>','<','p','h'};
-load('/Users/andrewhowe/src/MATLAB/defaultFolder/colorOptions');
+load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
 %
 chewEpisodeStartIdxs = zeros( 1, length( chewEpisodePeakTimes ) );
 chewEpisodeEndIdxs = zeros( 1, length( chewEpisodePeakTimes ) );
@@ -437,13 +439,6 @@ for jj=1:length(bruxEpisodePeakTimes)
     end
     %
 end
-
-
-
-
-
-
-
 
 
 

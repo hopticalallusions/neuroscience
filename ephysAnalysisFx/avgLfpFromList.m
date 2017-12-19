@@ -1,7 +1,11 @@
-function avgLfp = avgLfpFromList(dir, filelist)
+function avgLfp = avgLfpFromList(dir, filelist, lfpStartIdx)
+
+if nargin < 3
+    lfpStartIdx = 1;
+end
 
 for ii=1:length(filelist)
-    temp = csc2mat([ dir filelist{ii} ]);
+    temp = csc2mat([ dir filelist{ii} ], lfpStartIdx);
     if ii == 1
         accumulator = temp;
     else
