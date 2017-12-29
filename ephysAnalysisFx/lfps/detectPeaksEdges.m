@@ -1,30 +1,47 @@
-function detectorOutput = detectPeaksEdges( chewCrunchEnv, chewCrunchEnvTimes, filters.ao.nomnom, chewCrunchEnvSampleRate )
+function detectorOutput = detectPeaksEdges( signalEnvelope, signalTimes, signalSampleRate, streakThreshold, extentThreshold, MinPeakDistance )
 
-% chewCrunchEnv -- envelope to detect over
-% filters.ao.nomnom -- filterToApply -- what it says
+% CrunchEnv -- envelope to detect over
+% filterToApply -- filterToApply -- what it says
 %
 % TODO this code could be cleaned up and improved, but for now, 
 % it works for its intended purpose
 %
+if nargin < 6
+    MinPeakDistance = 1;
+end
+if nargin < 4
+    streakThreshold = round(signalSampleRate);
+else
+    streakThreshold = round(streakThreshold);
+end
 
-% detect peaks on the Max Enveloped signal
-chewEpisodeLFP=filtfilt( filters.ao.nomnom, chewCrunchEnv );
-chewEpisodeEnv=abs(hilbert(chewEpisodeLFP));
 % correct for artifacts of filtering by ignoring the first and last 1 sec
-chewEpisodeIdxs=round(chewCrunchEnvSampleRate*1):round(length(chewEpisodeEnv) - chewCrunchEnvSampleRate*1 );
+EpisodeIdxs=round(signalSampleRate*1):round(length(signalEnvelope) - signalSampleRate*1 );
 % set a threshold -- this is a rough idea based on looking at the data
 % MADAM method
 %    threshold = median(tempEnv) + ( 10 * median(abs(temp-median(tempEnv))) );
 % 20% of max value method
-threshold = 0.2 * max(  chewEpisodeEnv( chewEpisodeIdxs ));
-% find peaks
-[ chewEpisodePeakValues, ...
-  chewEpisodePeakTimes, ...
-  chewEpisodePeakProminances, ...
-  chewEpisodePeakWidths ] = findpeaks(  chewEpisodeEnv( chewEpisodeIdxs ),                              ... % data
-                                        chewCrunchEnvTimes( chewEpisodeIdxs ),                        ... % time discontinuities cause inapproriate shifting; this argument provides the correct times   %sampleRate,                                  ... % sampling frequency
-                                        'MinPeakHeight',                    threshold, ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
-                                        'MinPeakDistance',                  1.5  ); % assumes "lockout" for chew events; don't detect peaks within 70 ms on either side of peak
+maxPeak = max(  signalEnvelope( EpisodeIdxs ));
+% the idea here is to try to protect against a scenario where the minimum
+% value is 50 and the max is 100 -- 20% of 100 is 20, which will never
+% occur if the minimum is 50. So take 20% of the difference between some
+% estimate of the central tendency of the baseline (visually, the mode
+% looked like a better estimate), find the height of the max, take 20% of
+% that and then add it to the peak height
+peakThreshold = (0.2 * ( maxPeak - mode(signalEnvelope( EpisodeIdxs ))))+mode(signalEnvelope( EpisodeIdxs ));
+%extentThreshold =  (0.02 * ( maxPeak - mode(signalEnvelope( EpisodeIdxs ))))+mode(signalEnvelope( EpisodeIdxs ));
+if nargin < 5
+    %extentThreshold = mean(signalEnvelope); % mode(signalEnvelope)+std(signalEnvelope);
+    extentThreshold = max([ peakThreshold/4 mean(signalEnvelope)]);
+end
+    % find peaks
+[ EpisodePeakValues, ...
+  EpisodePeakTimes, ...
+  EpisodePeakProminances, ...
+  EpisodePeakWidths ] = findpeaks(  signalEnvelope( EpisodeIdxs ),                              ... % data
+                                        signalTimes( EpisodeIdxs ),                        ... % time discontinuities cause inapproriate shifting; this argument provides the correct times   %sampleRate,                                  ... % sampling frequency
+                                        'MinPeakHeight',                    peakThreshold, ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
+                                        'MinPeakDistance',                  MinPeakDistance  ); % assumes "lockout" for  events; don't detect peaks within 70 ms on either side of peak
 % 
 % Matlab's width method doesn't do what I want.
 %
@@ -38,68 +55,68 @@ threshold = 0.2 * max(  chewEpisodeEnv( chewEpisodeIdxs ));
 % threshold for a while (rather heuristic)
 %
 %
-chewEpisodeStartIdxs = zeros( 1, length( chewEpisodePeakTimes ) );
-chewEpisodeEndIdxs = zeros( 1, length( chewEpisodePeakTimes ) );
+EpisodeStartIdxs = ones( 1, length( EpisodePeakTimes ) );
+EpisodeEndIdxs = ones( 1, length( EpisodePeakTimes ) );% * length(signalEnvelope);
 %
 % TODO use while instead of some arbitrary cut off
 %
-for jj=1:length(chewEpisodePeakTimes)
+for jj=1:length(EpisodePeakTimes)
     % find the nearest index
-    [vv envIdx]=min(abs(chewCrunchEnvTimes-chewEpisodePeakTimes(jj)));
+    [vv envIdx]=min(abs(signalTimes-EpisodePeakTimes(jj)));
     envIdx = envIdx(1); % we only need one. (could cause bugs if repeat values)
-    chewEpisodeStartIdxs(jj) = 0;
+    EpisodeStartIdxs(jj) = 0;
     minValStreak = 0;
-    pctThreshold = chewEpisodePeakValues(jj)*.05;
-    for ii=1:10000
+    %pctThreshold = EpisodePeakValues(jj)*.05;
+    for ii=1:length(signalEnvelope)
         if envIdx-ii < 1
             break;
         end
-        if chewEpisodeEnv(envIdx-ii) < pctThreshold
+        if signalEnvelope(envIdx-ii) < extentThreshold % pctThreshold
             % we found a potential endpoint
             minValStreak = minValStreak + 1;
-            if chewEpisodeStartIdxs(jj) == 0
-                chewEpisodeStartIdxs(jj) = envIdx - ii;
+            if EpisodeStartIdxs(jj) == 1
+                EpisodeStartIdxs(jj) = envIdx - ii;
             end
-        elseif minValStreak > 20  % TODO should really be a proportion of sample rate
+        elseif minValStreak > streakThreshold  % TODO should really be a proportion of sample rate
             break;
-        elseif chewEpisodeStartIdxs(jj) ~= 0
+        elseif EpisodeStartIdxs(jj) ~= 1
             % we found a potential endpoint, but it ended before the cutoff so
             % so reset and keep going back
-            chewEpisodeStartIdxs(jj) = 0;
+            EpisodeStartIdxs(jj) = 1;
             minValStreak = 0;
         end
     end
     %
     % now go up
-    %chewEpisodeEndIdxs(ii) = 0;
+    %EpisodeEndIdxs(ii) = 0;
     minValStreak = 0;
-    pctThreshold = chewEpisodePeakValues(jj)*.05;
-    for ii=1:10000
-        if envIdx-ii > length(chewEpisodeEnv)
+    %pctThreshold = EpisodePeakValues(jj)*.05;
+    for ii=1:length(signalEnvelope)
+        if envIdx+ii > length(signalEnvelope)
             break;
         end
-        if chewEpisodeEnv(envIdx+ii) < pctThreshold
+        if signalEnvelope(envIdx+ii) < extentThreshold % pctThreshold
             % we found a potential endpoint
             minValStreak = minValStreak + 1;
-            if  chewEpisodeEndIdxs(jj) == 0
-                 chewEpisodeEndIdxs(jj) = envIdx + ii;
+            if  EpisodeEndIdxs(jj) == 1
+                 EpisodeEndIdxs(jj) = envIdx + ii;
             end
-        elseif minValStreak > 20  % TODO should really be a proportion of sample rate
+        elseif minValStreak > streakThreshold  % TODO should really be a proportion of sample rate
             break;
-        elseif  chewEpisodeEndIdxs(jj) ~= 0
+        elseif  EpisodeEndIdxs(jj) ~= 1
             % we found a potential endpoint, but it ended before the cutoff so
             % so reset and keep going back
-             chewEpisodeEndIdxs(jj) = 0;
+            EpisodeEndIdxs(jj) = 1;
             minValStreak = 0;
         end
     end 
     %
 end
 
-detectorOutput.chewEpisodeStartIdxs  = chewEpisodeStartIdxs;
-detectorOutput.chewEpisodeEndIdxs    = chewEpisodeEndIdxs;
-detectorOutput.chewEpisodePeakValues = chewEpisodePeakValues;
-detectorOutput.chewEpisodePeakTimes  = chewEpisodePeakTimes;
+detectorOutput.EpisodeStartIdxs  = EpisodeStartIdxs;
+detectorOutput.EpisodeEndIdxs    = EpisodeEndIdxs;
+detectorOutput.EpisodePeakValues = EpisodePeakValues;
+detectorOutput.EpisodePeakTimes  = EpisodePeakTimes;
 
 return;
 
@@ -114,15 +131,15 @@ return;
 % load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
 %     %
 %     if visualizeAll
-%        % figure; plot( chewEnvTimes(envIdx-2000:envIdx+2000), temp(envIdx-2000:envIdx+2000) ); hold on; plot( chewEnvTimes(envIdx-2000:envIdx+2000), tempEnv(envIdx-2000:envIdx+2000) ); hold on; plot( chewEnvTimes(episodeStartIdx), tempEnv(episodeStartIdx), '*')
-%        if chewEpisodeStartIdxs(jj) > 0
-%            scatter( chewCrunchEnvTimes( chewEpisodeStartIdxs(jj) ), -0.01, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
+%        % figure; plot( EnvTimes(envIdx-2000:envIdx+2000), temp(envIdx-2000:envIdx+2000) ); hold on; plot( EnvTimes(envIdx-2000:envIdx+2000), tempEnv(envIdx-2000:envIdx+2000) ); hold on; plot( EnvTimes(episodeStartIdx), tempEnv(episodeStartIdx), '*')
+%        if EpisodeStartIdxs(jj) > 0
+%            scatter( signalTimes( EpisodeStartIdxs(jj) ), -0.01, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
 %        else
-%            scatter( chewCrunchEnvTimes( 1 ), -0.01, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
+%            scatter( signalTimes( 1 ), -0.01, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
 %        end
 %     end
 % 
 %     %
 %     if visualizeAll
-%        scatter( chewCrunchEnvTimes( chewEpisodeEndIdxs(jj) ), -0.01, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
+%        scatter( signalTimes( EpisodeEndIdxs(jj) ), -0.01, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
 %     end
