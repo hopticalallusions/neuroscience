@@ -1,4 +1,4 @@
-function detectorOutput = detectPeaksEdges( signalEnvelope, signalTimes, signalSampleRate, streakThreshold, extentThreshold, MinPeakDistance )
+function detectorOutput = detectPeaksEdges( signalEnvelope, signalTimes, signalSampleRate, streakThreshold, extentThreshold, MinPeakDistance, peakThreshold )
 
 % CrunchEnv -- envelope to detect over
 % filterToApply -- filterToApply -- what it says
@@ -17,19 +17,21 @@ end
 
 % correct for artifacts of filtering by ignoring the first and last 1 sec
 EpisodeIdxs=round(signalSampleRate*1):round(length(signalEnvelope) - signalSampleRate*1 );
-% set a threshold -- this is a rough idea based on looking at the data
-% MADAM method
-%    threshold = median(tempEnv) + ( 10 * median(abs(temp-median(tempEnv))) );
-% 20% of max value method
-maxPeak = max(  signalEnvelope( EpisodeIdxs ));
-% the idea here is to try to protect against a scenario where the minimum
-% value is 50 and the max is 100 -- 20% of 100 is 20, which will never
-% occur if the minimum is 50. So take 20% of the difference between some
-% estimate of the central tendency of the baseline (visually, the mode
-% looked like a better estimate), find the height of the max, take 20% of
-% that and then add it to the peak height
-peakThreshold = (0.2 * ( maxPeak - mode(signalEnvelope( EpisodeIdxs ))))+mode(signalEnvelope( EpisodeIdxs ));
-%extentThreshold =  (0.02 * ( maxPeak - mode(signalEnvelope( EpisodeIdxs ))))+mode(signalEnvelope( EpisodeIdxs ));
+if nargin < 7
+    % set a threshold -- this is a rough idea based on looking at the data
+    % MADAM method
+    %    threshold = median(tempEnv) + ( 10 * median(abs(temp-median(tempEnv))) );
+    % 20% of max value method
+    maxPeak = max(  signalEnvelope( EpisodeIdxs ));
+    % the idea here is to try to protect against a scenario where the minimum
+    % value is 50 and the max is 100 -- 20% of 100 is 20, which will never
+    % occur if the minimum is 50. So take 20% of the difference between some
+    % estimate of the central tendency of the baseline (visually, the mode
+    % looked like a better estimate), find the height of the max, take 20% of
+    % that and then add it to the peak height
+    peakThreshold = (0.2 * ( maxPeak ) ); % -->> ????!?!??    - mode(signalEnvelope( EpisodeIdxs ))))+mode(signalEnvelope( EpisodeIdxs ));
+    %extentThreshold =  (0.02 * ( maxPeak - mode(signalEnvelope( EpisodeIdxs ))))+mode(signalEnvelope( EpisodeIdxs ));
+end
 if nargin < 5
     %extentThreshold = mean(signalEnvelope); % mode(signalEnvelope)+std(signalEnvelope);
     extentThreshold = max([ peakThreshold/4 mean(signalEnvelope)]);
@@ -112,6 +114,23 @@ for jj=1:length(EpisodePeakTimes)
     end 
     %
 end
+
+%% now remove duplicate peaks that fall inside the extents
+% it is possible that this might break some other things that remove SWR
+% interference
+idxToRemove = [];
+if length(EpisodePeakTimes) > 3
+    for ii=2:length(EpisodePeakTimes)
+        if ( EpisodePeakTimes(ii) > signalTimes(EpisodeStartIdxs(ii-1)) ) && ( EpisodePeakTimes(ii) < signalTimes(EpisodeEndIdxs(ii-1)) )
+            idxToRemove = [ idxToRemove ii ];
+        end
+    end
+end
+EpisodePeakValues(idxToRemove)=[];
+EpisodePeakTimes(idxToRemove)=[];
+EpisodeStartIdxs(idxToRemove)=[];
+EpisodeEndIdxs(idxToRemove)=[];
+
 
 detectorOutput.EpisodeStartIdxs  = EpisodeStartIdxs;
 detectorOutput.EpisodeEndIdxs    = EpisodeEndIdxs;

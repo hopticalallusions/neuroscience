@@ -2,7 +2,6 @@ clear all; close all;
 figure; 
 
 %% weirdness
-dir='/Volumes/Seagate Expansion Drive/plusmaze-habit/da10/2017-09-13_/';
 % This day has a weird gap in the LFP datafrom ~29.392 seconds to ~61.09 
 % (so ~31.7 seconds long). It isn't devoid of points, but it looks like the
 % clock gets ahead of itself or many data points are lost. If one uses the 
@@ -70,7 +69,57 @@ timestampSeconds=(lfpTimestamps-lfpTimestamps(1))/1e6;
 
 makeFilters;
 
+
+%% =====================
+% == DETECT ELECTRIC ==
+% =====================
+%
+% the baseline of the rat's 60 hz is correlated with the distance from the
+% light. in the bucket is usually best, but the baseline subtely depends on
+% where the bucket is. on the maze, his 60 hz is lowest in the center.
+% Spikes occur when I touch the rat or the wire.
+electricLFP=filtfilt( filters.so.electric, avgDisconnectedLfp );
+electricEnv=abs(hilbert(electricLFP));
+% ** running this particular call will attempt to find the edges of the
+% plateaus; it does this by requiring a long period of time at a low value
+% but it never quite worked the way I wanted it too. a very long (10
+% seconds? 30 s? of low value might help, as the rat is in the low state
+% for at least 1-2 minutes between trials
+% electricDetectorOutput = detectPeaksEdges( electricEnv, timestampSeconds, sampleRate );
+%
+% ** call this to try to detect just the sharp, tall peaks
+electricDetectorOutput = detectPeaksEdges( electricEnv, timestampSeconds, sampleRate, round(sampleRate/10) );
+% % this will plot outputs from peakEdges  %%%%%%%%
+% detect peaks on the Max Enveloped signal
+figure(1);
+subplot(7,1,1);
+hold off;
+plot(timestampSeconds,electricEnv); hold on; 
+scatter( electricDetectorOutput.EpisodePeakTimes, electricDetectorOutput.EpisodePeakValues, 'v', 'filled');
+load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
+for jj=1:length(electricDetectorOutput.EpisodeEndIdxs);
+   if  electricDetectorOutput.EpisodeStartIdxs(jj) > 0
+       scatter( timestampSeconds( electricDetectorOutput.EpisodeStartIdxs(jj) ), 0, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
+   else
+       scatter( timestampSeconds( 1 ), 0, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
+   end
+   if  electricDetectorOutput.EpisodeEndIdxs(jj) < length(timestampSeconds)
+       scatter( timestampSeconds(  electricDetectorOutput.EpisodeEndIdxs(jj) ), 0, '<',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
+   else
+       scatter( timestampSeconds( end ), 0, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
+   end
+end
+ylabel('elec.'); 
+xlim([0 timestampSeconds(end)]); 
+ylim([-0.001 max(electricDetectorOutput.EpisodePeakValues)]);
+
+%
+%
 %% look for events in the average LFP
+% ====================
+% == DETECT CHEWING ==
+% ====================
+
 % auto-detect chews to differentiate from potential SWR events
 avgChew = filtfilt( filters.so.chew, avgLfp );
 
@@ -137,53 +186,6 @@ avgChew = filtfilt( filters.so.chew, avgLfp );
 % autocorrelation. Not sure how efficient this would be.
 
 
-
-
-% =====================
-% == DETECT ELECTRIC ==
-% =====================
-%
-% the baseline of the rat's 60 hz is correlated with the distance from the
-% light. in the bucket is usually best, but the baseline subtely depends on
-% where the bucket is. on the maze, his 60 hz is lowest in the center.
-% Spikes occur when I touch the rat or the wire.
-electricLFP=filtfilt( filters.so.electric, avgDisconnectedLfp );
-electricEnv=abs(hilbert(electricLFP));
-% ** running this particular call will attempt to find the edges of the
-% plateaus; it does this by requiring a long period of time at a low value
-% but it never quite worked the way I wanted it too. a very long (10
-% seconds? 30 s? of low value might help, as the rat is in the low state
-% for at least 1-2 minutes between trials
-% electricDetectorOutput = detectPeaksEdges( electricEnv, timestampSeconds, sampleRate );
-%
-% ** call this to try to detect just the sharp, tall peaks
-electricDetectorOutput = detectPeaksEdges( electricEnv, timestampSeconds, sampleRate, round(sampleRate/10) );
-%% this will plot outputs from peakEdges  %%%%%%%%
-% detect peaks on the Max Enveloped signal
-figure(1);
-subplot(7,1,1);
-hold off;
-plot(timestampSeconds,electricEnv); hold on; 
-scatter( electricDetectorOutput.EpisodePeakTimes, electricDetectorOutput.EpisodePeakValues, 'v', 'filled');
-load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
-for jj=1:length(electricDetectorOutput.EpisodeEndIdxs);
-   if  electricDetectorOutput.EpisodeStartIdxs(jj) > 0
-       scatter( timestampSeconds( electricDetectorOutput.EpisodeStartIdxs(jj) ), 0, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-   else
-       scatter( timestampSeconds( 1 ), 0, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-   end
-   if  electricDetectorOutput.EpisodeEndIdxs(jj) < length(timestampSeconds)
-       scatter( timestampSeconds(  electricDetectorOutput.EpisodeEndIdxs(jj) ), 0, '<',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-   else
-       scatter( timestampSeconds( end ), 0, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-   end
-end
-ylabel('elec.'); 
-xlim([0 timestampSeconds(end)]); 
-ylim([-0.001 max(electricDetectorOutput.EpisodePeakValues)]);
-
-%
-%
 [ chewCrunchEnv, chewCrunchEnvTimes, chewCrunchEnvSampleRate ] = boxcarMaxFilter( avgChew, timestampSeconds );
 %
 %
@@ -456,7 +458,10 @@ ylabel('SWR_{rate}');
 xlim([0 timestampSeconds(end)]); 
 ylim([-0.001 max(swrRate)]);
 
+load('/Users/andrewhowe/Desktop/swrAnalysisBins.mat');
 
+figure; subplot(3,1,2); histogram( swrPeakTimesDenoise, swrAnalysisBins ); title('SWR Frequency'); xlabel('time (s)'); ylabel('counts'); axis tight;
+subplot(3,1,3); plot( swrAnalysisBins(2:end), histcounts( swrPeakTimesDenoise, swrAnalysisBins )./diff(swrAnalysisBins), '*-' ); title('SWR rate'); xlabel('time (s)'); ylabel('Hz'); axis tight;
 
 return;
 % =============
@@ -478,9 +483,222 @@ end
 
 
 
-%%
 
 
+
+
+
+%% some analysis on the raw video 
+% ** load and scale mask file
+% ** setup video object
+dir='/Volumes/Seagate Expansion Drive/plusmaze-habit/da10/2017-09-13_/';
+vidObj = VideoReader([ dir 'VT1_01.mpg']);
+vidHeight = vidObj.Height; vidWidth = vidObj.Width; 
+%frame = readFrame(vidObj);
+% ** get average frame
+vidObj.CurrentTime = 0;
+numFrames = 0;
+while hasFrame( vidObj )
+    frame = readFrame( vidObj );
+    frame = mean( frame, 3 );   % make black and white
+    if numFrames > 0
+        avgFrame = avgFrame + frame;
+    else
+        avgFrame = frame;
+    end
+    numFrames = numFrames + 1;
+end
+avgFrame = avgFrame./numFrames;
+%
+% now analyze video
+%
+% *** 
+%
+maskDir = '/Users/andrewhowe/src/MATLAB/defaultFolder/';
+mazeMask.surround=imread([ maskDir 'mazeSurroundMask.png' ]);
+mazeMask.surround=mean(mazeMask.surround,3); 
+mazeMask.surround=mazeMask.surround/max(mazeMask.surround(:));
+%
+mazeMask.bucketRest=imread([ maskDir 'mazeBucketRestRegionsMask.png' ]);
+mazeMask.bucketRest=mean(mazeMask.bucketRest,3); 
+mazeMask.bucketRest=mazeMask.bucketRest/max(mazeMask.bucketRest(:));
+%
+mazeMask.bucketRunPosition=imread([ maskDir 'bucketRunPositionMask.png' ]);
+mazeMask.bucketRunPosition=mean(mazeMask.bucketRunPosition,3); 
+mazeMask.bucketRunPosition=mazeMask.bucketRunPosition/max(mazeMask.bucketRunPosition(:));
+%
+maskIdxs.surround=find(mazeMask.surround>0.95);
+maskIdxs.bucketRest=find(mazeMask.bucketRest>0.95);
+maskIdxs.bucketRunPosition=find(mazeMask.bucketRunPosition>0.95);
+%
+vidObj.CurrentTime = 0;   % rewind
+sumEdgeChange = zeros( 1, numFrames );
+sumBucketChange = zeros( 1, numFrames );
+sumBucketRun = zeros( 1, numFrames );
+%
+ii=1;
+while hasFrame( vidObj )
+    frame = readFrame( vidObj );
+    frame = mean( frame, 3 );   % make black and white
+    bkDiff = frame-avgFrame;
+    sumEdgeChange(ii) = sum(sum(abs(bkDiff(maskIdxs.surround))));
+    sumBucketChange(ii) = sum(sum(abs(bkDiff(maskIdxs.bucketRest))));
+    % sumBucketRun(ii) =
+    % sum(sum(abs((bkDiff(maskIdxs.bucketRunPosition)))); doesn't work
+    ii = ii + 1;
+end
+figure; 
+plot(timestampSeconds,electricEnv./max(electricEnv));
+hold on;
+plot( (1:numFrames)/29.97, sumEdgeChange/max(sumEdgeChange) );
+plot( (1:numFrames)/29.97, sumBucketChange/max(sumBucketChange) );
+plot( (1:numFrames)/29.97, sumBucketRun/max(sumBucketRun) );
+axis tight;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%% misc code notes
+
+
+
+vidObj.CurrentTime = 10;
+frame = readFrame( vidObj );
+frame = mean( frame, 3 );   % make black and white
+lastFrame = mean( frame, 3 );
+vidObj.CurrentTime = vidObj.CurrentTime + .3;
+idx=1;
+while hasFrame( vidObj ) && ( vidObj.CurrentTime < 200 );
+    
+    frame = readFrame( vidObj );
+    frame = mean( frame, 3 );   % make black and white
+    idx = idx + 1;
+
+    objs = ( frame - lastFrame ); 
+%    objs = ( frame - extractedBackground ).*mazeMask; 
+%    objs(find(objs<5))=0;
+
+    % region-finding -- doesn't quite work correctly
+    % [labeledMatrix,regionLabels,regionSizes]=findBoundaries(abs(objs)>15,.1,10);
+
+    figure(11); % colormap default;
+    present = ( objs > 12 ).*2; % present
+    %subplot(1,2,1); imagesc(present);
+    past = ( objs < -12 );  % past
+    subplot(1,2,1);
+    imagesc(past+present); caxis([0 3]);
+    
+    subplot(1,2,2); 
+    deltaFrame = ( frame - avgFrame );
+    imagesc( deltaFrame );
+    
+    
+%    objs = ( frame - extractedBackground ).*mazeMask; 
+    %figure(11);imagesc(objs); caxis([0 255]);
+    
+    drawnow;
+    lastFrame = frame;
+    vidObj.CurrentTime = vidObj.CurrentTime + .3;  % advance ~10 frames
+    
+end
+
+figure; imagesc(frame); colormap('bone');
+
+
+figure; histogram(objs(:),100);
+
+
+
+
+
+
+maskDir = '/Users/andrewhowe/src/MATLAB/defaultFolder/';
+mazeMask.cableTrace=imread([ maskDir 'traceCableMazeMask2.png' ]);
+mazeMask.cableTrace=mean(mazeMask.cableTrace,3); 
+mazeMask.cableTrace=mazeMask.cableTrace/max(mazeMask.cableTrace(:));
+
+vidObj.CurrentTime = 30;
+frame = readFrame( vidObj );
+frame = mean( frame, 3 );   % make black and white
+lastFrame = mean( frame, 3 );
+mvgAvgFrame = lastFrame;
+vidObj.CurrentTime = vidObj.CurrentTime + .5;
+idx=1;
+figure(11);
+while hasFrame( vidObj ) && ( vidObj.CurrentTime < 140 );
+    
+    frame = readFrame( vidObj );
+    frame = mean( frame, 3 );   % make black and white
+    idx = idx + 1;
+
+    bgDeltaFrame = abs(frame - avgFrame).*mazeMask.cableTrace;
+    mavDeltaFrame = abs(frame - mvgAvgFrame).*mazeMask.cableTrace;
+    deltaFrame = abs(frame - lastFrame).*mazeMask.cableTrace; %lastFrame; % get the delta between the frames
+    deltaFrameThreshold = prctile( deltaFrame(:), 97 );  % get a threshold
+    deltaFrameNow = deltaFrame > deltaFrameThreshold ;
+    subplot( 1,3,1 ); hold off;
+    imagesc(bgDeltaFrame);
+    hold on;
+    for rowIdx=10:10:480
+        [~,colIdx] = max(bgDeltaFrame(rowIdx,:));
+        %colIdx=colIdx(1); % eliminate the duplicates due to thresholding
+        scatter(colIdx(1),rowIdx,'o', 'filled', 'm');
+    end
+    [~,ii]=max(bgDeltaFrame(:));
+    scatter(floor(ii/480),mod(ii,480),'*','r');
+    subplot( 1,3,2 );
+    hold off;
+    imagesc(deltaFrame);
+    hold on;
+    for rowIdx=10:10:480
+        [~,colIdx] = max(deltaFrame(rowIdx,:));
+        scatter(colIdx(1),rowIdx,'>', 'filled', 'm');
+        %scatter(colIdx(end),rowIdx,'<', 'filled', 'c');
+    end
+    subplot( 1,3,3 ); hold off;
+    imagesc(mavDeltaFrame);
+    hold on;
+    for rowIdx=10:10:480
+        [~,colIdx] = max(mavDeltaFrame(rowIdx,:));
+        %colIdx=colIdx(1); % eliminate the duplicates due to thresholding
+        scatter(colIdx(1),rowIdx,'o', 'filled', 'm');
+    end
+    drawnow;
+    lastFrame = frame;
+    mvgAvgFrame = 0.9.*mvgAvgFrame + 0.1.*frame;
+    vidObj.CurrentTime = vidObj.CurrentTime + .3;
+end
+    
+    
+    
+    
+    
 
 
 filters.ao.slow    = designfilt( 'bandpassiir', 'StopbandFrequency1', .1, 'PassbandFrequency1',  .3, 'PassbandFrequency2',    3, 'StopbandFrequency2',    8, 'StopbandAttenuation1', 4, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', chewCrunchEnvSampleRate);

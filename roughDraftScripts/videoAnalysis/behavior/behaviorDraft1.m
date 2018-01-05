@@ -23,7 +23,7 @@ idx = 1;
 lastFrame = mean( frame, 3 );
 deltaPx = zeros( 1, readLimit );
 
-% problem : want to get median, rathther than average frame, but data is too big.
+% problem : want to get median, rather than average frame, but data is too big.
 % solution : average every ~ 1s of frames, and take the median of that. (still big, but doable...)
 %
 % big problem : track events in video
@@ -625,3 +625,57 @@ subplot(3,4,8); imagesc(medFrameRaw); title('median'); colormap(build_NOAA_color
 subplot(3,4,9); imagesc(madamFrameRaw); title('MADAM'); colormap(build_NOAA_colorgradient); colorbar;
 subplot(3,4,10); imagesc(kurtFrameRaw); title('kurtosis'); colormap(build_NOAA_colorgradient); colorbar;
 subplot(3,4,11); imagesc(rangeFrameRaw); title('range'); colormap(build_NOAA_colorgradient); colorbar;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+frames = zeros( 480, 720, round(64746/32)+1 );
+idx = 1;
+lastFrame = mean( frame, 3 );
+deltaPx = zeros( 1, readLimit );
+
+while hasFrame( vidObj )
+    frame = readFrame( vidObj );
+    frame = mean( frame, 3 );   % make black and white
+    avgFrame = avgFrame + frame;
+    if mod( idx, 32 ) == 0
+        % aggregate frames for median bg estimate
+        frames( :, :, idx/32 ) = avgFrame/32;
+        avgFrame =  mean( frame, 3 );
+    end
+end
+
+
+
+
+
+
+    idx = idx + 1;
+    temp = abs( lastFrame - frame );
+    tt=temp(:);
+    %deltaPx( idx ) = sum( tt( find( tt > 10 ) ) );

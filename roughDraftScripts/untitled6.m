@@ -381,3 +381,20 @@ plot(spikes(:,find(metrics.peakPointyness<1)))
 hist(metrics.peakCurvyness,100);
 plot(spikes(:,find(metrics.peakCurvyness==0)))
 metrics
+
+
+
+
+
+
+
+
+
+
+
+mazeSurroundMask is to detect when I'm moving in the video.
+
+
+
+
+
