@@ -26,9 +26,12 @@ filters.ao.swr      = designfilt( 'bandpassiir', 'StopbandFrequency1',  100, 'Pa
 filters.ao.highLfp  = designfilt( 'bandpassiir', 'StopbandFrequency1',  250, 'PassbandFrequency1',  260, 'PassbandFrequency2',  550, 'StopbandFrequency2',  600, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', 32000);
 filters.ao.spike    = designfilt( 'bandpassiir', 'StopbandFrequency1',  550, 'PassbandFrequency1',  600, 'PassbandFrequency2', 6000, 'StopbandFrequency2', 6500, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', 32000);
 filters.ao.nrem     = designfilt( 'bandpassiir', 'StopbandFrequency1',    4, 'PassbandFrequency1',    6, 'PassbandFrequency2',   40, 'StopbandFrequency2',   45, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', 32000);
-filters.ao.chew     = designfilt( 'bandpassiir', 'StopbandFrequency1',   80, 'PassbandFrequency1',  100, 'PassbandFrequency2', 1000, 'StopbandFrequency2', 1200, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', 32000); % verified order, settings by testing
 filters.ao.electric = designfilt( 'bandpassiir', 'StopbandFrequency1',   58, 'PassbandFrequency1',   59, 'PassbandFrequency2',   61, 'StopbandFrequency2',   62, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', 32000); % verified order, settings by testing
 filters.ao.spindle  = designfilt( 'bandpassiir', 'StopbandFrequency1',   10, 'PassbandFrequency1',   12, 'PassbandFrequency2',   14, 'StopbandFrequency2',   18, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', 32000); % sleep spindles occur before k-complexes, and must be ~500+microscends
+
+
+filters.ao.chew     = designfilt( 'bandpassiir', 'StopbandFrequency1',   80, 'PassbandFrequency1',  100, 'PassbandFrequency2', 1000, 'StopbandFrequency2', 1200, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', 32000); % verified order, settings by testing
+
 
 %report order
 filters.ao.order.delta=filtord(filters.ao.delta    );

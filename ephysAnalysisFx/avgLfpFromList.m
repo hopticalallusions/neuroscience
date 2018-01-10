@@ -6,10 +6,14 @@ end
 
 for ii=1:length(filelist)
     temp = csc2mat([ dir filelist{ii} ], lfpStartIdx);
+    thisDim = length(temp);
     if ii == 1
         accumulator = temp;
-    else
+        masterDim = length(temp);
+    elseif ( thisDim == masterDim )
         accumulator = accumulator + temp;
+    else
+        disp([ 'avgLfp failed data length of this ' num2str(thisDim) ' ~= ' num2str(masterDim) ]);
     end
 end
 avgLfp = accumulator/length(filelist);
