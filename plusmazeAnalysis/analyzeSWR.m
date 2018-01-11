@@ -3,11 +3,17 @@ function output = analyzeSWR( metadata )
 metadata.dir=[ metadata.baseDir metadata.rat '/' metadata.day '/'  ];
 disp(metadata.dir);
 
+metadata.dayOld = metadata.day;
+metadata.day = strrep(metadata.day, '/', '');
+
 tic;
 
 close all;
 
 disp('SETUP ANALYSIS RUN')
+if metadata.autobins
+    disp('using automatic bin detection');
+end
 %% I. SETUP THE ANALYSIS RUN
 % 
 % I.A. PARAMETERS
@@ -226,16 +232,16 @@ mazeEntries.mvgMedianSampleRate = sampleRate.lfp/jumpSize;
 mazeEntries.outputIdx = 1;
 %
 % initialize...
-mazeEntries.mvgMedian(1)=median(outp.electricEnv(1:sampleRate.lfp));
-mazeEntries.mvgMedianTimes(1) = outp.timestampSeconds(1);
+mazeEntries.mvgMedian(1)=median(electricEnv(1:sampleRate.lfp));
+mazeEntries.mvgMedianTimes(1) = timestampSeconds(1);
 %
 mazeEntries.outputIdx = 2;
-mazeEntries.mvgMedian(mazeEntries.outputIdx)=median(outp.electricEnv(1:round(halfWindowSize/2)));
-mazeEntries.mvgMedianTimes(mazeEntries.outputIdx) = outp.timestampSeconds(round(halfWindowSize/4));
+mazeEntries.mvgMedian(mazeEntries.outputIdx)=median(electricEnv(1:round(halfWindowSize/2)));
+mazeEntries.mvgMedianTimes(mazeEntries.outputIdx) = timestampSeconds(round(halfWindowSize/4));
 %
 mazeEntries.outputIdx = 3;
-mazeEntries.mvgMedian(mazeEntries.outputIdx)=median(outp.electricEnv(1:halfWindowSize));
-mazeEntries.mvgMedianTimes(mazeEntries.outputIdx) = outp.timestampSeconds(round(halfWindowSize/2));
+mazeEntries.mvgMedian(mazeEntries.outputIdx)=median(electricEnv(1:halfWindowSize));
+mazeEntries.mvgMedianTimes(mazeEntries.outputIdx) = timestampSeconds(round(halfWindowSize/2));
 %
 mazeEntries.outputIdx = 4;
 for idx=halfWindowSize+1:jumpSize:inputElements-(1+halfWindowSize)
@@ -255,18 +261,55 @@ mazeEntries.outputIdx = mazeEntries.outputIdx+1;
 mazeEntries.mvgMedian(mazeEntries.outputIdx)=median(electricEnv(end-sampleRate.lfp:end));
 mazeEntries.mvgMedianTimes(mazeEntries.outputIdx) = timestampSeconds(end);
 % find peaks in the differential of the moving median
-mazeEntries.transMvgMedian=diff(mazeEntries.mvgMedian);
-mazeEntries.maxPeak = max(  mazeEntries.transMvgMedian );
-mazeEntries.peakThreshold = (0.2 * mazeEntries.maxPeak );
+mazeEntries.elecBaseline=diff(mazeEntries.mvgMedian);
+mazeEntries.maxPeak = max(  mazeEntries.elecBaseline );
+mazeEntries.peakThreshold = (0.15 * mazeEntries.maxPeak );
 mazeEntries.minPeakDistance = 20; % seconds
-[ transMvgMedPeakValues,  ...
-  transMvgMedPeakTimes,   ...
+[ elecBaselineJumpValues,  ...
+  elecBaselineJumpTimes,   ...
   transMvgMedProminances, ...
-  transMvgMedPeakWidths ] = findpeaks( mazeEntries.transMvgMedian,                    ... % data
+  transMvgMedPeakWidths ] = findpeaks( mazeEntries.elecBaseline,                    ... % data
                                        mazeEntries.mvgMedianTimes(2:end),             ... % time discontinuities cause inapproriate shifting; this argument provides the correct times   %sampleRate,                                  ... % sampling frequency
                                        'MinPeakHeight',   mazeEntries.peakThreshold,  ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
                                        'MinPeakDistance', mazeEntries.minPeakDistance  ); % assumes "lockout" for  events; don't detect peaks within 70 ms on either side of peak
-%
+
+mazeEntries.maxPeak = max(  -mazeEntries.elecBaseline );
+mazeEntries.peakThreshold = (0.1 * mazeEntries.maxPeak );
+mazeEntries.minPeakDistance = 20; % seconds
+[ elecBaselineDropValues,  ...
+  elecBaselineDropTimes,   ...
+  transMvgMedProminances, ...
+  transMvgMedPeakWidths ] = findpeaks( mazeEntries.elecBaseline,                    ... % data
+                                       mazeEntries.mvgMedianTimes(2:end),             ... % time discontinuities cause inapproriate shifting; this argument provides the correct times   %sampleRate,                                  ... % sampling frequency
+                                       'MinPeakHeight',   mazeEntries.peakThreshold,  ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
+                                       'MinPeakDistance', mazeEntries.minPeakDistance  ); % assumes "lockout" for  events; don't detect peaks within 70 ms on either side of peak
+
+                                   
+                                   
+                                   
+                                   
+% figure;
+% plot(timestampSeconds,electricEnv);
+% hold on;
+% plot( mazeEntries.mvgMedianTimes, mazeEntries.mvgMedian );
+% plot( mazeEntries.mvgMedianTimes(1:end-1)+diff(mazeEntries.mvgMedianTimes)/2, mazeEntries.elecBaseline );
+% scatter( elecBaselineJumpTimes, elecBaselineJumpValues );
+% mazeEntries.elecBaseline=-mazeEntries.elecBaseline;
+% mazeEntries.maxPeak = max(  mazeEntries.elecBaseline );
+% mazeEntries.peakThreshold = (0.2 * mazeEntries.maxPeak );
+% [ elecBaselineJumpValues,  ...
+%   elecBaselineJumpTimes,   ...
+%   transMvgMedProminances, ...
+%   transMvgMedPeakWidths ] = findpeaks( mazeEntries.elecBaseline,                    ... % data
+%                                        mazeEntries.mvgMedianTimes(2:end),             ... % time discontinuities cause inapproriate shifting; this argument provides the correct times   %sampleRate,                                  ... % sampling frequency
+%                                        'MinPeakHeight',   mazeEntries.peakThreshold,  ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
+%                                        'MinPeakDistance', mazeEntries.minPeakDistance  ); % assumes "lockout" for  events; don't detect peaks within 70 ms on either side of peak
+% scatter( elecBaselineJumpTimes, elecBaselineJumpValues, 'v' );
+
+
+                                   
+                                   
+                                   %
 % we know from chews and tail grabs (bucket placements) when episodes end.
 % so now start at the bucket placement, and look forward through the peaks
 % in the electric transitions to find start points
@@ -280,28 +323,28 @@ else
 end
 for idxTrialEnd=startIdx:length(output.intoBucketTimes)
         if idxTrialEnd > 1
-            relativeTimes = transMvgMedPeakTimes - output.intoBucketTimes(idxTrialEnd-1);
+            relativeTimes = elecBaselineJumpTimes - output.intoBucketTimes(idxTrialEnd-1);
         else
-            relativeTimes = transMvgMedPeakTimes - output.intoBucketTimes(idxTrialEnd);
+            relativeTimes = elecBaselineJumpTimes - output.intoBucketTimes(idxTrialEnd);
         end
         [ ~, jj ] = min( abs( relativeTimes ));
         offset = 0;
         while ( (jj+offset < length(relativeTimes) ) && (relativeTimes(jj+offset) < 40 )   ) 
             offset = offset + 1;
         end
-        output.ontoMazeTimes(idxTrialEnd)=transMvgMedPeakTimes(jj+offset);
+        output.ontoMazeTimes(idxTrialEnd)=elecBaselineJumpTimes(jj+offset);
 end
 %
 if metadata.visualizeAll
     figure(1);
     subplot(4,1,3);
     hold off;
-    plot( mazeEntries.mvgMedianTimes(2:end), mazeEntries.transMvgMedian ); hold on;
-    scatter( transMvgMedPeakTimes, transMvgMedPeakValues, 'v', 'filled');
+    plot( mazeEntries.mvgMedianTimes(2:end), mazeEntries.elecBaseline ); hold on;
+    scatter( elecBaselineJumpTimes, elecBaselineJumpValues, 'v', 'filled');
     load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
     ylabel('\Delta start.prox.');
     xlim([0 timestampSeconds(end)]);
-    ylim([-0.001 max(transMvgMedPeakValues)]);
+    ylim([-0.001 max(elecBaselineJumpValues)]);
    %
     subplot(4,1,4);
     hold off;
@@ -317,8 +360,12 @@ if metadata.visualizeAll
 end
 print( gcf(1), [metadata.outputDir metadata.rat '_' metadata.day '_autotrial1'],'-dpng','-r200');
 
-if length(find(output.rewardTimes)) ~= length(find(output.ontoMazeTimes))
-    error('reward and trial start detection failed; unequal number of events');
+if abs ( length(find(output.rewardTimes)) - length(find(output.ontoMazeTimes)) ) > 2
+    if metadata.autobins
+        error('reward and trial start detection failed; unequal number of events');
+    else
+        warning('reward and trial start detection failed; unequal number of events');
+    end
 end
 
 
@@ -435,14 +482,14 @@ mvgMedianTimes = mvgMedianTimes( 1:outputIdx );
 startEpisodes = detectPeaksEdges( mvgMedian, mvgMedianTimes, mvgMedianSampleRate, mvgMedianSampleRate, .75, 10, .85 );
 
 % find peaks in the moving median
-transMvgMedian=diff(mvgMedian);
-maxPeak = max(  transMvgMedian );
+elecBaseline=diff(mvgMedian);
+maxPeak = max(  elecBaseline );
 peakThreshold = (0.2 * maxPeak );
 minPeakDistance = 20; % seconds
-[ transMvgMedPeakValues, ...
-  transMvgMedPeakTimes, ...
+[ elecBaselineJumpValues, ...
+  elecBaselineJumpTimes, ...
   transMvgMedProminances, ...
-  transMvgMedPeakWidths ] = findpeaks(  transMvgMedian,                              ... % data
+  transMvgMedPeakWidths ] = findpeaks(  elecBaseline,                              ... % data
                                         mvgMedianTimes(2:end),                        ... % time discontinuities cause inapproriate shifting; this argument provides the correct times   %sampleRate,                                  ... % sampling frequency
                                         'MinPeakHeight',                    peakThreshold, ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
                                         'MinPeakDistance',                  minPeakDistance  ); % assumes "lockout" for  events; don't detect peaks within 70 ms on either side of peak
@@ -452,19 +499,19 @@ minPeakDistance = 20; % seconds
 % so now start at the bucket placement, and look forward through the peaks
 % in the electric transitions to find start points
 output.ontoMazeTimes = zeros(size(output.intoBucketTimes));
-if ( median(transMvgMedian(1:20)) < (median(transMvgMedian)*2) )
+if ( median(elecBaseline(1:20)) < (median(elecBaseline)*2) )
     output.ontoMazeTimes(1) = mvgMedianTimes(1); % this is a cheap hack
 else
     disp('implement something here!');
 end
 for idxTrialEnd=1:length(output.intoBucketTimes)-1
-        relativeTimes = transMvgMedPeakTimes - output.intoBucketTimes(idxTrialEnd);
+        relativeTimes = elecBaselineJumpTimes - output.intoBucketTimes(idxTrialEnd);
         [ ~, jj ] = min( abs( relativeTimes ));
         offset = 0;
         while ( (jj+offset < length(relativeTimes) ) && (relativeTimes(jj+offset) < 40 )   ) 
             offset = offset + 1;
         end
-        output.ontoMazeTimes(idxTrialEnd)=transMvgMedPeakTimes(jj+offset);
+        output.ontoMazeTimes(idxTrialEnd)=elecBaselineJumpTimes(jj+offset);
         
 end
 %scatter(output.ontoMazeTimes, ones(1,length(output.rewardTimes)).*-0.001, 'o', 'filled');
@@ -515,7 +562,12 @@ print( gcf(3), [metadata.outputDir metadata.rat '_' metadata.day '_prelimAutoTri
 %
 %% ; make a list of times for trial events
 %
-swrAnalysisBins = sort([ 0 output.ontoMazeTimes output.runStartTimes output.rewardTimes output.intoBucketTimes xytimestampSeconds(end) ]);
+if metadata.autobins
+    swrAnalysisBins = sort([ 0 output.ontoMazeTimes output.runStartTimes output.rewardTimes output.intoBucketTimes xytimestampSeconds(end) ]);
+else
+    swrAnalysisBins = sort([ 0 metadata.touchdownTimes metadata.brickTimes metadata.sugarTimes metadata.liftoffTimes xytimestampSeconds(end) ]);
+end
+
 %histogram( swrAnalysisBins );
 %
 %
@@ -739,6 +791,27 @@ scatter( output.intoBucketTimes, ones(1,length(output.intoBucketTimes)).*0.1, '^
 ylabel( 'start prox./trials' ); axis tight; ylim([ 0 1 ]);
 print( gcf(4), [metadata.outputDir metadata.rat '_' metadata.day '_finalAutoTrialMarking'],'-dpng','-r200');
 
+
+
+% for manual intervention, use the provided markers for the subsequent
+% analysis
+if ~metadata.autobins
+
+    swrAnalysisBins = sort([ 0 metadata.touchdownTimes metadata.brickTimes metadata.sugarTimes metadata.liftoffTimes xytimestampSeconds(end) ]);
+
+    output.autopartition.ontoMazeTimes = output.ontoMazeTimes;
+    output.autopartition.runStartTimes = output.runStartTimes;
+    output.autopartition.rewardTimes = output.rewardTimes;
+    output.autopartition.intoBucketTimes = output.intoBucketTimes;
+    
+    output.ontoMazeTimes = metadata.touchdownTimes; 
+    output.runStartTimes = metadata.brickTimes; 
+    output.rewardTimes = metadata.sugarTimes;
+    output.intoBucketTimes = metadata.liftoffTimes;
+    
+end
+
+
 %% display SWR rate summary data 
 gcf(5)=figure(5); 
 subplot(3,1,1); 
@@ -788,6 +861,10 @@ output.proxToStart = proxToStart;
 ouput.chewCrunchEnv = chewCrunchEnv;
 ouput.chewCrunchEnvTimes = chewCrunchEnvTimes;
 ouput.chewCrunchEnvSampleRate = chewCrunchEnvSampleRate;
+output.elecBaselineJumpValues = elecBaselineJumpValues;
+output.elecBaselineJumpTimes = elecBaselineJumpTimes;
+output.elecBaselineDropValues = elecBaselineDropValues;
+output.elecBaselineDropTimes = elecBaselineDropTimes;
 
 disp('COMPLETE')
 

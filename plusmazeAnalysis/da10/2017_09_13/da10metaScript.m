@@ -9,18 +9,28 @@ metadata.fileListDisconnectedLfp={ 'CSC32.ncs' 'CSC58.ncs' 'CSC75.ncs' 'CSC76.nc
 metadata.lfpFile = 'CSC88.ncs';
 metadata.lfpStartIdx = 1;   % round(61.09316*32000);
 metadata.outputDir = '/Users/andrewhowe/data/plusMazeEphys/';
+metadata.autobins = true;
 
 
-%
-% this day has initial data from 1s? until about 1487 s
-% then there is no data until 8.99755e4 seconds, which is weird.
-metadata.lfpStartIdx = 1;
-metadata.lfpStartIdx = round(1495*32000);
-metadata.day = '2017-09-12_';
+
+metadata.day = '2017-09-12_/training/';
+metadata.autobins = false;
+metadata.touchdownTimes = [  79 501  781 1416 2036 2518 3523 3995 ];
+metadata.brickTimes =     [ 150 519  809 1449 2096 2549 3549 4024 ];
+metadata.sugarTimes =     [ 193 560  958 1689 2172 3182 3663 ];
+metadata.liftoffTimes =   [ 240 590 1122 1956 2628 3234 3699 4966 ];
+outp=analyzeSWR(metadata);
+
 try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day ] ); end;
 
-metadata.lfpStartIdx = 1954981;   % round(61.09316*32000);
-metadata.day = '2017-09-13_';
+metadata.autobins = false;
+metadata.touchdownTimes = [];
+metadata.brickTimes =     [];
+metadata.sugarTimes =     [];
+metadata.liftoffTimes =   [];
+
+
+metadata.day = '2017-09-13_/training/';
 % FOR da10 2017-09-13, SKIP THE INTRODUCTION
 try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day ]); end;
 
@@ -33,17 +43,25 @@ metadata.day = '2017-09-15_';
 try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day] ); end;
 
 metadata.fileListGoodLfp = {  'CSC6.ncs'  'CSC9.ncs'  'CSC17.ncs'  'CSC13.ncs'  'CSC21.ncs'  'CSC37.ncs'  'CSC45.ncs'  'CSC49.ncs'  'CSC53.ncs'  'CSC61.ncs'  'CSC65.ncs'  'CSC77.ncs' }; % 'CSC88.ncs' };
-metadata.day = '2017-09-18_';
-try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day ]); end;
+
+
 % some wierd stuff happens
+metadata.day = '2017-09-18_/training1/';
+try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day ]); end;
+metadata.day = '2017-09-18_/training2/';
+try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day ]); end;
+metadata.day = '2017-09-18_/training3/';
+try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day ]); end;
+
+
+
 
 metadata.fileListGoodLfp = { 'CSC2.ncs'  'CSC6.ncs'  'CSC9.ncs'  'CSC13.ncs'  'CSC17.ncs'  'CSC21.ncs'  'CSC37.ncs'  'CSC45.ncs'  'CSC49.ncs'  'CSC53.ncs'  'CSC61.ncs'  'CSC65.ncs'  'CSC77.ncs' }; % 'CSC88.ncs' };
 metadata.day = '2017-09-19_';
 try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day ]); end;
 % some wierd stuff happens
 
-metadata.lfpStartIdx = round(40*32000);
-metadata.day = '2017-09-20_';
+metadata.day = '2017-09-20_/train/';
 try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day ]); end;
 % beginning seems to be cut off?
 %has some errors identifying cutoffs; last trial is bad
