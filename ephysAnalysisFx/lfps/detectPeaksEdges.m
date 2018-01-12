@@ -15,8 +15,8 @@ else
     streakThreshold = round(streakThreshold);
 end
 
-% correct for artifacts of filtering by ignoring the first and last 1 sec
-EpisodeIdxs=round(signalSampleRate*1):round(length(signalEnvelope) - signalSampleRate*1 );
+% correct for artifacts of filtering by ignoring the first and last 5 sec
+EpisodeIdxs=round(signalSampleRate*5):round(length(signalEnvelope) - signalSampleRate*5 );
 if nargin < 7
     % set a threshold -- this is a rough idea based on looking at the data
     % MADAM method

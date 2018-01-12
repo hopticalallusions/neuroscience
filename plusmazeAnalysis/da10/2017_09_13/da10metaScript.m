@@ -6,19 +6,22 @@ metadata.baseDir=[ '/Volumes/Seagate Expansion Drive/plusmaze-habit/' ];
 metadata.visualizeAll = true;
 metadata.fileListGoodLfp = { 'CSC2.ncs'  'CSC6.ncs'  'CSC9.ncs'  'CSC13.ncs'  'CSC17.ncs'  'CSC21.ncs'  'CSC37.ncs'  'CSC45.ncs'  'CSC49.ncs'  'CSC53.ncs'  'CSC61.ncs'  'CSC65.ncs'  'CSC77.ncs' }; % 'CSC88.ncs' };
 metadata.fileListDisconnectedLfp={ 'CSC32.ncs' 'CSC58.ncs' 'CSC75.ncs' 'CSC76.ncs' 'CSC87.ncs' };
-metadata.lfpFile = 'CSC88.ncs';
+metadata.swrLfpFile = 'CSC88.ncs';
 metadata.lfpStartIdx = 1;   % round(61.09316*32000);
 metadata.outputDir = '/Users/andrewhowe/data/plusMazeEphys/';
+metadata.sampleRate.lfp=32000;
+metadata.sampleRate.telemetry=29.97;
 metadata.autobins = true;
 
 
 
 metadata.day = '2017-09-12_/training/';
 metadata.autobins = false;
-metadata.touchdownTimes = [  79 501  781 1416 2036 2518 3523 3995 ];
-metadata.brickTimes =     [ 150 519  809 1449 2096 2549 3549 4024 ];
-metadata.sugarTimes =     [ 193 560  958 1689 2172 3182 3663 ];
-metadata.liftoffTimes =   [ 240 590 1122 1956 2628 3234 3699 4966 ];
+% manually confirmed. times shifted 1 back
+metadata.touchdownTimes = [  79 501  781  879  924 1024 1416 1504 2036 2518 3523 3995 4117 4840 ];
+metadata.brickTimes =     [ 132 537  824  900  945 1056 1464 1510 2103 2570 3595 4033 4192 4921];
+metadata.sugarTimes =     [ 196 562                1080 1691 2174      3183 3665 ];
+metadata.liftoffTimes =   [ 240 590                1116 1740 2206 2625 3217 3697           4966 ];
 outp=analyzeSWR(metadata);
 
 try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metadata.day ] ); end;
@@ -78,20 +81,20 @@ try outp=analyzeSWR(metadata); catch; disp(['FAILED!! : ' metadata.rat ' ' metad
 
 
 disp('ontoMazeTimes')
-for ii=1:length(output.ontoMazeTimes)
-    disp(num2str(round(output.ontoMazeTimes(ii))));
+for ii=1:length(outp.autopartition.ontoMazeTimes)
+    disp(num2str(round(outp.autopartition.ontoMazeTimes(ii))));
 end
 disp('runStartTimes')
-for ii=1:length(output.runStartTimes)
-    disp(num2str(round(output.runStartTimes(ii))));
+for ii=1:length(outp.autopartition.runStartTimes)
+    disp(num2str(round(outp.autopartition.runStartTimes(ii))));
 end
 disp('rewardTimes')
-for ii=1:length(output.rewardTimes)
-    disp(num2str(round(output.rewardTimes(ii))));
+for ii=1:length(outp.autopartition.rewardTimes)
+    disp(num2str(round(outp.autopartition.rewardTimes(ii))));
 end
 disp('intoBucketTimes')
-for ii=1:length(output.intoBucketTimes)
-    disp(num2str(round(output.intoBucketTimes(ii))));
+for ii=1:length(outp.autopartition.intoBucketTimes)
+    disp(num2str(round(outp.autopartition.intoBucketTimes(ii))));
 end
 
 
