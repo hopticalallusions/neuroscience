@@ -5,7 +5,14 @@ if nargin < 3
 end
 
 for ii=1:length(filelist)
-    temp = csc2mat([ dir filelist{ii} ], lfpStartIdx);
+    if strcmp(filelist{ii}(end-3:end), '.ncs')
+        temp = csc2mat([ dir filelist{ii} ], lfpStartIdx);
+    elseif strcmp(filelist{ii}(end-3:end), '.dat')
+        disp([ 'loading ' filelist{ii} ])
+        temp = loadCExtractedNrdChannelData([ dir filelist{ii} ]);
+    else
+        warning(['unknown file type -- ' filelist{ii} ' -- not loaded' ]);
+    end
     thisDim = length(temp);
     if ii == 1
         accumulator = temp;

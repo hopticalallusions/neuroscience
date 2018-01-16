@@ -866,7 +866,7 @@ hold on;
 scatter( bruxDetectorOutput.EpisodePeakTimes, bruxDetectorOutput.EpisodePeakValues, 'v', 'filled');
 axis tight;
 ylim([0 max(bruxDetectorOutput.EpisodePeakValues)]);
-ylabel('reward/chew');
+ylabel('brux');
 subplot(4,1,4); 
 hold off; 
 plot( mvgMedianTimes, mvgMedian ); 
@@ -876,7 +876,7 @@ scatter( output.runStartTimes, ones(1,length(output.runStartTimes)).*0.1, '>',  
 scatter( output.rewardTimes, ones(1,length(output.rewardTimes)).*0.1, 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
 scatter( output.intoBucketTimes, ones(1,length(output.intoBucketTimes)).*0.1, '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
 ylabel( 'start prox./trials' ); axis tight; ylim([ 0 1 ]);
-print( gcf(4), [metadata.outputDir metadata.rat '_' metadata.day '_finalAutoTrialMarking'],'-dpng','-r200');
+print( gcf(4), [metadata.outputDir metadata.rat '_' metadata.day '_' strrep(metadata.swrLfpFile, '.ncs', '')  '_finalAutoTrialMarking.png'],'-dpng','-r200');
 
 
 
@@ -905,9 +905,14 @@ gcf(5)=figure(5);
 subplot(4,1,1); 
 output.swrRate = 1./diff(output.swrPeakTimesDenoise);
 plot( output.swrPeakTimesDenoise(1:end-1)+(diff(output.swrPeakTimesDenoise)/2), output.swrRate )
+hold on;
+scatter( output.ontoMazeTimes, zeros(1,length(output.ontoMazeTimes)), 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
+scatter( output.runStartTimes, zeros(1,length(output.runStartTimes)), '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
+scatter( output.rewardTimes, zeros(1,length(output.rewardTimes)), 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .7 .95 ]);
+scatter( output.intoBucketTimes, zeros(1,length(output.intoBucketTimes)), '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
 ylabel('SWR_{rate}'); 
 xlim([0 blob.lfpTimestampSeconds(end)]); 
-ylim([-0.001 max(output.swrRate)]);
+ylim([-0.1 max(output.swrRate)]);
 subplot(4,1,2); 
 plot( mvgMedianTimes, mvgMedian ); 
 hold on;
@@ -947,9 +952,9 @@ output.swrAnalysisBinLabels(idxs) = 3;
 scatter( xx(idxs), yy(idxs), '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
 output.swrAnalysisBinLabels(idxs) = 4;
 xlim([-0.05 blob.lfpTimestampSeconds(end)]);
-print( gcf(5), [metadata.outputDir metadata.rat '_' metadata.day '_SWRrateSummary'],'-dpng','-r200');
+print( gcf(5), [metadata.outputDir metadata.rat '_' metadata.day '_' strrep(metadata.swrLfpFile, '.ncs', '')  '_SWRrateSummary.png'],'-dpng','-r200');
 
-save([metadata.outputDir metadata.rat '_' metadata.day '_output'], 'output' );
+save([metadata.outputDir metadata.rat '_' metadata.day '_' strrep(metadata.swrLfpFile, '.ncs', '') '_output'], 'output' );
 
 
 %%

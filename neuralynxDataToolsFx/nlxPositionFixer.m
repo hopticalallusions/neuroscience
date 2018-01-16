@@ -1,13 +1,19 @@
-function correctedPosition = nlxPositionFixer( positions, smoothFactor, runFilter )
+function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositions, ypositions, smoothFactor, runFilter )
     % I tried doing this with interp1 and also inpaint NaNs, and things weren't
     % working very ideally.
     
-    if nargin < 2
-        smoothFactor = 4;
-        runFilter = 1;
+    if  nargin < 2
+        fixY = false;
+    else
+        fixY = true;
     end
     
-    pixelsPerFrame = 4; % 3.5-4 is a reasonable estimate for most of my mazes
+    if nargin < 3
+        smoothFactor = 6;
+        runFilter = 0;
+    end
+    
+    % pixelsPerFrame = 4; % 3.5-4 is a reasonable estimate for most of my mazes
     
     % diamond plus == 218 cm wide
     % square Fig 8 == 70 cm x 70 cm
@@ -39,54 +45,175 @@ function correctedPosition = nlxPositionFixer( positions, smoothFactor, runFilte
     % use Robust Lowess (Cleveland 1977) to smooth remainder of time series
     %
     
-    %% I. eliminate parts where the rat teleports to [0,0] because the
-    %    tracker can't find him
+    correctedXPosition = xpositions;
+    correctedYPosition = ypositions;
     
-    if positions(1)==0 % weird things happen if the position starts at zero
-        endIdx=min(find(positions>2));
-        positions(1:endIdx) = positions(endIdx);
+     
+        % find pixels that seem to have unlikely favoritism. Accomplished by
+    % taking a pixelwise histogram of the uncorrected xy stream. Should a
+    % pixel value be (1) high and (2) have neighbors which are not high, we
+    % can infer that this pixel is not highly visited, since the rat can't
+    % simply teleport itself to a pixel and then away again (thus all high
+    % values should have somewhat high values alongside them) We will set
+    % these suspected bad values to zero.
+    [qq,ww]=histcounts(correctedXPosition,min(correctedXPosition):max(correctedXPosition));
+    badPxl = [];
+    for ii=3:length(qq)-3
+        % divide by zero causes bad results, so the 1e-3 helps
+        freakPeak = ( (qq(ii)/(1e-3+qq(ii-1))) + (qq(ii)/(1e-3+qq(ii+1))) ) / 2;
+        %disp(num2str(freakPeak));
+        if freakPeak > 20
+            %disp (['arg : ' num2str(ww(ii)) ' @ ' num2str(qq(ii)) ]);
+            badPxl = [ badPxl ww(ii) ];
+        end
     end
-    if positions(end)==0 % weird things happen if the position ends at zero
-        endIdx=max(find(positions>2));
-        positions(endIdx:end) = positions(endIdx);
+    for ii=1:length(badPxl)
+        correctedXPosition(find(correctedXPosition==badPxl(ii))) = 0;
     end
 
+    
+    if fixY
+       [qq,ww]=histcounts(correctedYPosition,min(correctedYPosition):max(correctedYPosition));
+        badPxl = [];
+        for ii=3:length(qq)-3
+            % divide by zero causes bad results, so the 1e-3 helps
+            freakPeak = ( (qq(ii)/(1e-3+qq(ii-1))) + (qq(ii)/(1e-3+qq(ii+1))) ) / 2;
+            %disp(num2str(freakPeak));
+            if freakPeak > 20
+                %disp (['arg : ' num2str(ww(ii)) ' @ ' num2str(qq(ii)) ]);
+                badPxl = [ badPxl ww(ii) ];
+            end
+        end
+        for ii=1:length(badPxl)
+            correctedYPosition(find(correctedYPosition==badPxl(ii))) = 0;
+        end     
+    end
+    
+    
+
+    %% I. eliminate parts where the rat teleports to [0,0] because the
+    %    tracker can't find him
+    % reset initial positions to first "valid" position detected
+    if correctedXPosition(1)<3 % weird things happen if the position starts at zero
+        endIdx=min(find(correctedXPosition>2));
+        correctedXPosition(1:endIdx) = correctedXPosition(endIdx);
+    end
+    % reset final positions to first "valid" position detected
+    if correctedXPosition(end)<3 % weird things happen if the position ends at zero
+        endIdx=max(find(correctedXPosition>2)); % TODO this part isn't quite right. it will probably find the end.
+        correctedXPosition(endIdx:end) = correctedXPosition(endIdx);
+    end
     % when the system cannot find the animal, it reports him at [0,0]
     % so, find all the points where the signal is concentrated up in the zero corner
-    zeroIdxs=find(positions<3);
+    zeroIdxs=find(correctedXPosition<3);
     if ~isempty(zeroIdxs);
         size(zeroIdxs);
         start=zeroIdxs(1);
         last=zeroIdxs(2);
-        correctedPosition=positions;
         for idx=3:length(zeroIdxs)
             % this is a straight up linear interpolation, which is probably
             % a bad assumption, but we'll deal with it for now.
             if (zeroIdxs(idx)-last > 1)
-                delta = linspace(positions(start-1),positions(last+1),last-start+1);
-                correctedPosition(start:last) = delta;
+                delta = linspace(correctedXPosition(start-1),correctedXPosition(last+1),last-start+1);
+                correctedXPosition(start:last) = delta;
                 start = zeroIdxs(idx);
             end
             last=zeroIdxs(idx);
         end
-        delta= linspace(positions(start-1),positions(last+1),last-start+1);
-        correctedPosition(start:last) = delta;
-    else
-        correctedPosition = positions;
+        if abs(correctedXPosition(start-1)-correctedXPosition(last+1))/(last-start) < 15
+            delta= linspace(correctedXPosition(start-1),correctedXPosition(last+1),last-start+1);
+            correctedXPosition(start:last) = delta;
+        else
+            correctedXPosition(start:last) = correctedXPosition(start-1);
+        end
     end
 
-    %% II. Use a median filter -- this is a simple way to eliminate big jumps
+    % FIX THE Y POSITIONS
+    if fixY
+        if correctedYPosition(1)==0 % weird things happen if the position starts at zero
+            endIdx=min(find(correctedYPosition>2));
+            correctedYPosition(1:endIdx) = correctedYPosition(endIdx);
+        end
+        if correctedYPosition(end)==0 % weird things happen if the position ends at zero
+            endIdx=max(find(correctedYPosition>2));
+            correctedYPosition(endIdx:end) = correctedYPosition(endIdx);
+        end
+
+        % when the system cannot find the animal, it reports him at [0,0]
+        % so, find all the points where the signal is concentrated up in the zero corner
+        zeroIdxs=find(correctedYPosition<3);
+        if ~isempty(zeroIdxs);
+            size(zeroIdxs);
+            start=zeroIdxs(1);
+            last=zeroIdxs(2);
+            for idx=3:length(zeroIdxs)
+                % this is a straight up linear interpolation, which is probably
+                % a bad assumption, but we'll deal with it for now.
+                if (zeroIdxs(idx)-last > 1)
+                    if abs(correctedYPosition(start-1)-correctedYPosition(last+1))/(last-start) < 2
+                        delta= linspace(correctedYPosition(start-1),correctedYPosition(last+1),last-start+1);
+                        correctedYPosition(start:last) = delta;
+                    else
+                        correctedYPosition(start:last) = correctedYPosition(start-1);
+                    end
+%                     delta = linspace(correctedYPosition(start-1),correctedYPosition(last+1),last-start+1);
+%                     correctedYPosition(start:last) = delta;
+                     start = zeroIdxs(idx);
+                end
+                last=zeroIdxs(idx);
+            end
+
+           % disp(num2str(abs(correctedYPosition(start-1)-correctedYPosition(last+1))/(last-start)))
+            if abs(correctedYPosition(start-1)-correctedYPosition(last+1))/(last-start) < 8
+                delta= linspace(correctedYPosition(start-1),correctedYPosition(last+1),last-start+1);
+                correctedYPosition(start:last) = delta;
+            else
+                correctedYPosition(start:last) = correctedYPosition(start-1);
+            end
+        end
+    end
+   
+    %% II. Use a median filter -- this is a simple way to eliminate big, short jumps
     % it's not perfect, but it works surprisingly well with few distortions
     % of the data. This will lag real teleports by fractions of a second
     %
     % note : median filtering seems to work well on quantized values. it
     % seems to introduce undesireable things to continuous valued data.
     %
-    for ii = (smoothFactor+1):length(correctedPosition)-(smoothFactor+1)
-        correctedPosition(ii) = median(correctedPosition(ii-smoothFactor:ii+smoothFactor));
+    for ii = (smoothFactor+1):length(correctedXPosition)-(smoothFactor+1)
+        correctedXPosition(ii) = median(correctedXPosition(ii-smoothFactor:ii+smoothFactor));
     end
     
+    if fixY
+        for ii = (smoothFactor+1):length(correctedYPosition)-(smoothFactor+1)
+            correctedYPosition(ii) = median(correctedYPosition(ii-smoothFactor:ii+smoothFactor));
+        end
+    end
     
+
+    
+    
+%     
+%     
+%     for ii=1:length(correctedXPosition)-1
+%         if (correctedXPosition(ii)>3)
+%             if (abs(correctedXPosition(ii+1)-correctedXPosition(ii))>50)
+%                 correctedXPosition(ii+1) = correctedXPosition(ii);
+%             end
+%         end
+%     end
+%     
+%     for ii=1:length(correctedYPosition)-1
+%         if (correctedYPosition(ii)>3)
+%             if (abs(correctedYPosition(ii+1)-correctedYPosition(ii))>50)
+%                 correctedYPosition(ii+1) = correctedYPosition(ii);
+%             end
+%         end
+%     end
+%     
+    
+    
+
     %% III. now that we have eliminated the parts where the tracker couldn't find
     %     the rat, now lets try to detect unreasonable velocity / acceleration
     %
@@ -100,71 +227,44 @@ function correctedPosition = nlxPositionFixer( positions, smoothFactor, runFilte
 % DO NOT wholesale median filter the velocity and acceleration because it will
 % introduce accumlating error as observed in a graph
 %
-%      speedLimit = 15;
-%      velocity = [0; abs(diff(correctedPosition))];
+%      speedLimit = 12;
+%      velocity = [0; abs(diff(correctedXPosition))];
 % %      %findpeaks( velocity, 30, 'MinPeakHeight', 200,'MinPeakDistance', 3.5*60)
 %      unreasonableSpeed = find(velocity>speedLimit);
 % %     if ~isempty(unreasonableSpeed)
-%         correctedPosition(unreasonableSpeed) = 0;
+%         correctedXPosition(unreasonableSpeed) = 0;
 %         % call recursively 
-%  %       correctedPosition = nlxPositionFixer( correctedPosition, smoothFactor, 0 );
+%  %       correctedXPosition = nlxPositionFixer( correctedXPosition, smoothFactor, 0 );
 %  %    end
 %  
 % 
-%      %% Ib. eliminate parts where the rat teleports to [0,0] because the
-%     %    tracker can't find him
-%     
-%     if correctedPosition(1)==0 % weird things happen if the position starts at zero
-%         endIdx=min(find(correctedPosition>2));
-%         correctedPosition(1:endIdx) = correctedPosition(endIdx);
-%     end
-%     if correctedPosition(end)==0 % weird things happen if the position ends at zero
-%         endIdx=max(find(correctedPosition>2));
-%         correctedPosition(endIdx:end) = correctedPosition(endIdx);
-%     end
-% 
-%     % when the system cannot find the animal, it reports him at [0,0]
-%     % so, find all the points where the signal is concentrated up in the zero corner
-%     zeroIdxs=find(correctedPosition<3);
-%     if ~isempty(zeroIdxs);
-%         size(zeroIdxs);
-%         start=zeroIdxs(1);
-%         last=zeroIdxs(2);
-%         for idx=3:length(zeroIdxs)
-%             % this is a straight up linear interpolation, which is probably
-%             % a bad assumption, but we'll deal with it for now.
-%             if (zeroIdxs(idx)-last > 1)
-%                 delta = linspace(positions(start-1),correctedPosition(last+1),last-start+1);
-%                 correctedPosition(start:last) = delta;
-%                 start = zeroIdxs(idx);
+%     if fixY
+%         pxPerCm = 2; 
+%         framesPerSecond = 29.97;
+%         lagCenterIdx = 5;
+%         lagFrames = lagCenterIdx-4:2:lagCenterIdx+4; % frames; this is to mitigate jumps that may occur
+%         laggedSpeed = zeros(length(lagFrames), length(correctedXPosition));
+%         for ii = 1 : length(lagFrames)
+%             for jj=lagFrames(ii)+1:length(correctedXPosition)-lagFrames(ii)
+%                 % px/period * 1/lagFrames * 30 frames/second * 1/pxPerCm
+%                 laggedSpeed(ii,jj) = sqrt( ( correctedYPosition(jj+lagFrames(ii)) - correctedYPosition(jj-lagFrames(ii)) ).^2 + ( correctedXPosition(jj+lagFrames(ii)) - correctedXPosition(jj-lagFrames(ii)) ).^2 ) * (1/lagFrames(ii)) * 1/pxPerCm * framesPerSecond;
 %             end
-%             last=zeroIdxs(idx);
 %         end
-%         delta= linspace(correctedPosition(start-1),correctedPosition(last+1),last-start+1);
-%         correctedPosition(start:last) = delta;
+%         speed = median(laggedSpeed);
+%         figure;
+%         subplot(2,1,1);
+%         plot(xpositions, 'Color', [ .8 .8 .8 ] )
+%         hold on; 
+%         plot(correctedXPosition);
+%         plot(speed)
+%         subplot(2,1,2);
+%         plot(ypositions, 'Color', [ .8 .8 .8 ])
+%         hold on; 
+%         plot(correctedYPosition);
+%         plot(speed)
+%         [peakvalue, peaktime]=findpeaks( speed, 1, 'MinPeakHeight', 200,'MinPeakDistance', 30);
+%         plot(peaktime,peakvalue,'v')
 %     end
-% 
-%     %% IIb. Use a median filter -- this is a simple way to eliminate big jumps
-%     % it's not perfect, but it works surprisingly well with few distortions
-%     % of the data. This will lag real teleports by fractions of a second
-%     %
-%     % note : median filtering seems to work well on quantized values. it
-%     % seems to introduce undesireable things to continuous valued data.
-%     %
-%     for ii = (smoothFactor+1):length(correctedPosition)-(smoothFactor+1)
-%         correctedPosition(ii) = median(correctedPosition(ii-smoothFactor:ii+smoothFactor));
-%     end
-%      
-%      vv=velocity;
-%     for ii = (smoothFactor+1):length(correctedPosition)-(smoothFactor+1)
-%         correctedPosition(ii) = median(correctedPosition(ii-smoothFactor:ii+smoothFactor));
-%     end
-%     for ii = (smoothFactor+1):length(velocity)-(smoothFactor+1)
-%         vv(ii) = median(velocity(ii-smoothFactor:ii+smoothFactor));
-%     end
-%     accelLimit = 12;
-%     accel = [0; diff(velocity)];
-    
     
     
     %% IV. Filter to smooth
@@ -176,17 +276,34 @@ function correctedPosition = nlxPositionFixer( positions, smoothFactor, runFilte
                              'PassbandFrequency',        2  , ...
                              'PassbandRipple',           0.2, ...
                              'SampleRate',              30);
-        correctedPosition = filtfilt( xyFilter, correctedPosition);
+        correctedXPosition = filtfilt( xyFilter, correctedXPosition);
+        if fixY
+            correctedYPosition = filtfilt( xyFilter, correctedYPosition);
+        end
     end
     %% catch any weirdness that may have been introduced.
-    if sum( correctedPosition < 1 )
-        correctedPosition(find(correctedPosition < 1 ))=1;
-        warning('some positions corrected out of minimum range. These have been replaced with 1.');
+    if sum( correctedXPosition < 1 )
+        %correctedXPosition(find(correctedXPosition < 1 ))=1;
+        correctedXPosition=correctedXPosition-min(correctedXPosition);
+        %warning('some xpositions corrected out of minimum range. These have been replaced with 1.');
     end
-    if sum( correctedPosition > 720 ) % lazy...
-        correctedPosition(find(correctedPosition > 720 ))=1;
-        warning('some positions corrected out of maximum range. These have been replaced with 720.');
+    if sum( correctedXPosition > 720 ) % lazy...
+        correctedXPosition(find(correctedXPosition > 720 ))=720;
+        %warning('some xpositions corrected out of maximum range. These have been replaced with 720.');
     end
+    
+    if fixY
+        if sum( correctedYPosition < 1 )
+            %correctedYPosition(find(correctedYPosition < 1 ))=1;
+            correctedYPosition=correctedYPosition-min(correctedYPosition);
+            %warning('some xpositions corrected out of minimum range. These have been replaced with 1.');
+        end
+        if sum( correctedYPosition > 480 ) % lazy...
+            correctedXPosition(find(correctedYPosition > 480 ))=480;
+            %warning('some xpositions corrected out of maximum range. These have been replaced with 480.');
+        end 
+    end
+    
     
     return;
 end
