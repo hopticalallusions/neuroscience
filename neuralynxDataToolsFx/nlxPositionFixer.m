@@ -46,8 +46,9 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
     %
     
     correctedXPosition = xpositions;
-    correctedYPosition = ypositions;
-    
+    if fixY
+        correctedYPosition = ypositions;
+    end
      
         % find pixels that seem to have unlikely favoritism. Accomplished by
     % taking a pixelwise histogram of the uncorrected xy stream. Should a
@@ -192,27 +193,6 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
     
 
     
-    
-%     
-%     
-%     for ii=1:length(correctedXPosition)-1
-%         if (correctedXPosition(ii)>3)
-%             if (abs(correctedXPosition(ii+1)-correctedXPosition(ii))>50)
-%                 correctedXPosition(ii+1) = correctedXPosition(ii);
-%             end
-%         end
-%     end
-%     
-%     for ii=1:length(correctedYPosition)-1
-%         if (correctedYPosition(ii)>3)
-%             if (abs(correctedYPosition(ii+1)-correctedYPosition(ii))>50)
-%                 correctedYPosition(ii+1) = correctedYPosition(ii);
-%             end
-%         end
-%     end
-%     
-    
-    
 
     %% III. now that we have eliminated the parts where the tracker couldn't find
     %     the rat, now lets try to detect unreasonable velocity / acceleration
@@ -298,8 +278,8 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
             correctedYPosition=correctedYPosition-min(correctedYPosition);
             %warning('some xpositions corrected out of minimum range. These have been replaced with 1.');
         end
-        if sum( correctedYPosition > 480 ) % lazy...
-            correctedXPosition(find(correctedYPosition > 480 ))=480;
+        if sum( correctedYPosition > 720 ) % lazy...
+            correctedYPosition(find(correctedYPosition > 720 ))=720;
             %warning('some xpositions corrected out of maximum range. These have been replaced with 480.');
         end 
     end

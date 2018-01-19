@@ -1,3 +1,10 @@
+In % some of these live video processing scripts, try to normalize the 
+   % illumination of the frame, as this will help reduce artifacts arising
+   % from illumination changes vs the motion of objects against a static
+   % background
+
+
+
 % vidObj = VideoReader('/Users/andrewhowe/data/ratData/behavior/da12-2ndlastday/VT1.mpg');
 % vidHeight = vidObj.Height; vidWidth = vidObj.Width; 
 % frame = readFrame(vidObj);

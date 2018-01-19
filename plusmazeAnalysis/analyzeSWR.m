@@ -17,34 +17,34 @@ end
 %% I. SETUP THE ANALYSIS RUN
 % 
 
-if ~exist( [ metadata.outputDir 'filters.mat' ], 'file' )
+if ~exist( [ metadata.outputDir 'cache/filters.mat' ], 'file' )
     disp('building filters');
     makeFilters;
-    save( [ metadata.outputDir 'filters.mat' ], 'filters');
+    save( [ metadata.outputDir 'cache/filters.mat' ], 'filters');
 else
     disp('loading filters');
-    load([metadata.outputDir 'filters.mat'], 'filters');
+    load([metadata.outputDir 'cache/filters.mat'], 'filters');
 end
 
 
 % LOAD AVERAGE LFPs
 
-if ~exist( [ metadata.outputDir metadata.rat '_' metadata.day '_avgLfp.mat' ], 'file' )
+if ~exist( [ metadata.outputDir '/cache/' metadata.rat '_' metadata.day '_avgLfp.mat' ], 'file' )
     disp('building avg signal LFP');
     avgLfp=avgLfpFromList( metadata.dir, metadata.fileListGoodLfp, metadata.lfpStartIdx );  % build average LFP
-    save( [ metadata.outputDir metadata.rat '_' metadata.day '_avgLfp.mat' ], 'avgLfp');
+    save( [ metadata.outputDir '/cache/' metadata.rat '_' metadata.day '_avgLfp.mat' ], 'avgLfp');
 else
     disp('loading avg signal LFP');
-    load( [ metadata.outputDir metadata.rat '_' metadata.day '_avgLfp.mat' ], 'avgLfp' );
+    load( [ metadata.outputDir '/cache/' metadata.rat '_' metadata.day '_avgLfp.mat' ], 'avgLfp' );
 end
 
-if ~exist( [ metadata.outputDir metadata.rat '_' metadata.day '_avgDisconnectedLfp.mat' ], 'file' )
+if ~exist( [ metadata.outputDir '/cache/' metadata.rat '_' metadata.day '_avgDisconnectedLfp.mat' ], 'file' )
     disp('building avg electrical LFP');
     avgDisconnectedLfp=avgLfpFromList( metadata.dir, metadata.fileListDisconnectedLfp, metadata.lfpStartIdx );  % build average LFP
     save( [ metadata.outputDir metadata.rat '_' metadata.day '_avgDisconnectedLfp.mat' ], 'avgDisconnectedLfp');
 else
     disp('loading avg electrical LFP');
-    load( [ metadata.outputDir metadata.rat '_' metadata.day '_avgDisconnectedLfp.mat' ], 'avgDisconnectedLfp' );
+    load( [ metadata.outputDir '/cache/' metadata.rat '_' metadata.day '_avgDisconnectedLfp.mat' ], 'avgDisconnectedLfp' );
 end
 
 
@@ -141,6 +141,88 @@ filters.ao.brux   = designfilt( 'bandpassiir', 'StopbandFrequency1', 8, 'Passban
 chewEpisodeLFP = filtfilt( filters.ao.nomnom, chewCrunchEnv );
 chewEpisodeEnv = abs( hilbert( chewEpisodeLFP ));
 chewDetectorOutput = detectPeaksEdges( chewEpisodeEnv, chewCrunchEnvTimes, chewCrunchEnvSampleRate );
+
+
+
+
+
+% %% visualize the process (one time)
+% visStartIdx = round(416*metadata.sampleRate.lfp); %451
+% visEndIdx = round(485*metadata.sampleRate.lfp);
+% figure(10);
+% subplot(7,1,1);
+% plot((visStartIdx:visEndIdx)/32000, avgLfp(visStartIdx:visEndIdx), 'Color', [ .1 .1 .1] );
+% axis tight;
+% xlim([ 480 650  ]);
+% grid on;
+% set(gca, 'XTickLabel', [])
+% ylabel('avgLfp');
+% subplot(7,1,2);
+% plot((visStartIdx:visEndIdx)/32000, avgChew(visStartIdx:visEndIdx), 'Color', [ .4 .4 .9] );
+% axis tight;
+% grid on;
+% set(gca, 'XTickLabel', [])
+% xlim([ 480 650  ]);
+% ylabel('avgChew');
+% subplot(7,1,3);
+% plot(chewCrunchEnvTimes, chewCrunchEnv, 'Color', [ .5 .5 .1] );
+% axis tight;
+% grid on;
+% set(gca, 'XTickLabel', [])
+% xlim([ 480 650  ]);
+% ylabel('chewCrunchEnv');
+% subplot(7,1,4);
+% plot(chewCrunchEnvTimes, chewEpisodeLFP, 'Color', [ .9 .4 .4] );
+% ylabel('chewEpisode');
+% axis tight;
+% grid on;
+% set(gca, 'XTickLabel', [])
+% xlim([ 480 650  ]);
+% subplot(7,1,5);
+% plot(chewCrunchEnvTimes, chewEpisodeEnv, 'Color', [ .8 .2 .8] );
+% hold on;
+% scatter( chewDetectorOutput.EpisodePeakTimes, chewDetectorOutput.EpisodePeakValues, 'v', 'filled');
+% load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
+% for jj=1:length(chewDetectorOutput.EpisodeEndIdxs);
+%    if  chewDetectorOutput.EpisodeStartIdxs(jj) > 0
+%        scatter( chewCrunchEnvTimes( chewDetectorOutput.EpisodeStartIdxs(jj) ), 0, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
+%    else
+%        scatter( chewCrunchEnvTimes( 1 ), 0, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
+%    end
+%    if  chewDetectorOutput.EpisodeEndIdxs(jj) < length(chewCrunchEnvTimes)
+%        scatter( chewCrunchEnvTimes(  chewDetectorOutput.EpisodeEndIdxs(jj) ), 0, '<',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
+%    else
+%        scatter( chewCrunchEnvTimes( end ), 0, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
+%    end
+% end
+% axis tight;
+% grid on;
+% set(gca, 'XTickLabel', [])
+% ylabel('chewEpisodeEnv');
+% xlim([ 480 650  ]);
+% subplot(7,1,6);
+% swrblob.swrLfp = filtfilt( filters.so.swr, blob.swrLfp );
+% swrblob.swrLfpEnv = abs( hilbert(swrblob.swrLfp) );
+% plot((visStartIdx:visEndIdx)/32000, swrblob.swrLfp(visStartIdx:visEndIdx), 'Color', [ .2 .2 .2] );
+% hold on;
+% plot((visStartIdx:visEndIdx)/32000, swrblob.swrLfpEnv(visStartIdx:visEndIdx), 'Color', [ .8 .6 .2] );
+% axis tight;
+% ylabel('SWR');
+% xlim([ 480 650  ]);
+% subplot(7,1,7);
+% proxToRewardSite=proxToPoint( blob.xpos, blob.ypos, 119, 45 );
+% plot(xyblob.lfpTimestampSeconds, proxToRewardSite, 'Color', [ .1 .6 .2] );
+% ylabel('rewardProx');
+% xlim([ 480 650  ]);
+% ylim([0 1]);
+%
+% return;
+
+
+
+
+
+
 
 % if metadata.visualizeAll
 %    figure(1);
@@ -617,6 +699,97 @@ disp('DETECT BRUXING')
 bruxEpisodeLFP=filtfilt( filters.ao.brux, chewCrunchEnv );
 bruxEpisodeEnv=abs(hilbert(bruxEpisodeLFP));
 bruxDetectorOutput = detectPeaksEdges( bruxEpisodeEnv, chewCrunchEnvTimes, chewCrunchEnvSampleRate, chewCrunchEnvSampleRate/10  );
+
+
+
+% 
+% visStartIdx = round(480*metadata.sampleRate.lfp); %451
+% visEndIdx = round(650*metadata.sampleRate.lfp);
+% figure(10);
+% subplot(7,1,1);
+% plot((visStartIdx:visEndIdx)/32000, avgLfp(visStartIdx:visEndIdx), 'Color', [ .1 .1 .1] );
+% axis tight;
+% xlim([ 480 650  ]);
+% grid on;
+% set(gca, 'XTickLabel', [])
+% ylabel('avgLfp');
+% subplot(7,1,2);
+% plot((visStartIdx:visEndIdx)/32000, avgChew(visStartIdx:visEndIdx), 'Color', [ .4 .4 .9] );
+% axis tight;
+% grid on;
+% set(gca, 'XTickLabel', [])
+% xlim([ 480 650  ]);
+% ylabel('avgChew');
+% subplot(7,1,3);
+% plot(chewCrunchEnvTimes, chewCrunchEnv, 'Color', [ .5 .5 .1] );
+% axis tight;
+% grid on;
+% set(gca, 'XTickLabel', [])
+% xlim([ 480 650  ]);
+% ylabel('chewCrunchEnv');
+% subplot(7,1,4);
+% plot(chewCrunchEnvTimes, bruxEpisodeLFP, 'Color', [ .9 .4 .4] );
+% ylabel('bruxEpisode');
+% axis tight;
+% grid on;
+% set(gca, 'XTickLabel', [])
+% xlim([ 480 650  ]);
+% subplot(7,1,5);
+% plot(chewCrunchEnvTimes, bruxEpisodeEnv, 'Color', [ .8 .2 .8] );
+% hold on;
+% scatter( bruxDetectorOutput.EpisodePeakTimes, bruxDetectorOutput.EpisodePeakValues, 'v', 'filled');
+% load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
+% for jj=1:length(bruxDetectorOutput.EpisodeEndIdxs);
+%    if  bruxDetectorOutput.EpisodeStartIdxs(jj) > 0
+%        scatter( chewCrunchEnvTimes( bruxDetectorOutput.EpisodeStartIdxs(jj) ), 0, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
+%    else
+%        scatter( chewCrunchEnvTimes( 1 ), 0, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
+%    end
+%    if  bruxDetectorOutput.EpisodeEndIdxs(jj) < length(chewCrunchEnvTimes)
+%        scatter( chewCrunchEnvTimes(  bruxDetectorOutput.EpisodeEndIdxs(jj) ), 0, '<',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
+%    else
+%        scatter( chewCrunchEnvTimes( end ), 0, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
+%    end
+% end
+% axis tight;
+% grid on;
+% set(gca, 'XTickLabel', [])
+% ylabel('bruxEpisodeEnv');
+% xlim([ 480 650  ]);
+% subplot(7,1,6);
+% swrblob.swrLfp = filtfilt( filters.so.swr, blob.swrLfp );
+% swrblob.swrLfpEnv = abs( hilbert(swrblob.swrLfp) );
+% [ swrPeakValues,      ...
+%   swrPeakTimes,       ...
+%   swrPeakProminances, ...
+%   swrPeakWidths ] = findpeaks( swrblob.swrLfpEnv,                        ... % data
+%                              blob.lfpTimestampSeconds,                     ... % sampling frequency
+%                              'MinPeakHeight',  std(swrblob.swrLfpEnv)*6, ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
+%                              'MinPeakDistance', 0.05  );               % assumes "lockout" for SWR events; don't detect peaks within 50 ms on either side of peak
+% 
+% plot((visStartIdx:visEndIdx)/32000, swrblob.swrLfp(visStartIdx:visEndIdx), 'Color', [ .2 .2 .2] );
+% hold on;
+% plot((visStartIdx:visEndIdx)/32000, swrblob.swrLfpEnv(visStartIdx:visEndIdx), 'Color', [ .8 .6 .2] );
+% scatter( swrPeakTimes, swrPeakValues, 'v', 'filled' );
+% axis tight;
+% ylabel('SWR');
+% xlim([ 480 650  ]);
+% subplot(7,1,7);
+% proxToRewardSite=proxToPoint( blob.xpos, blob.ypos, 119, 45 );
+% plot(xyblob.lfpTimestampSeconds, proxToRewardSite, 'Color', [ .1 .6 .2] );
+% ylabel('rewardProx');
+% xlim([ 480 650  ]);
+% ylim([0 1]);
+% 
+% return;
+
+
+
+
+
+
+
+
 %% this will plot outputs from peakEdges  %%%%%%%%
 % detect peaks on the Max Enveloped signal
 % figure(4);
@@ -758,6 +931,16 @@ disp('EXCLUDE CHEW/BRUX CONFOUNDS')
 %
 % subtract each peak time and eliminate those within 1 s of the peak on
 % either side
+%
+% store swr times and potential confound data
+output.swrPeakTimes=swrPeakTimes;
+output.chewTimes.start = chewCrunchEnvTimes(chewDetectorOutput.EpisodeStartIdxs);
+output.chewTimes.end = chewCrunchEnvTimes(chewDetectorOutput.EpisodeEndIdxs);
+output.chewTimes.end = chewDetectorOutput.EpisodePeakTimes;
+output.bruxTimes = chewCrunchEnvTimes(bruxDetectorOutput.EpisodeStartIdxs);
+output.chewTimes.end = chewCrunchEnvTimes(bruxDetectorOutput.EpisodeEndIdxs);
+output.chewTimes.end = bruxDetectorOutput.EpisodePeakTimes;
+output.electricTimes = electricSignal.PeakTimes;
 %
 output.swrPeakTimesDenoise=swrPeakTimes;
 output.swrPeakValuesDenoise=swrPeakValues;
