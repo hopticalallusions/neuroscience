@@ -115,13 +115,17 @@ for jj=1:length(EpisodePeakTimes)
     %
 end
 
+
+EpisodeStartIdxs(EpisodeStartIdxs<1)=1;
+
 %% now remove duplicate peaks that fall inside the extents
 % it is possible that this might break some other things that remove SWR
 % interference
 idxToRemove = [];
 if length(EpisodePeakTimes) > 3
     for ii=2:length(EpisodePeakTimes)
-        if ( EpisodePeakTimes(ii) > signalTimes(EpisodeStartIdxs(ii-1)) ) && ( EpisodePeakTimes(ii) < signalTimes(EpisodeEndIdxs(ii-1)) )
+        %disp( [ num2str(EpisodeStartIdxs(ii-1))  '  '  num2str(EpisodeEndIdxs(ii-1))])
+        if (ii-1 > 0) && ( EpisodePeakTimes(ii) > signalTimes(EpisodeStartIdxs(ii-1)) ) && ( EpisodePeakTimes(ii) < signalTimes(EpisodeEndIdxs(ii-1)) )
             idxToRemove = [ idxToRemove ii ];
         end
     end

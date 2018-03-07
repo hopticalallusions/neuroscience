@@ -26,7 +26,11 @@ chewCrunchEnvTimes = zeros(1,outputPoints);
 envSampleRate=sampleRate/jumpSize;
 outputIdx = 1;
 for ii=halfWindowSize+1:jumpSize:inputElements-250
-    chewCrunchEnv(outputIdx)=max(abs(avgChew(ii-halfWindowSize:ii+halfWindowSize)));
-    chewCrunchEnvTimes(outputIdx) = timestampSeconds(ii);
-    outputIdx = outputIdx + 1;
+        chewCrunchEnv(outputIdx)=max(abs(avgChew(ii-halfWindowSize:ii+halfWindowSize)));
+    if ii <= length(timestampSeconds)
+        chewCrunchEnvTimes(outputIdx) = timestampSeconds(ii);
+    else
+        chewCrunchEnvTimes(outputIdx) = timestampSeconds(end)+1/32000;
+    end
+        outputIdx = outputIdx + 1;
 end

@@ -1,29 +1,37 @@
 function avgLfp = avgLfpFromList(dir, filelist, lfpStartIdx)
 
-if nargin < 3
-    lfpStartIdx = 1;
-end
+    if nargin < 3
+        lfpStartIdx = 1;
+    end
 
-for ii=1:length(filelist)
-    if strcmp(filelist{ii}(end-3:end), '.ncs')
-        temp = csc2mat([ dir filelist{ii} ], lfpStartIdx);
-    elseif strcmp(filelist{ii}(end-3:end), '.dat')
-        disp([ 'loading ' filelist{ii} ])
-        temp = loadCExtractedNrdChannelData([ dir filelist{ii} ]);
-    else
-        warning(['unknown file type -- ' filelist{ii} ' -- not loaded' ]);
+%     if strcmp(filelist{1}(end-3:end), '.dat')
+%             DCO = designfilt( 'bandpassiir', 'StopbandFrequency1', 1, 'PassbandFrequency1',  4, 'PassbandFrequency2',    5000, 'StopbandFrequency2',    7000, 'StopbandAttenuation1', 30, 'PassbandRipple', 1, 'StopbandAttenuation2', 30, 'SampleRate', 32000);
+%     end
+
+
+    for ii=1:length(filelist)
+        if strcmp(filelist{ii}(end-3:end), '.ncs')
+            temp = csc2mat([ dir filelist{ii} ], lfpStartIdx);
+        elseif strcmp(filelist{ii}(end-3:end), '.dat')
+            disp([ 'loading ' filelist{ii} ])
+            rawTemp = loadCExtractedNrdChannelData([ dir filelist{ii} ]);
+            dcoComponent = conv( rawTemp, ones(8000,1)/8000, 'same');
+            temp = rawTemp - dcoComponent ;
+            %temp = filtfilt( DCO, rawTemp );
+        else
+            warning(['unknown file type -- ' filelist{ii} ' -- not loaded' ]);
+        end
+        thisDim = length(temp);
+        if ii == 1
+            accumulator = temp;
+            masterDim = length(temp);
+        elseif ( thisDim == masterDim )
+            accumulator = accumulator + temp;
+        else
+            disp([ 'avgLfp failed data length of this ' num2str(thisDim) ' ~= ' num2str(masterDim) ]);
+        end
     end
-    thisDim = length(temp);
-    if ii == 1
-        accumulator = temp;
-        masterDim = length(temp);
-    elseif ( thisDim == masterDim )
-        accumulator = accumulator + temp;
-    else
-        disp([ 'avgLfp failed data length of this ' num2str(thisDim) ' ~= ' num2str(masterDim) ]);
-    end
-end
-avgLfp = accumulator/length(filelist);
+    avgLfp = accumulator/length(filelist);
 
 return;
 

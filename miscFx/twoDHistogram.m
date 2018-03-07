@@ -13,8 +13,8 @@ end
 if ( nargin == 5 ) || ( nargin == 4 )
     % this part is for handling assumptions about the video data.
     % this should make it easy to align data bins
-    maxX = 720;
-    maxY = 420;
+    %maxX = 720;
+    %maxY = 420;
     output=zeros( ceil(maxY/divisionFactor)+1 , ceil(maxX/divisionFactor)+1 );
 end
 

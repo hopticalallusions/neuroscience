@@ -1,4 +1,4 @@
-function speedColorPlot( xpos, ypos, pxPerCm )
+function speedColorPlot( xpos, ypos, pxPerCm, stillPeriods )
 
     if nargin < 2
         error('not enough arguments!');
@@ -10,13 +10,17 @@ function speedColorPlot( xpos, ypos, pxPerCm )
     else
         legendText = 'cm/s';
     end
+    
+    if nargin < 4
+        stillPeriods = ones(size(xpos))';
+    end
 
-    speed=calculateSpeed(xpos, ypos, pxPerCm); 
+    speed=stillPeriods.*calculateSpeed(xpos, ypos, 1, pxPerCm, 29.97); 
     
     x = xpos;
     y = ypos;
     z = zeros(size(x));
-    figure;
+    %figure;
     h = surface([x(:), x(:)], [y(:), y(:)], [z(:), z(:)], [speed(:), speed(:)], ...
                  'EdgeColor', 'flat', 'FaceColor','none', 'LineWidth', 1.5);
     colormap( build_NOAA_colorgradient ); colorbar;

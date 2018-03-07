@@ -6,6 +6,7 @@ disp(metadata.dir);
 metadata.dayOld = metadata.day;
 metadata.day = strrep(metadata.day, '/', '');
 
+
 tic;
 
 close all;
@@ -14,6 +15,7 @@ disp('SETUP ANALYSIS RUN')
 if metadata.autobins
     disp('using automatic bin detection');
 end
+
 %% I. SETUP THE ANALYSIS RUN
 % 
 
@@ -27,7 +29,7 @@ else
 end
 
 
-% LOAD AVERAGE LFPs
+%% LOAD AVERAGE LFPs
 
 if ~exist( [ metadata.outputDir '/cache/' metadata.rat '_' metadata.day '_avgLfp.mat' ], 'file' )
     disp('building avg signal LFP');
@@ -48,8 +50,7 @@ else
 end
 
 
-% LOAD SWR CANDIDATE
-% 
+%% LOAD SWR CANDIDATE
 % 88, 61, 32 suspected SWR channel
 toc
 disp('loading SWR file');
@@ -64,13 +65,21 @@ blob.lfpTimestampSeconds=(blob.lfpTimestamps-blob.lfpTimestamps(1))/1e6;
 blob.xpos=nlxPositionFixer(blob.xpos(xyStartIdx:end)); 
 blob.ypos=nlxPositionFixer(blob.ypos(xyStartIdx:end)); 
 blob.xytimestamps=blob.xytimestamps(xyStartIdx:end);
-xyblob.lfpTimestampSeconds = ( blob.xytimestamps - blob.xytimestamps(1) )/1e6;
+xyblob.xytimestampSeconds = ( blob.xytimestamps - blob.xytimestamps(1) )/1e6;
 
-toc
-disp('DETECT ELECTRICAL NOISE')
+[~, antiRadius ] = cart2pol(blob.xpos-metadata.waypoints.antireward.x, blob.ypos-metadata.waypoints.antireward.y);
+[~, rewardRadius ] = cart2pol(blob.xpos-metadata.waypoints.reward.x, blob.ypos-metadata.waypoints.reward.y);
+antiProx = 800-antiRadius;
+rewardProx = 800-rewardRadius;
+[ ~, antiProxTimes, ~, ~ ] = findpeaks( antiProx, xyblob.xytimestampSeconds, 'MinPeakHeight', 700, 'MinPeakDistance', 10  ); 
+[ ~, rewardProxTimes, ~, ~ ] = findpeaks( rewardProx, xyblob.xytimestampSeconds, 'MinPeakHeight', 700, 'MinPeakDistance', 10  ); 
+
+
 %  =============================
 %% == DETECT ELECTRICAL NOISE ==
 %  =============================
+toc
+disp('DETECT ELECTRICAL NOISE')
 %
 % the baseline of the rat's 60 hz is correlated with the distance from the
 % light. in the bucket is usually best, but the baseline subtely depends on
@@ -99,29 +108,14 @@ electricSignal.minPeakDistance = 20; % seconds
                                            blob.lfpTimestampSeconds,             ... % time discontinuities cause inapproriate shifting; this argument provides the correct times   %sampleRate,                                  ... % sampling frequency
                                           'MinPeakHeight',   electricSignal.peakThreshold,  ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
                                           'MinPeakDistance', electricSignal.minPeakDistance  ); % assumes "lockout" for  events; don't detect peaks within 70 ms on either side of peak
-%electricDetectorOutput = detectPeaksEdges( blob.electricEnv, blob.lfpTimestampSeconds, metadata.sampleRate.lfp, round(metadata.sampleRate.lfp/10) );
-
-% gcf=[];
-% 
-% if metadata.visualizeAll
-%    gcf(1)=figure(1);
-%    subplot(4,1,1);
-%    hold off;
-%    plot( blob.lfpTimestampSeconds, blob.electricEnv ); hold on;
-%    scatter( electricSignal.PeakTimes, electricSignal.PeakValues, 'v', 'filled');
-%    load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
-%    ylabel('elec.');
-%    xlim([0 blob.lfpTimestampSeconds(end)]);
-%    ylim([-0.001 max(electricSignal.PeakValues)]);
-% end
 
 
-toc
-disp('DETECT CHEWING')
 %  ====================
 %% == DETECT CHEWING ==
 %  ====================
 %
+toc
+disp('DETECT CHEWING')
 % detect chewing events -- refered to as "crunch" because that's what they
 % sound like. First, filter a fairly wide band to see the crunches
 %
@@ -144,124 +138,19 @@ chewDetectorOutput = detectPeaksEdges( chewEpisodeEnv, chewCrunchEnvTimes, chewC
 
 
 
-
-
-% %% visualize the process (one time)
-% visStartIdx = round(416*metadata.sampleRate.lfp); %451
-% visEndIdx = round(485*metadata.sampleRate.lfp);
-% figure(10);
-% subplot(7,1,1);
-% plot((visStartIdx:visEndIdx)/32000, avgLfp(visStartIdx:visEndIdx), 'Color', [ .1 .1 .1] );
-% axis tight;
-% xlim([ 480 650  ]);
-% grid on;
-% set(gca, 'XTickLabel', [])
-% ylabel('avgLfp');
-% subplot(7,1,2);
-% plot((visStartIdx:visEndIdx)/32000, avgChew(visStartIdx:visEndIdx), 'Color', [ .4 .4 .9] );
-% axis tight;
-% grid on;
-% set(gca, 'XTickLabel', [])
-% xlim([ 480 650  ]);
-% ylabel('avgChew');
-% subplot(7,1,3);
-% plot(chewCrunchEnvTimes, chewCrunchEnv, 'Color', [ .5 .5 .1] );
-% axis tight;
-% grid on;
-% set(gca, 'XTickLabel', [])
-% xlim([ 480 650  ]);
-% ylabel('chewCrunchEnv');
-% subplot(7,1,4);
-% plot(chewCrunchEnvTimes, chewEpisodeLFP, 'Color', [ .9 .4 .4] );
-% ylabel('chewEpisode');
-% axis tight;
-% grid on;
-% set(gca, 'XTickLabel', [])
-% xlim([ 480 650  ]);
-% subplot(7,1,5);
-% plot(chewCrunchEnvTimes, chewEpisodeEnv, 'Color', [ .8 .2 .8] );
-% hold on;
-% scatter( chewDetectorOutput.EpisodePeakTimes, chewDetectorOutput.EpisodePeakValues, 'v', 'filled');
-% load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
-% for jj=1:length(chewDetectorOutput.EpisodeEndIdxs);
-%    if  chewDetectorOutput.EpisodeStartIdxs(jj) > 0
-%        scatter( chewCrunchEnvTimes( chewDetectorOutput.EpisodeStartIdxs(jj) ), 0, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-%    else
-%        scatter( chewCrunchEnvTimes( 1 ), 0, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-%    end
-%    if  chewDetectorOutput.EpisodeEndIdxs(jj) < length(chewCrunchEnvTimes)
-%        scatter( chewCrunchEnvTimes(  chewDetectorOutput.EpisodeEndIdxs(jj) ), 0, '<',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-%    else
-%        scatter( chewCrunchEnvTimes( end ), 0, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-%    end
-% end
-% axis tight;
-% grid on;
-% set(gca, 'XTickLabel', [])
-% ylabel('chewEpisodeEnv');
-% xlim([ 480 650  ]);
-% subplot(7,1,6);
-% swrblob.swrLfp = filtfilt( filters.so.swr, blob.swrLfp );
-% swrblob.swrLfpEnv = abs( hilbert(swrblob.swrLfp) );
-% plot((visStartIdx:visEndIdx)/32000, swrblob.swrLfp(visStartIdx:visEndIdx), 'Color', [ .2 .2 .2] );
-% hold on;
-% plot((visStartIdx:visEndIdx)/32000, swrblob.swrLfpEnv(visStartIdx:visEndIdx), 'Color', [ .8 .6 .2] );
-% axis tight;
-% ylabel('SWR');
-% xlim([ 480 650  ]);
-% subplot(7,1,7);
-% proxToRewardSite=proxToPoint( blob.xpos, blob.ypos, 119, 45 );
-% plot(xyblob.lfpTimestampSeconds, proxToRewardSite, 'Color', [ .1 .6 .2] );
-% ylabel('rewardProx');
-% xlim([ 480 650  ]);
-% ylim([0 1]);
-%
-% return;
-
-
-
-
-
-
-
-% if metadata.visualizeAll
-%    figure(1);
-%    subplot(4,1,2);
-%    hold off;
-%    plot( chewCrunchEnvTimes, chewEpisodeEnv ); hold on;
-%    scatter( chewDetectorOutput.EpisodePeakTimes, chewDetectorOutput.EpisodePeakValues, 'v', 'filled');
-%    load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
-%    for jj=1:length(chewDetectorOutput.EpisodeEndIdxs);
-%        if  chewDetectorOutput.EpisodeStartIdxs(jj) > 0
-%            scatter( chewCrunchEnvTimes( chewDetectorOutput.EpisodeStartIdxs(jj) ), 0, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-%        else
-%            scatter( chewCrunchEnvTimes( 1 ), 0, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-%        end
-%        if  chewDetectorOutput.EpisodeEndIdxs(jj) < length(chewCrunchEnvTimes)
-%            scatter( chewCrunchEnvTimes(  chewDetectorOutput.EpisodeEndIdxs(jj) ), 0, '<',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-%        else
-%            scatter( chewCrunchEnvTimes( end ), 0, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-%        end
-%    end
-%    ylabel('reward');
-%    xlim([0 blob.lfpTimestampSeconds(end)]);
-%    ylim([-0.001 max([ chewDetectorOutput.EpisodePeakValues electricSignal.PeakValues' ])]);
-% end
-
-
-toc
-disp('DETECT TRIAL BREAKPOINTS : REWARDS & BUCKET ENTRIES')
 %  =========================================================
 %% == DETECT TRIAL BREAKPOINTS : REWARDS & BUCKET ENTRIES ==
 %  =========================================================
+toc
+disp('DETECT TRIAL BREAKPOINTS : REWARDS & BUCKET ENTRIES')
 %
 % this is accomplished by finding each reward chewing episode, and finding
 % the nearest electrical band signal spike that occurs afterwards because
 % the rat is always placed in the bucket after the reward is obtained, and
 % that always involves grabbing his tail
 %
-output.rewardTimes = [];
-output.intoBucketTimes = [];
+output.sugarConsumeTimes = [];
+output.leaveMazeToBucket = [];
 for ii = 1:length(chewDetectorOutput.EpisodePeakTimes)
     if ( ii > 1 ) && ( (chewDetectorOutput.EpisodePeakTimes(ii)-chewDetectorOutput.EpisodePeakTimes(ii-1)) < 20 )
         disp('skipping a chew peak');
@@ -272,14 +161,14 @@ for ii = 1:length(chewDetectorOutput.EpisodePeakTimes)
         % the next closest time less than 
         if ( relativeTimes(jj) > 0 )
             % things are OK
-            output.rewardTimes = [ output.rewardTimes chewDetectorOutput.EpisodePeakTimes(ii) ];
-            output.intoBucketTimes = [ output.intoBucketTimes electricSignal.PeakTimes(jj) ];
+            output.sugarConsumeTimes = [ output.sugarConsumeTimes chewDetectorOutput.EpisodePeakTimes(ii) ];
+            output.leaveMazeToBucket = [ output.leaveMazeToBucket electricSignal.PeakTimes(jj) ];
         else
             if ( jj < length(relativeTimes) )
                 if ( relativeTimes(jj+1) < 40 )
                     % use this event
-                    output.rewardTimes = [ output.rewardTimes chewDetectorOutput.EpisodePeakTimes(ii) ];
-                    output.intoBucketTimes = [ output.intoBucketTimes electricSignal.PeakTimes(jj+1) ];
+                    output.sugarConsumeTimes = [ output.sugarConsumeTimes chewDetectorOutput.EpisodePeakTimes(ii) ];
+                    output.leaveMazeToBucket = [ output.leaveMazeToBucket electricSignal.PeakTimes(jj+1) ];
                 else
                     disp('could not find bucket placement event after reward receipt; too far in futre')
                 end
@@ -290,34 +179,21 @@ for ii = 1:length(chewDetectorOutput.EpisodePeakTimes)
     end
 end
 
-% 
-% if metadata.visualizeAll
-%     gcf(1)=figure(1);
-%     subplot(4,1,4);
-%     hold off;
-%     plot( chewCrunchEnvTimes, chewEpisodeEnv );
-%     hold on;
-%     plot( blob.lfpTimestampSeconds, blob.electricEnv ); 
-%     scatter( output.rewardTimes, zeros(size(output.rewardTimes)), 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
-%     scatter( output.intoBucketTimes, zeros(size(output.intoBucketTimes)), '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
-%     ylabel('trial interp');
-%     xlim([0 blob.lfpTimestampSeconds(end)]);
-%     ylim([-0.001 max( [ max(electricSignal.PeakValues) max(chewDetectorOutput.EpisodePeakValues) ] ) ]);
-% end
 
 
-if abs( length(find(output.rewardTimes)) - length(find(output.intoBucketTimes)) ) > 2
+if abs( length(find(output.sugarConsumeTimes)) - length(find(output.leaveMazeToBucket)) ) > 2
     error('reward and bucket entrance detection failed; unequal number of events');
-elseif length(find(output.rewardTimes)) ~= length(find(output.intoBucketTimes))
+elseif length(find(output.sugarConsumeTimes)) ~= length(find(output.leaveMazeToBucket))
     warning('reward and bucket entrance detection; unequal number of events detected');
 end
 
 
-toc
-disp('FIND THE MAZE ENTRY TIMES')
+
 %  ===============================
 %% == FIND THE MAZE ENTRY TIMES ==
 %  ===============================
+toc
+disp('FIND THE MAZE ENTRY TIMES')
 %
 % this is tricky because in order to get the rat on the maze oriented in
 % the right way, I pick up the bucket and tilt it towards myself and the
@@ -397,178 +273,54 @@ mazeEntries.minPeakDistance = 20; % seconds
                                        mazeEntries.mvgMedianTimes(2:end),             ... % time discontinuities cause inapproriate shifting; this argument provides the correct times   %sampleRate,                                  ... % sampling frequency
                                        'MinPeakHeight',   mazeEntries.peakThreshold,  ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
                                        'MinPeakDistance', mazeEntries.minPeakDistance  ); % assumes "lockout" for  events; don't detect peaks within 70 ms on either side of peak
-
-                                   
-                                   
-                                   
-                                   
-% figure;
-% plot(blob.lfpTimestampSeconds,blob.electricEnv);
-% hold on;
-% plot( mazeEntries.mvgMedianTimes, mazeEntries.mvgMedian );
-% plot( mazeEntries.mvgMedianTimes(1:end-1)+diff(mazeEntries.mvgMedianTimes)/2, mazeEntries.elecBaseline );
-% scatter( elecBaselineJumpTimes, elecBaselineJumpValues );
-% mazeEntries.elecBaseline=-mazeEntries.elecBaseline;
-% mazeEntries.maxPeak = max(  mazeEntries.elecBaseline );
-% mazeEntries.peakThreshold = (0.2 * mazeEntries.maxPeak );
-% [ elecBaselineJumpValues,  ...
-%   elecBaselineJumpTimes,   ...
-%   transMvgMedProminances, ...
-%   transMvgMedPeakWidths ] = findpeaks( mazeEntries.elecBaseline,                    ... % data
-%                                        mazeEntries.mvgMedianTimes(2:end),             ... % time discontinuities cause inapproriate shifting; this argument provides the correct times   %sampleRate,                                  ... % sampling frequency
-%                                        'MinPeakHeight',   mazeEntries.peakThreshold,  ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
-%                                        'MinPeakDistance', mazeEntries.minPeakDistance  ); % assumes "lockout" for  events; don't detect peaks within 70 ms on either side of peak
-% scatter( elecBaselineJumpTimes, elecBaselineJumpValues, 'v' );
-
-
-                                   
+             
                                    
                                    %
 % we know from chews and tail grabs (bucket placements) when episodes end.
 % so now start at the bucket placement, and look forward through the peaks
 % in the electric transitions to find start points
-output.ontoMazeTimes = zeros(size(output.intoBucketTimes));
+output.leaveBucketToMaze = zeros(size(output.leaveMazeToBucket));
 if ( median(mazeEntries.mvgMedian(1:20)) < (median(mazeEntries.mvgMedian)*2) )
-    output.ontoMazeTimes(1) = mazeEntries.mvgMedianTimes(1); % this is a cheap hack
+    output.leaveBucketToMaze(1) = mazeEntries.mvgMedianTimes(1); % this is a cheap hack
     startIdx=2;
 else
     startIdx=1;
     disp('check ontoMaze times!');
 end
-for idxTrialEnd=startIdx:length(output.intoBucketTimes)
+for idxTrialEnd=startIdx:length(output.leaveMazeToBucket)
         if idxTrialEnd > 1
-            relativeTimes = elecBaselineJumpTimes - output.intoBucketTimes(idxTrialEnd-1);
+            relativeTimes = elecBaselineJumpTimes - output.leaveMazeToBucket(idxTrialEnd-1);
         else
-            relativeTimes = elecBaselineJumpTimes - output.intoBucketTimes(idxTrialEnd);
+            relativeTimes = elecBaselineJumpTimes - output.leaveMazeToBucket(idxTrialEnd);
         end
         [ ~, jj ] = min( abs( relativeTimes ));
         offset = 0;
         while ( (jj+offset < length(relativeTimes) ) && (relativeTimes(jj+offset) < 40 )   ) 
             offset = offset + 1;
         end
-        output.ontoMazeTimes(idxTrialEnd)=elecBaselineJumpTimes(jj+offset);
+        output.leaveBucketToMaze(idxTrialEnd)=elecBaselineJumpTimes(jj+offset);
 end
-%
-% if metadata.visualizeAll
-%     figure(1);
-%     subplot(4,1,3);
-%     hold off;
-%     plot( mazeEntries.mvgMedianTimes(2:end), mazeEntries.elecBaseline ); hold on;
-%     scatter( elecBaselineJumpTimes, elecBaselineJumpValues, 'v', 'filled');
-%     load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
-%     ylabel('\Delta start.prox.');
-%     xlim([0 blob.lfpTimestampSeconds(end)]);
-%     ylim([-0.001 max(elecBaselineJumpValues)]);
-%    %
-%     subplot(4,1,4);
-%     hold off;
-%     plot( chewCrunchEnvTimes, chewEpisodeEnv );
-%     hold on;
-%     plot( blob.lfpTimestampSeconds, blob.electricEnv ); 
-%     scatter( output.rewardTimes, zeros(size(output.rewardTimes)), 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
-%     scatter( output.intoBucketTimes, zeros(size(output.intoBucketTimes)), '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
-%     scatter( output.ontoMazeTimes, zeros(size(output.ontoMazeTimes)), 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
-%     ylabel('events');
-%     xlim([0 blob.lfpTimestampSeconds(end)]);
-%     ylim([-0.001 max( [ max(electricSignal.PeakValues) max(chewDetectorOutput.EpisodePeakValues) ] ) ]);
-% end
-% print( gcf(1), [metadata.outputDir metadata.rat '_' metadata.day '_autotrial1'],'-dpng','-r200');
-% 
-% if abs ( length(find(output.rewardTimes)) - length(find(output.ontoMazeTimes)) ) > 2
-%     if metadata.autobins
-%         error('reward and trial start detection failed; unequal number of events');
-%     else
-%         warning('reward and trial start detection failed; unequal number of events');
-%     end
-% end
 
 
+
+% =========================================
+%% ==  CALCULATE PROXIMITY TO WAYPOITNS  ==
+% =========================================
 toc
-disp('"FIX" WEIRD BUCKET TELEMETRY JUMPS')
-%  ========================================
-%% == "FIX" WEIRD BUCKET TELEMETRY JUMPS ==
-%  ========================================
+disp('CALCULATE PROXIMITY TO WAYPOITNS')
 %
-% Now that we know when the rat was in the bucket from the above analysis,
-% we can fix the weird jumps that occur when the rat hides his head LEDs
-% from the camera in the bucket, and the telemetry signal jumps from the
-% bucket to some bright point on the maze.
-%
-% This is accomplished by simply using the boundaries identified above and 
-% taking the median value of the rat's position. This seems to work well. A
-% small amount of normally distributed noise is added to the signal to make
-% the settling points easier to identify on an X-Y plot. (otherwise they
-% are single points, and cannot be identified.)
-%
-% This may not be the greatest method, and other things could be attempted,
-% but it seems to work effectively.
-%
-% This procedure is performed before the next step to help avoid the next
-% step getting confused.
-%
-if length(output.ontoMazeTimes) ~= length(output.intoBucketTimes)
-    warning('trial start and end time arrays are of unequal size!!!')
-    % not going to correct for this possible error.
-end
-% 
-old.blob.xpos = blob.xpos; old.blob.ypos = blob.ypos;
-%blob.xpos = old.blob.xpos; blob.ypos = old.blob.ypos;
-%
-% * there should be trials-1 'intermissions'
-% * output.ontoMazeTimes need to be offset from intoBucket because one mounts
-% maze, then enters bucket, onto maze, enter bucket...
-disp('telemetry correction disabled.')
-% for ii = 1:length(output.intoBucketTimes)-1
-%     % find start and end indices of the bucket episode
-%     % try to offset the time by a few seconds to account for time to put
-%     % him down or pick him up (high accel/vel makes sense during these
-%     % brief episodes of teleportation)
-%     startIdx = round((output.intoBucketTimes(ii)+1) * metadata.sampleRate.telemetry);
-%     endIdx   = round((output.ontoMazeTimes(ii+1)-3) * metadata.sampleRate.telemetry);
-%     if endIdx < startIdx
-%         startIdx = round((output.intoBucketTimes(ii)) * metadata.sampleRate.telemetry);
-%         endIdx   = round((output.ontoMazeTimes(ii+1)) * metadata.sampleRate.telemetry);
-%     end
-%     if ( endIdx < startIdx ) && ( ii == length(output.intoBucketTimes) ) % TODO it doesn't find an end for out bucket time, because trials end
-%         endIdx = length(blob.xpos);
-%     end
-%     if endIdx < startIdx; error('endIdx > startIdx in bucket position correction routine.'); end
-%     blob.xpos(startIdx:endIdx) = median(blob.xpos(startIdx:endIdx))+5*rand(size(blob.xpos(startIdx:endIdx)));
-%     blob.ypos(startIdx:endIdx) = median(blob.ypos(startIdx:endIdx))+5*rand(size(blob.xpos(startIdx:endIdx)));
-% end
-% ==================================================
-% ==  RECALCULATE TELEMETRY BASED ON CORRECTIONS  ==
-% ==================================================
-proxToCenter=proxToPoint( blob.xpos, blob.ypos, 317, 229 );
-proxToStart=proxToPoint( blob.xpos, blob.ypos, 81, 412 );
-proxToRewardSite=proxToPoint( blob.xpos, blob.ypos, 119, 45 );
-proxToIncorrectSite=proxToPoint( blob.xpos, blob.ypos, 525, 429 );
-%
-% if metadata.visualizeAll
-%     gcf(2)=figure(2); % demonstrate position correction to check if it was appropriate
-%     subplot(3,1,1);
-%     title('confirm bucket telemetry corrections');
-%     plot( blob.lfpTimestampSeconds, blob.electricEnv );
-%     hold on;
-%     ylabel('elec.');
-%     axis tight;
-%     subplot(3,1,2);
-%     plot( xyblob.lfpTimestampSeconds, old.blob.xpos, 'k' );
-%     ylabel('blob.xpos_{before}');
-%     axis tight;
-%     subplot(3,1,3);
-%     plot( xyblob.lfpTimestampSeconds, blob.xpos, 'r' );
-%     ylabel('blob.xpos_{after}');
-%     axis tight;
-% end
-% print( gcf(2), [metadata.outputDir metadata.rat '_' metadata.day '_bucketCorrection'],'-dpng','-r200');
+proxToCenter=proxToPoint( blob.xpos, blob.ypos, metadata.waypoints.center.x, metadata.waypoints.center.y );
+proxToStart=proxToPoint( blob.xpos, blob.ypos, metadata.waypoints.start.x, metadata.waypoints.start.y );
+proxToRewardSite=proxToPoint( blob.xpos, blob.ypos, metadata.waypoints.reward.x, metadata.waypoints.reward.y );
+proxToIncorrectSite=proxToPoint( blob.xpos, blob.ypos, metadata.waypoints.antireward.x, metadata.waypoints.antireward.y );
 
 
-toc
-disp('IDENTIFY BRICK PASSAGE TIMES')
+
 %  ====================================
 %% ==  IDENTIFY BRICK PASSAGE TIMES  ==
 %  ====================================
+toc
+disp('IDENTIFY BRICK PASSAGE TIMES')
 %
 % CALCULATE PERIODS WHEN THE RAT IS AT THE START
 %
@@ -586,7 +338,7 @@ outputIdx = 1;
 for idx=halfWindowSize+1:jumpSize:inputElements-(1+halfWindowSize)
     ii=(idx-halfWindowSize:idx+halfWindowSize);
     mvgMedian(outputIdx)=median(proxToStart(ii));
-    mvgMedianTimes(outputIdx) = xyblob.lfpTimestampSeconds(idx);
+    mvgMedianTimes(outputIdx) = xyblob.xytimestampSeconds(idx);
     outputIdx = outputIdx + 1;
 end
 outputIdx = outputIdx - 1;
@@ -615,319 +367,92 @@ minPeakDistance = 20; % seconds
 % we know from chews and tail grabs (bucket placements) when episodes end.
 % so now start at the bucket placement, and look forward through the peaks
 % in the electric transitions to find start points
-output.ontoMazeTimes = zeros(size(output.intoBucketTimes));
+output.leaveBucketToMaze = zeros(size(output.leaveMazeToBucket));
 if ( median(elecBaseline(1:20)) < (median(elecBaseline)*2) )
-    output.ontoMazeTimes(1) = mvgMedianTimes(1); % this is a cheap hack
+    output.leaveBucketToMaze(1) = mvgMedianTimes(1); % this is a cheap hack
 else
     disp('implement something here!');
 end
-for idxTrialEnd=1:length(output.intoBucketTimes)-1
-        relativeTimes = elecBaselineJumpTimes - output.intoBucketTimes(idxTrialEnd);
+for idxTrialEnd=1:length(output.leaveMazeToBucket)-1
+        relativeTimes = elecBaselineJumpTimes - output.leaveMazeToBucket(idxTrialEnd);
         [ ~, jj ] = min( abs( relativeTimes ));
         offset = 0;
         while ( (jj+offset < length(relativeTimes) ) && (relativeTimes(jj+offset) < 40 )   ) 
             offset = offset + 1;
         end
-        output.ontoMazeTimes(idxTrialEnd)=elecBaselineJumpTimes(jj+offset);
+        output.leaveBucketToMaze(idxTrialEnd)=elecBaselineJumpTimes(jj+offset);
         
 end
-% scatter(output.ontoMazeTimes, ones(1,length(output.rewardTimes)).*-0.001, 'o', 'filled');
-% %
-% for jj=1:length(startEpisodes.EpisodeEndIdxs);
-%    if  startEpisodes.EpisodeStartIdxs(jj) > 0
-%        scatter( mvgMedianTimes( startEpisodes.EpisodeStartIdxs(jj) ), 0, 'v',  'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
-%    else
-%        scatter( mvgMedianTimes( 1 ), 0, 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
-%    end
-%    if  startEpisodes.EpisodeEndIdxs(jj) < length(blob.lfpTimestampSeconds)
-%        scatter( mvgMedianTimes(  startEpisodes.EpisodeEndIdxs(jj) ), 0, '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ] );
-%    else
-%        scatter( mvgMedianTimes( end ), 0, '>', 'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ] );
-%    end
-% end
-output.ontoMazeTimes = mvgMedianTimes( startEpisodes.EpisodeStartIdxs);
-output.runStartTimes = mvgMedianTimes( startEpisodes.EpisodeEndIdxs);
 
-
-%% GRAPHICALLY SUMARIZE TIMEPOINTS DETECTED
-%
-% gcf(3)=figure(3); 
-% subplot(3,1,1); 
-% hold on;
-% plot( blob.lfpTimestampSeconds, blob.electricEnv );       % 'k'
-% %disp([ 'elecEnvSize fig 3, circa line 464 ' num2str(size(blob.electricEnv)) ]);
-% axis tight;  
-% ylabel('Avg; 60 Hz');
-% scatter( electricSignal.PeakTimes, electricSignal.PeakValues, 'v', 'filled');
-% subplot(3,1,2); 
-% hold off;
-% plot( chewCrunchEnvTimes, chewEpisodeEnv, 'Color', [ .1 .8 .1 ] ); 
-% hold on;
-% scatter( chewDetectorOutput.EpisodePeakTimes, chewDetectorOutput.EpisodePeakValues, 'v', 'filled');
-% axis tight;
-% ylim([0 max(chewDetectorOutput.EpisodePeakValues)]);
-% ylabel('reward/chew');
-% subplot(3,1,3); 
-% hold off; 
-% plot( mvgMedianTimes, mvgMedian ); 
-% hold on; %plot( mvgMedianTimes(2:end), -diff(mvgMedian) ); 
-% scatter( output.ontoMazeTimes, ones(1,length(output.ontoMazeTimes)).*0.1, 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
-% scatter( output.runStartTimes, ones(1,length(output.runStartTimes)).*0.1, '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
-% scatter( output.rewardTimes, ones(1,length(output.rewardTimes)).*0.1, 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
-% scatter( output.intoBucketTimes, ones(1,length(output.intoBucketTimes)).*0.1, '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
-% ylabel( 'start prox./trials' ); axis tight; ylim([ 0 1 ]);
-% print( gcf(3), [metadata.outputDir metadata.rat '_' metadata.day '_prelimAutoTrialMarking'],'-dpng','-r200');
+output.leaveBucketToMaze = mvgMedianTimes( startEpisodes.EpisodeStartIdxs);
+output.trialStartAction = mvgMedianTimes( startEpisodes.EpisodeEndIdxs);
 
 
 %
-%% ; make a list of times for trial events
+% ; make a list of times for trial events
 %
 if metadata.autobins
-    swrAnalysisBins = sort([ 0 output.ontoMazeTimes output.runStartTimes output.rewardTimes output.intoBucketTimes xyblob.lfpTimestampSeconds(end) ]);
+    swrAnalysisBins = sort([ 0 output.leaveBucketToMaze output.trialStartAction output.sugarConsumeTimes output.leaveMazeToBucket xyblob.xytimestampSeconds(end) ]);
 else
-    swrAnalysisBins = sort([ 0 metadata.touchdownTimes metadata.brickTimes metadata.sugarTimes metadata.liftoffTimes xyblob.lfpTimestampSeconds(end) ]);
+    swrAnalysisBins = sort([ 0 metadata.leaveBucketToMaze metadata.trialStartAction metadata.sugarConsumeTimes metadata.leaveMazeToBucket xyblob.xytimestampSeconds(end) ]);
 end
 
-%histogram( swrAnalysisBins );
-%
-%
-toc
-disp('DETECT BRUXING')
+
+
 %  ====================
 %% == DETECT BRUXING ==
 %  ====================
+toc
+disp('DETECT BRUXING')
+%
 bruxEpisodeLFP=filtfilt( filters.ao.brux, chewCrunchEnv );
 bruxEpisodeEnv=abs(hilbert(bruxEpisodeLFP));
 bruxDetectorOutput = detectPeaksEdges( bruxEpisodeEnv, chewCrunchEnvTimes, chewCrunchEnvSampleRate, chewCrunchEnvSampleRate/10  );
 
 
 
-% 
-% visStartIdx = round(480*metadata.sampleRate.lfp); %451
-% visEndIdx = round(650*metadata.sampleRate.lfp);
-% figure(10);
-% subplot(7,1,1);
-% plot((visStartIdx:visEndIdx)/32000, avgLfp(visStartIdx:visEndIdx), 'Color', [ .1 .1 .1] );
-% axis tight;
-% xlim([ 480 650  ]);
-% grid on;
-% set(gca, 'XTickLabel', [])
-% ylabel('avgLfp');
-% subplot(7,1,2);
-% plot((visStartIdx:visEndIdx)/32000, avgChew(visStartIdx:visEndIdx), 'Color', [ .4 .4 .9] );
-% axis tight;
-% grid on;
-% set(gca, 'XTickLabel', [])
-% xlim([ 480 650  ]);
-% ylabel('avgChew');
-% subplot(7,1,3);
-% plot(chewCrunchEnvTimes, chewCrunchEnv, 'Color', [ .5 .5 .1] );
-% axis tight;
-% grid on;
-% set(gca, 'XTickLabel', [])
-% xlim([ 480 650  ]);
-% ylabel('chewCrunchEnv');
-% subplot(7,1,4);
-% plot(chewCrunchEnvTimes, bruxEpisodeLFP, 'Color', [ .9 .4 .4] );
-% ylabel('bruxEpisode');
-% axis tight;
-% grid on;
-% set(gca, 'XTickLabel', [])
-% xlim([ 480 650  ]);
-% subplot(7,1,5);
-% plot(chewCrunchEnvTimes, bruxEpisodeEnv, 'Color', [ .8 .2 .8] );
-% hold on;
-% scatter( bruxDetectorOutput.EpisodePeakTimes, bruxDetectorOutput.EpisodePeakValues, 'v', 'filled');
-% load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
-% for jj=1:length(bruxDetectorOutput.EpisodeEndIdxs);
-%    if  bruxDetectorOutput.EpisodeStartIdxs(jj) > 0
-%        scatter( chewCrunchEnvTimes( bruxDetectorOutput.EpisodeStartIdxs(jj) ), 0, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-%    else
-%        scatter( chewCrunchEnvTimes( 1 ), 0, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-%    end
-%    if  bruxDetectorOutput.EpisodeEndIdxs(jj) < length(chewCrunchEnvTimes)
-%        scatter( chewCrunchEnvTimes(  bruxDetectorOutput.EpisodeEndIdxs(jj) ), 0, '<',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-%    else
-%        scatter( chewCrunchEnvTimes( end ), 0, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-%    end
-% end
-% axis tight;
-% grid on;
-% set(gca, 'XTickLabel', [])
-% ylabel('bruxEpisodeEnv');
-% xlim([ 480 650  ]);
-% subplot(7,1,6);
-% swrblob.swrLfp = filtfilt( filters.so.swr, blob.swrLfp );
-% swrblob.swrLfpEnv = abs( hilbert(swrblob.swrLfp) );
-% [ swrPeakValues,      ...
-%   swrPeakTimes,       ...
-%   swrPeakProminances, ...
-%   swrPeakWidths ] = findpeaks( swrblob.swrLfpEnv,                        ... % data
-%                              blob.lfpTimestampSeconds,                     ... % sampling frequency
-%                              'MinPeakHeight',  std(swrblob.swrLfpEnv)*6, ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
-%                              'MinPeakDistance', 0.05  );               % assumes "lockout" for SWR events; don't detect peaks within 50 ms on either side of peak
-% 
-% plot((visStartIdx:visEndIdx)/32000, swrblob.swrLfp(visStartIdx:visEndIdx), 'Color', [ .2 .2 .2] );
-% hold on;
-% plot((visStartIdx:visEndIdx)/32000, swrblob.swrLfpEnv(visStartIdx:visEndIdx), 'Color', [ .8 .6 .2] );
-% scatter( swrPeakTimes, swrPeakValues, 'v', 'filled' );
-% axis tight;
-% ylabel('SWR');
-% xlim([ 480 650  ]);
-% subplot(7,1,7);
-% proxToRewardSite=proxToPoint( blob.xpos, blob.ypos, 119, 45 );
-% plot(xyblob.lfpTimestampSeconds, proxToRewardSite, 'Color', [ .1 .6 .2] );
-% ylabel('rewardProx');
-% xlim([ 480 650  ]);
-% ylim([0 1]);
-% 
-% return;
-
-
-
-
-
-
-
-
-%% this will plot outputs from peakEdges  %%%%%%%%
-% detect peaks on the Max Enveloped signal
-% figure(4);
-% subplot(7,1,2);
-% hold on; 
-% plot( chewCrunchEnvTimes, bruxEpisodeEnv );
-% scatter( bruxDetectorOutput.EpisodePeakTimes, bruxDetectorOutput.EpisodePeakValues, 'v', 'filled');
-% load('/Users/andrewhowe/src/neuroscience/miscFx/colorOptions');
-% for jj=1:length(bruxDetectorOutput.EpisodeEndIdxs);
-%    if  bruxDetectorOutput.EpisodeStartIdxs(jj) > 0
-%        scatter( chewCrunchEnvTimes( bruxDetectorOutput.EpisodeStartIdxs(jj) ), 0, '>',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-%    else
-%        scatter( chewCrunchEnvTimes( 1 ), 0, '>', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-%    end
-%    if  bruxDetectorOutput.EpisodeEndIdxs(jj) < length(chewCrunchEnvTimes)
-%        scatter( chewCrunchEnvTimes(  bruxDetectorOutput.EpisodeEndIdxs(jj) ), 0, '<',  'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:));
-%    else
-%        scatter( chewCrunchEnvTimes( end ), 0, '<', 'MarkerEdgeColor', colorOptions(mod(jj,length(colorOptions))+1,:), 'MarkerFaceColor', colorOptions(mod(jj,length(colorOptions))+1,:) );
-%    end
-% end
-% ylabel('chew/brx'); 
-% xlim([0 blob.lfpTimestampSeconds(end)]); 
-%ylim([-0.001 max(bruxDetectorOutput.EpisodePeakValues)]);
-%
-%
-
+% =====================
+%% ==  SWR -- LFP 88  ==
+% =====================
 toc
 disp('PROCESS SWR FILE')
-% =====================
-% ==  SWR -- LFP 88  ==
-% =====================
+%
 swrblob.swrLfp = filtfilt( filters.so.swr, blob.swrLfp );
 swrblob.swrLfpEnv = abs( hilbert(swrblob.swrLfp) );
+
+
+swrEnvMedian = median(swrblob.swrLfpEnv);
+swrEnvMadam  = median(abs(swrblob.swrLfpEnv-swrEnvMedian));
+% empirically tested Feb 16, 2018; The 7 should be replaced by an 8 to make
+% it equivalent to the std(xx)*6 previously used; this change was made
+% because some SWR channels had no events due to 1 large noise artifact
+% wrecking the threshold; the threshold was slightly relaxed on the premise
+% that extra SWR could be removed at later processing stages.
+swrThreshold = swrEnvMedian + ( 7  * swrEnvMadam );
+
 [ swrPeakValues,      ...
   swrPeakTimes,       ...
   swrPeakProminances, ...
   swrPeakWidths ] = findpeaks( swrblob.swrLfpEnv,                        ... % data
                              blob.lfpTimestampSeconds,                     ... % sampling frequency
-                             'MinPeakHeight',  std(swrblob.swrLfpEnv)*6, ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
+                             'MinPeakHeight',  swrThreshold, ...  %std(swrblob.swrLfpEnv)*6, ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
                              'MinPeakDistance', 0.05  );               % assumes "lockout" for SWR events; don't detect peaks within 50 ms on either side of peak
-% ** DISPLAY SWR **
-% figure(4);
-% subplot(7,1,3); 
-% hold on;                 
-% plot( blob.lfpTimestampSeconds, swrblob.swrLfp ); 
-% %scatter( swrPeakTimes, swrPeakValues, 'v', 'filled');
-% ylabel('SWR_{88}'); xlim([0 blob.lfpTimestampSeconds(end)]); ylim([-0.001 max(swrPeakValues)]);
-
-
-% =====================
-% == DETECT LIA      ==
-% % =====================
-% liaLFP=filtfilt( filters.so.lia, blob.swrLfp );
-% liaEnv=abs(hilbert(liaLFP));
-% %liaDetectorOutput = detectPeaksEdges( liaEnv, blob.lfpTimestampSeconds, sampleRate );
-% %% this will plot outputs from peakEdges  %%%%%%%%
-% [ liaPeakValues,      ...
-%   liaPeakTimes,       ...
-%   liaPeakProminances, ...
-%   liaPeakWidths       ] = findpeaks( liaEnv,                             ... % data
-%                                      blob.lfpTimestampSeconds ,                  ... % sampling frequency
-%                                      'MinPeakHeight'  ,   std(liaEnv)*6, ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
-%                                      'MinPeakDistance', 0.5  );              % assumes "lockout" for SWR events; don't detect peaks within 50 ms on either side of peak
-% %scatter( liaPeakTimes, liaPeakValues, 'v', 'filled');
-
-% % ** DISPLAY LIA  **
-% figure(4);
-% subplot(7,1,4);
-% hold on; 
-% plot( blob.lfpTimestampSeconds, liaEnv );
-% ylabel('LIA_{88}'); 
-% xlim([0 blob.lfpTimestampSeconds(end)]); 
-% ylim([-0.001 max(liaPeakValues)]);
-
-
-% % ** DISPLAY AVGLFP  **
-% swrAvgLfp = filtfilt( filters.so.swr, avgLfp );
-% figure(4);
-% subplot(7,1,5); 
-% hold off;
-% plot( blob.lfpTimestampSeconds, swrAvgLfp ); % or avgChew; not sure which yet
-% ylabel('avgLfp_{SWR}'); 
-% xlim([0 blob.lfpTimestampSeconds(end)]); 
-%this next line always fails during a scripted run, but succeeds
-%immediately after when manually executed. weird.
-%ylim([ min(swrAvgLfp(round(metadata.sampleRate.lfp*5):round(end-metadata.sampleRate.lfp*5))) max(swrAvgLfp(round(metadata.sampleRate.lfp*5):round(end-metadata.sampleRate.lfp*5))) ]);
-
-
-%  =====================
-%% ==   DETECT SWS    ==
-%  =====================
-% swsLFP=filtfilt( filters.so.nrem, avgLfp );
-% swsEnv=abs(hilbert(swsLFP));
-% [ swsPeakValues,      ...
-%   swsPeakTimes,       ...
-%   swsPeakProminances, ...
-%   swsPeakWidths       ] = findpeaks(  swsEnv,                           ... % data
-%                                       blob.lfpTimestampSeconds,                 ... % sampling frequency
-%                                       'MinPeakHeight',   std(swsEnv)*6, ... % prctile( swrLfpEnvelope, percentile ), ... % default 95th percentile peak height
-%                                       'MinPeakDistance', 0.5  );            % assumes "lockout" for SWR events; don't detect peaks within 50 ms on either side of peak
-% ** DISPLAY SWS  **
-% figure(2);
-% subplot(7,1,5); 
-% hold on; 
-% plot( blob.lfpTimestampSeconds, swsLFP ); plot( blob.lfpTimestampSeconds, swsEnv );
-% scatter( swsPeakTimes, swsPeakValues, 'v', 'filled');
-% ylabel('SWS'); xlim([0 blob.lfpTimestampSeconds(end)]); ylim([-0.001 max(swsPeakValues)]);
-
-
-%  =====================
-%% ==     THETA       ==
-%  =====================
-% Doesn't look very meaningful.
-% theta = filtfilt( filters.so.theta, avgLfp );
-% thetaEnv=abs(hilbert(theta));
-% ** DISPLAY THETA  **
-% figure(2);
-% subplot(7,1,6); 
-% plot( blob.lfpTimestampSeconds, thetaEnv )
-% ylabel('\Theta'); 
-% xlim([0 blob.lfpTimestampSeconds(end)]); 
-% ylim([-0.001 max(thetaEnv(sampleRate:end-sampleRate))]);
 
 
 
-%  ===============================
-%% ==   RE-CALCULATE VELOCITY   ==
-%  ===============================
+%  ============================
+%% ==   CALCULATE VELOCITY   ==
+%  ============================
 pxPerCm = 2.7;   % ???? in cage... sqrt((298-75)^2+(232-425)^2) px/109 cm {half maze width}
 lagTime = 1.5; % seconds
 speed=calculateSpeed(blob.xpos, blob.ypos, lagTime, pxPerCm);
 
 
-toc
-disp('EXCLUDE CHEW/BRUX CONFOUNDS')
 %  ==========================================
 %% ==    EXCLUDE CHEW/BRUX CONFOUNDS       ==
 %  ==========================================
+toc
+disp('EXCLUDE CHEW/BRUX CONFOUNDS')
 %
 % subtract each peak time and eliminate those within 1 s of the peak on
 % either side
@@ -944,88 +469,39 @@ output.electricTimes = electricSignal.PeakTimes;
 %
 output.swrPeakTimesDenoise=swrPeakTimes;
 output.swrPeakValuesDenoise=swrPeakValues;
-for ii=1:length(chewDetectorOutput.EpisodePeakTimes)
-    idx = find( ( output.swrPeakTimesDenoise > chewCrunchEnvTimes(chewDetectorOutput.EpisodeStartIdxs(ii)) ) .* ( output.swrPeakTimesDenoise < chewCrunchEnvTimes(chewDetectorOutput.EpisodeEndIdxs(ii)) ) );
-    output.swrPeakTimesDenoise(idx)=NaN;
-    output.swrPeakValuesDenoise(idx)=NaN;
+
+if metadata.chewRemovalEnabled
+    for ii=1:length(chewDetectorOutput.EpisodePeakTimes)
+        idx = find( ( output.swrPeakTimesDenoise > chewCrunchEnvTimes(chewDetectorOutput.EpisodeStartIdxs(ii)) ) .* ( output.swrPeakTimesDenoise < chewCrunchEnvTimes(chewDetectorOutput.EpisodeEndIdxs(ii)) ) );
+        output.swrPeakTimesDenoise(idx)=NaN;
+        output.swrPeakValuesDenoise(idx)=NaN;
+    end
+    for ii=1:length(bruxDetectorOutput.EpisodePeakTimes)
+        idx = find( ( output.swrPeakTimesDenoise > chewCrunchEnvTimes(bruxDetectorOutput.EpisodeStartIdxs(ii)) ) & ( output.swrPeakTimesDenoise < chewCrunchEnvTimes(bruxDetectorOutput.EpisodeEndIdxs(ii)) ) );
+        output.swrPeakTimesDenoise(idx)=NaN;
+        output.swrPeakValuesDenoise(idx)=NaN;
+        %output.swrPeakTimesDenoise(find(abs(output.swrPeakTimesDenoise-bruxDetectorOutput.EpisodePeakTimes(ii))<1))=[];
+    end
+    for ii=1:length(electricSignal.PeakTimes)
+        idx = find(abs(output.swrPeakTimesDenoise-electricSignal.PeakTimes(ii))<1);
+        output.swrPeakTimesDenoise(idx)=NaN;
+        output.swrPeakValuesDenoise(idx)=NaN;
+    end
+    output.swrPeakTimesDenoise(isnan(output.swrPeakTimesDenoise))=[];
+    output.swrPeakValuesDenoise(isnan(output.swrPeakValuesDenoise))=[];
+else
+    warning('not removing chews')
 end
-for ii=1:length(bruxDetectorOutput.EpisodePeakTimes)
-    idx = find( ( output.swrPeakTimesDenoise > chewCrunchEnvTimes(bruxDetectorOutput.EpisodeStartIdxs(ii)) ) & ( output.swrPeakTimesDenoise < chewCrunchEnvTimes(bruxDetectorOutput.EpisodeEndIdxs(ii)) ) );
-    output.swrPeakTimesDenoise(idx)=NaN;
-    output.swrPeakValuesDenoise(idx)=NaN;
-    %output.swrPeakTimesDenoise(find(abs(output.swrPeakTimesDenoise-bruxDetectorOutput.EpisodePeakTimes(ii))<1))=[];
-end
-for ii=1:length(electricSignal.PeakTimes)
-    idx = find(abs(output.swrPeakTimesDenoise-electricSignal.PeakTimes(ii))<1);
-    output.swrPeakTimesDenoise(idx)=NaN;
-    output.swrPeakValuesDenoise(idx)=NaN;
-end
-output.swrPeakTimesDenoise(isnan(output.swrPeakTimesDenoise))=[];
-output.swrPeakValuesDenoise(isnan(output.swrPeakValuesDenoise))=[];
 
 
 
 
-
-%% old code for partitioning
-
-% roughEdges = sort([ electricSignal.PeakTimes' 2318 2616 2781 3000]);
-% counts = histcounts( output.swrPeakTimesDenoise, roughEdges);
-% xx=roughEdges(1:end-1)+diff(roughEdges)/2;
-% yy=counts./diff(roughEdges); % over time
-% 
-% figure(4);
-% subplot(7,1,3); hold on;
-% scatter( output.swrPeakTimesDenoise, output.swrPeakValuesDenoise, 'v', 'filled');
-
-%xlimits=[ 450 500 ]; subplot(7,1,1); xlim(xlimits); subplot(7,1,2); xlim(xlimits); subplot(7,1,3); xlim(xlimits); subplot(7,1,4); xlim(xlimits);
-
-
-
-% ========================
-% ==  SWR Instant Rate  ==
-% ========================
-% figure(4);
-% subplot(7,1,6);
-% swrRate = 1./diff(output.swrPeakTimesDenoise);
-% plot( output.swrPeakTimesDenoise(1:end-1)+(diff(output.swrPeakTimesDenoise)/2), swrRate )
-% ylabel('SWR_{rate}'); 
-% xlim([0 blob.lfpTimestampSeconds(end)]); 
-% ylim([-0.001 max(swrRate)]);
-
-
-% gcf(3)=figure(3); 
-% subplot(3,1,1); 
-% hold on;
-% plot( blob.lfpTimestampSeconds, blob.electricEnv );       % 'k'
-% %disp([ 'elecEnvSize fig 3, circa line 464 ' num2str(size(blob.electricEnv)) ]);
-% axis tight;  
-% ylabel('Avg; 60 Hz');
-% scatter( electricSignal.PeakTimes, electricSignal.PeakValues, 'v', 'filled');
-% subplot(3,1,2); 
-% hold off;
-% plot( chewCrunchEnvTimes, chewEpisodeEnv, 'Color', [ .1 .8 .1 ] ); 
-% hold on;
-% scatter( chewDetectorOutput.EpisodePeakTimes, chewDetectorOutput.EpisodePeakValues, 'v', 'filled');
-% axis tight;
-% ylim([0 max(chewDetectorOutput.EpisodePeakValues)]);
-% ylabel('reward/chew');
-% subplot(3,1,3); 
-% hold off; 
-% plot( mvgMedianTimes, mvgMedian ); 
-% hold on; %plot( mvgMedianTimes(2:end), -diff(mvgMedian) ); 
-% scatter( output.ontoMazeTimes, ones(1,length(output.ontoMazeTimes)).*0.1, 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
-% scatter( output.runStartTimes, ones(1,length(output.runStartTimes)).*0.1, '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
-% scatter( output.rewardTimes, ones(1,length(output.rewardTimes)).*0.1, 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
-% scatter( output.intoBucketTimes, ones(1,length(output.intoBucketTimes)).*0.1, '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
-% ylabel( 'start prox./trials' ); axis tight; ylim([ 0 1 ]);
-% print( gcf(3), [metadata.outputDir metadata.rat '_' metadata.day '_prelimAutoTrialMarking'],'-dpng','-r200');
-
-
-
-
-
-%% display trial auto-partitioning summary data
+%  =======================================================
+%% ==    display trial auto-partitioning summary data   ==
+%  =======================================================
+toc
+disp('display trial auto-partitioning summary data')
+%
 gcf(4)=figure(4); 
 subplot(4,1,1); 
 plot( blob.lfpTimestampSeconds, blob.electricEnv, 'k' );    
@@ -1054,55 +530,67 @@ subplot(4,1,4);
 hold off; 
 plot( mvgMedianTimes, mvgMedian ); 
 hold on; %plot( mvgMedianTimes(2:end), -diff(mvgMedian) ); 
-scatter( output.ontoMazeTimes, ones(1,length(output.ontoMazeTimes)).*0.1, 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
-scatter( output.runStartTimes, ones(1,length(output.runStartTimes)).*0.1, '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
-scatter( output.rewardTimes, ones(1,length(output.rewardTimes)).*0.1, 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
-scatter( output.intoBucketTimes, ones(1,length(output.intoBucketTimes)).*0.1, '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
+scatter( output.leaveBucketToMaze, ones(1,length(output.leaveBucketToMaze)).*0.1, 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
+scatter( output.trialStartAction, ones(1,length(output.trialStartAction)).*0.1, '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
+scatter( output.sugarConsumeTimes, ones(1,length(output.sugarConsumeTimes)).*0.1, 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
+scatter( output.leaveMazeToBucket, ones(1,length(output.leaveMazeToBucket)).*0.1, '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
 ylabel( 'start prox./trials' ); axis tight; ylim([ 0 1 ]);
 print( gcf(4), [metadata.outputDir metadata.rat '_' metadata.day '_' strrep(metadata.swrLfpFile, '.ncs', '')  '_finalAutoTrialMarking.png'],'-dpng','-r200');
 
 
 
-output.autopartition.ontoMazeTimes = output.ontoMazeTimes;
-output.autopartition.runStartTimes = output.runStartTimes;
-output.autopartition.rewardTimes = output.rewardTimes;
-output.autopartition.intoBucketTimes = output.intoBucketTimes;
+output.autopartition.ontoMazeTimes = output.leaveBucketToMaze;
+output.autopartition.runStartTimes = output.trialStartAction;
+output.autopartition.rewardTimes = output.sugarConsumeTimes;
+output.autopartition.intoBucketTimes = output.leaveMazeToBucket;
 
 
 % for manual intervention, use the provided markers for the subsequent
 % analysis
 if ~metadata.autobins
-
-    swrAnalysisBins = sort([ 0 metadata.touchdownTimes metadata.brickTimes metadata.sugarTimes metadata.liftoffTimes xyblob.lfpTimestampSeconds(end) ]);
     
-    output.ontoMazeTimes = metadata.touchdownTimes; 
-    output.runStartTimes = metadata.brickTimes; 
-    output.rewardTimes = metadata.sugarTimes;
-    output.intoBucketTimes = metadata.liftoffTimes;
+    output.leaveBucketToMaze = metadata.leaveBucketToMaze; 
+    output.trialStartAction  = metadata.trialStartAction; 
+    output.sugarConsumeTimes = metadata.sugarConsumeTimes;
+    output.leaveMazeToBucket = metadata.leaveMazeToBucket;
+    
+    output.ratPickupTeleport = metadata.ratPickupTeleport;
+    output.restartmaze       = metadata.restartmaze;
+    output.restartTrial      = metadata.restartTrial;
+    
+    swrAnalysisBins = sort([ 0 metadata.leaveBucketToMaze metadata.trialStartAction metadata.sugarConsumeTimes metadata.leaveMazeToBucket xyblob.xytimestampSeconds(end) ]);
     
 end
 
 
-%% display SWR rate summary data 
+
+%  ================================================
+%% ==        display SWR rate summary data       ==
+%  ================================================
+toc
+disp('display SWR rate summary data')
+%
 gcf(5)=figure(5); 
 subplot(4,1,1); 
+output.swrRateRaw = 1./diff(output.swrPeakTimes);
 output.swrRate = 1./diff(output.swrPeakTimesDenoise);
+plot( output.swrPeakTimes(1:end-1)+(diff(output.swrPeakTimes)/2), output.swrRateRaw ); hold on;
 plot( output.swrPeakTimesDenoise(1:end-1)+(diff(output.swrPeakTimesDenoise)/2), output.swrRate )
 hold on;
-scatter( output.ontoMazeTimes, zeros(1,length(output.ontoMazeTimes)), 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
-scatter( output.runStartTimes, zeros(1,length(output.runStartTimes)), '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
-scatter( output.rewardTimes, zeros(1,length(output.rewardTimes)), 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .7 .95 ]);
-scatter( output.intoBucketTimes, zeros(1,length(output.intoBucketTimes)), '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
+scatter( output.leaveBucketToMaze, zeros(1,length(output.leaveBucketToMaze)), 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
+scatter( output.trialStartAction, zeros(1,length(output.trialStartAction)), '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
+scatter( output.sugarConsumeTimes, zeros(1,length(output.sugarConsumeTimes)), 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .7 .95 ]);
+scatter( output.leaveMazeToBucket, zeros(1,length(output.leaveMazeToBucket)), '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
 ylabel('SWR_{rate}'); 
 xlim([0 blob.lfpTimestampSeconds(end)]); 
 ylim([-0.1 max(output.swrRate)]);
 subplot(4,1,2); 
 plot( mvgMedianTimes, mvgMedian ); 
 hold on;
-scatter( output.ontoMazeTimes, ones(1,length(output.ontoMazeTimes)).*0.1, 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
-scatter( output.runStartTimes, ones(1,length(output.runStartTimes)).*0.1, '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
-scatter( output.rewardTimes, ones(1,length(output.rewardTimes)).*0.1, 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
-scatter( output.intoBucketTimes, ones(1,length(output.intoBucketTimes)).*0.1, '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
+scatter( output.leaveBucketToMaze, ones(1,length(output.leaveBucketToMaze)).*0.1, 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );
+scatter( output.trialStartAction, ones(1,length(output.trialStartAction)).*0.1, '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
+scatter( output.sugarConsumeTimes, ones(1,length(output.sugarConsumeTimes)).*0.1, 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
+scatter( output.leaveMazeToBucket, ones(1,length(output.leaveMazeToBucket)).*0.1, '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
 %
 scatter( output.autopartition.ontoMazeTimes, zeros(1,length(output.autopartition.ontoMazeTimes)), 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ .7 .5 0 ] );
 scatter( output.autopartition.runStartTimes, zeros(1,length(output.autopartition.runStartTimes)), '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .1 .3 0 ]);
@@ -1122,29 +610,33 @@ yy=histcounts( output.swrPeakTimesDenoise, swrAnalysisBins )./diff(swrAnalysisBi
 plot( xx, yy ); 
 hold on;
 title('SWR rate'); xlabel('time (s)'); ylabel('Hz'); axis tight;
-[vals,idxs]=intersect(swrAnalysisBins,output.ontoMazeTimes);
+[vals,idxs]=intersect(swrAnalysisBins,output.leaveBucketToMaze);
 scatter( xx(idxs), yy(idxs), 'v', 'MarkerEdgeColor', [ .5 .4 0 ], 'MarkerFaceColor', [ 1 .8 0 ] );;
 output.swrAnalysisBinLabels(idxs) = 1;
-[vals,idxs]=intersect(swrAnalysisBins,output.runStartTimes);
+[vals,idxs]=intersect(swrAnalysisBins,output.trialStartAction);
 scatter( xx(idxs), yy(idxs), '>',  'MarkerEdgeColor', [ .2 .6 0 ], 'MarkerFaceColor', [ .2 .6 0 ]);
 output.swrAnalysisBinLabels(idxs) = 2;
-[vals,idxs]=intersect(swrAnalysisBins,output.rewardTimes);
+[vals,idxs]=intersect(swrAnalysisBins,output.sugarConsumeTimes);
 scatter( xx(idxs), yy(idxs), 'o', 'filled', 'MarkerEdgeColor', [ .4 .4 .9 ], 'MarkerFaceColor', [ .4 .4 .9 ]);
 output.swrAnalysisBinLabels(idxs) = 3;
-[vals,idxs]=intersect(swrAnalysisBins,output.intoBucketTimes);
+[vals,idxs]=intersect(swrAnalysisBins,output.leaveMazeToBucket);
 scatter( xx(idxs), yy(idxs), '^', 'filled', 'MarkerEdgeColor', [ .9 .1 .1 ], 'MarkerFaceColor', [ .9 .1 .1 ]);
 output.swrAnalysisBinLabels(idxs) = 4;
 xlim([-0.05 blob.lfpTimestampSeconds(end)]);
 print( gcf(5), [metadata.outputDir metadata.rat '_' metadata.day '_' strrep(metadata.swrLfpFile, '.ncs', '')  '_SWRrateSummary.png'],'-dpng','-r200');
 
-save([metadata.outputDir metadata.rat '_' metadata.day '_' strrep(metadata.swrLfpFile, '.ncs', '') '_output'], 'output' );
 
 
-%%
+%  ==============================
+%% ==        save data         ==
+%  ==============================
+toc
+disp('save data')
+%
 output.blob.electricEnv = blob.electricEnv;
 output.blob.lfpTimestampSeconds = blob.lfpTimestampSeconds;
-output.blob.xpos = old.blob.xpos;
-output.blob.ypos = old.blob.ypos;
+output.blob.xpos = blob.xpos;
+output.blob.ypos = blob.ypos;
 output.proxToStart = proxToStart;
 ouput.chewCrunchEnv = chewCrunchEnv;
 ouput.chewCrunchEnvTimes = chewCrunchEnvTimes;
@@ -1154,10 +646,32 @@ output.elecBaselineJumpTimes = elecBaselineJumpTimes;
 output.elecBaselineDropValues = elecBaselineDropValues;
 output.elecBaselineDropTimes = elecBaselineDropTimes;
 
-disp('COMPLETE')
+% electric peaks
+output.electricPeakTimes = electricSignal.PeakTimes;
+% crunch times
+output.chewPeakTimes = chewDetectorOutput.EpisodePeakTimes;
+% brux times
+output.bruxPeaksTimes = bruxDetectorOutput.EpisodePeakTimes;
+% all swr times
+output.swrPeaksTimes = swrPeakTimes;
+% eliminated swr times
+output.swrDenoisePeaksTimes = output.swrPeakTimesDenoise;
+
+output.swrEnvMedian = swrEnvMedian;
+output.swrEnvMadam  = swrEnvMadam ;
+output.swrThreshold = swrThreshold;
+
+output.antiRadius = antiProx;
+output.rewardRadius = rewardProx;
+output.antiProxTimes = antiProxTimes;
+output.rewardProxTimes = rewardProxTimes;
+
+save([metadata.outputDir metadata.rat '_' metadata.day '_' strrep(metadata.swrLfpFile, '.ncs', '') '_output'], 'output' );
+
 
 %% terminate the script
 toc
+disp('COMPLETE')
 
 return;
 
