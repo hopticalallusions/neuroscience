@@ -2,6 +2,7 @@ function xcorrValues = xcorrSparseSets( vectorA, vectorB, maxLagtime )
 
     idxA=find(vectorA);
     idxB=find(vectorB);
+    
     xcorrValues = zeros(1,1+2*maxLagtime);
     for offset = -maxLagtime:maxLagtime
         %

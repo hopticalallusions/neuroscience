@@ -1,5 +1,7 @@
 function xcValues = xcorrVectorAlgebra( vectorA, vectorB, maxLagtime)
 
+    % TODO these functions are really only designed for 
+
     % TODO try to make this faster
     % http://mathinsight.org/matrix_vector_multiplication
     % instead of the for loop, build a matrix of values across offsets (1

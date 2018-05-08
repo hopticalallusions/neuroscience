@@ -65,7 +65,7 @@ spikeWaveforms   = zeros( recordsToRead, 4, 32 );
 
 for recX=1:recordsToRead
 
-    spikeTimestamps( recX )          = fread( fid,  1, 'uint64' );
+    spikeTimestamps( recX )     = fread( fid,  1, 'uint64' );
     ttNumber( recX )            = fread( fid,  1, 'uint32' );
     cellNumber( recX )          = fread( fid,  1, 'uint32' );
     selectedFeatures( recX, : ) = fread( fid,  8, 'uint32' );
@@ -78,6 +78,9 @@ end
 
 fclose(fid);
 
+% tmpIdx = strfind(spikeHeader, 'ADBitVolts');
+% ADBitVolts = sscanf(spikeHeader(tmpIdx(1) + length('ADBitVolts'):end), '%g %g %g %g', 1);
+% data = data * ADBitVolts * 1000; % milivolts
 
 
 return;

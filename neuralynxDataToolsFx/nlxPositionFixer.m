@@ -93,7 +93,9 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
     
     
     
-    
+    % TODO -- the cool kid way to do this would be to call the same
+    % function with just 2 arguments...
+    % EXCEPET then you couldn't calculate 2d velocity changes. oh well.
     if fixY
         correctedYPosition = ypositions;
         smoothFactor = 3;

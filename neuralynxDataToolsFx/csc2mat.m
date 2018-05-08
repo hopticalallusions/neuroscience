@@ -151,9 +151,9 @@ end
 
 % method to extract bitvolts
 % there are others, but this one was a new one.
-tmpIdx = strfind(header, 'ADBitVolts');
-ADBitVolts = sscanf(header(tmpIdx(1) + length('ADBitVolts'):end), '%g', 1);
-data = data * ADBitVolts * 1000; % milivolts
+% tmpIdx = strfind(header, 'ADBitVolts');
+% ADBitVolts = sscanf(header(tmpIdx(1) + length('ADBitVolts'):end), '%g', 1);
+% data = data * ADBitVolts * 1000; % milivolts
 
 
 fclose(fid);

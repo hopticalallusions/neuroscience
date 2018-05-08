@@ -148,6 +148,7 @@ end
 % there are others, but this one was a new one.
 tmpIdx = strfind(header, 'ADBitVolts');
 ADBitVolts = sscanf(header(tmpIdx(1) + length('ADBitVolts'):end), '%g', 1);
+data = data * ADBitVolts * 1000; % milivolts
 
 fclose(fid);
 
