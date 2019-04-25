@@ -6,7 +6,7 @@ function speed = calculateSpeed( xpos, ypos, lagTime, pxPerCm, framesPerSecond )
     end
     
     if nargin < 5
-        warning('framesPerSecond defaulted to 29.97.')
+        %warning('framesPerSecond defaulted to 29.97.')
         framesPerSecond = 29.97; % neuralynx default.
     end
     
@@ -31,12 +31,40 @@ function speed = calculateSpeed( xpos, ypos, lagTime, pxPerCm, framesPerSecond )
 
 end
 
-%% a variety of experiments on this are below.
+
+% a variety of experiments on this are below.
+
+ 
+% %% instantaneous speed calculation -- 1 frame in either direction
+
+% instantSpeed = zeros(size(xpos));
+% for jj=2:length(xpos)-1
+% 	% px/period * 1/lagFrames * 30 frames/second * 1/pxPerCm
+%     instantSpeed(jj) = sqrt( ( ypos(jj-1) - ypos(jj+1) ).^2 + ( xpos(jj-1) - xpos(jj+1) ).^2 ) * (1/2) * 1/2.75 * 29.97;
+% end
 
 
+% %% lagged speed by 2 s
+
+% lagSpeed = zeros(size(xpos));
+% for jj=31:length(xpos)-31
+% 	% px/period * 1/lagFrames * 30 frames/second * 1/pxPerCm
+%     lagSpeed(jj) = sqrt( ( ypos(jj-29) - ypos(jj+30) ).^2 + ( xpos(jj-30) - xpos(jj+29) ).^2 ) * (1/60) * 1/2.75 * 29.97;
+% end
 
 
+% %% smoothed instantaneous speed
 
+% dx = zeros(size(xpos));
+% dy = zeros(size(ypos));
+% for jj=2:length(xpos)-1
+%     dy(jj)=( ypos(jj-1) - ypos(jj+1) );
+%     dx(jj)=( xpos(jj-1) - xpos(jj+1) );
+% end
+% boxcarSize = 45;  % samples
+% dxs=conv(dx,ones(1,boxcarSize)/boxcarSize, 'same');
+% dys=conv(dy,ones(1,boxcarSize)/boxcarSize, 'same');
+% dxy = sqrt( ( dxs ).^2 + ( dys ).^2 ) * (1/2) * 1/2.75 * 29.97;  % sqrt() * ?? * 1/pxPerCm * framesPerSec
 
 
 

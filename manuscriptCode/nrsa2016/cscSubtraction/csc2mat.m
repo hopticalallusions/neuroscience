@@ -3,7 +3,7 @@ function [data, fulltimestamps, header, channel, sampFreq, nValSamp ]=csc2mat(fn
 % Jeffrey Erlich, March 5, 2007
 % jerlich@princeton.edu
 % 
-% modified by ahowe April 2015
+% modified by ahowe 2015-2019
 
 if nargin > 1
     recordStart = floor(recordStart/512);
@@ -18,10 +18,16 @@ end
 
 fid=fopen(fname,'r');
 if fid==-1
-    warning('bad filename');
-    [fname, pathname, filterindex] = uigetfile('*.Ncs', 'Pick an CSC file');
-    fid=fopen([pathname filesep fname],'r');
+    error('bad filename');
+%    [fname, pathname, filterindex] = uigetfile('*.Ncs', 'Pick an CSC file');
+%    fid=fopen([pathname filesep fname],'r');
 end
+
+fileStats = dir(fname);
+if fileStats.bytes < 2^15
+    error([ 'this file seems inapproriately small at ' num2str(fileStats.bytes) ' bytes!!']);
+end
+
 
 header=fread(fid,16384);
 header=char(header');

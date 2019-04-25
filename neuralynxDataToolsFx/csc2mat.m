@@ -5,7 +5,7 @@ function [data, fulltimestamps, header, ADBitVolts, sampFreq, channel, nValSamp 
 % Jeffrey Erlich, March 5, 2007
 % jerlich@princeton.edu
 % 
-% modified by ahowe April 2015
+% modified by ahowe 2015-2019
 
 if nargin > 1
     recordStart = floor(recordStart/512);
@@ -20,10 +20,16 @@ end
 
 fid=fopen(fname,'r');
 if fid==-1
-    warning('bad filename');
-    [fname, pathname, filterindex] = uigetfile('*.Ncs', 'Pick an CSC file');
-    fid=fopen([pathname filesep fname],'r');
+    error('bad filename');
+%    [fname, pathname, filterindex] = uigetfile('*.Ncs', 'Pick an CSC file');
+%    fid=fopen([pathname filesep fname],'r');
 end
+
+fileStats = dir(fname);
+if fileStats.bytes < 2^15
+    error(['this file seems inapproriately small at ' num2str(fileStats.bytes) ' bytes!!']);
+end
+
 
 header=fread(fid,16384);
 header=char(header');
@@ -130,7 +136,12 @@ if (length(timestamps) > 1)
             tempTimes = timestamps(idx):deltaTime:timestamps(idx)+(deltaTime*512);
         end
 
-        fulltimestamps( 1+(512*(idx-1)):512+(512*(idx-1)) ) = tempTimes(1:512);
+        if length(tempTimes) >= 512
+            fulltimestamps( 1+(512*(idx-1)):512+(512*(idx-1)) ) = tempTimes(1:512);
+        else
+            fulltimestamps( 1+(length(tempTimes)*(idx-1)):length(tempTimes)+(length(tempTimes)*(idx-1)) ) = tempTimes(1:end);
+        end
+
     end
     % TODO clean up this tail-end full timestamps array fixer.
     tmpIdx = strfind(header, 'SamplingFrequency');
@@ -151,9 +162,28 @@ end
 
 % method to extract bitvolts
 % there are others, but this one was a new one.
-% tmpIdx = strfind(header, 'ADBitVolts');
-% ADBitVolts = sscanf(header(tmpIdx(1) + length('ADBitVolts'):end), '%g', 1);
-% data = data * ADBitVolts * 1000; % milivolts
+tmpIdx = strfind(header, 'ADBitVolts');
+ADBitVolts = sscanf(header(tmpIdx(1) + length('ADBitVolts'):end), '%g', 1);
+data = data * ADBitVolts * 1000; % milivolts
+
+% yet another method, from a spike header
+% tokens = regexp(spikeHeader,'-ADBitVolts\s+([0-9\.]+)\s+([0-9\.]+)\s+([0-9\.]+)\s+([0-9\.]+)','tokens');
+% adbitvolts = zeros(1,4);
+% adbitvolts(1) = str2double(tokens{1}{1});
+% adbitvolts(2) = str2double(tokens{1}{2});
+% adbitvolts(3) = str2double(tokens{1}{3});
+% adbitvolts(4) = str2double(tokens{1}{4});
+
+
+% fix timestamps for redundant or out of order entries
+if min(diff(fulltimestamps)) < -5
+    disp('CSC2MAT : fixing timestamps CSC')
+    [fulltimestamps,idxUniq,~]=unique(fulltimestamps);
+    data=data(idxUniq);
+    [fulltimestamps, idx] = sort(fulltimestamps);
+    data=data(idx);
+end
+
 
 
 fclose(fid);

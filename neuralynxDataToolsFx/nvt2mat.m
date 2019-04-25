@@ -13,9 +13,9 @@ end
 
 fid=fopen(fname,'r');
 if fid==-1
-    warning('bad filename');
-    [fname, pathname, filterindex] = uigetfile('*.nvt', 'Pick an nvt file');
-    fid=fopen([pathname filesep fname],'r');
+    error('bad filename');
+%     [fname, pathname, filterindex] = uigetfile('*.nvt', 'Pick an nvt file');
+%     fid=fopen([pathname filesep fname],'r');
 end
 
 header=fread(fid,16384);

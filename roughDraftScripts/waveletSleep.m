@@ -13,7 +13,7 @@
 tic;
 waveletTime.start = toc();
 
-sst=downsample(lfp76,32);
+sst=downsample(lfpSwr,32);
 %sst=sst(end-(5*60*1000):end);  % can clealy see sleep waves pop out
 sst=sst((31*60*1000):(36*60*1000));  % during a run
 waveletTime.load = toc();

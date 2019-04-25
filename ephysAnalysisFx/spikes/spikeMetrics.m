@@ -8,6 +8,12 @@ if dims(2) < dims(1)
 end
 
 
+% https://en.wikipedia.org/wiki/Mahalanobis_distance
+
+% https://en.wikipedia.org/wiki/Bhattacharyya_distance
+
+
+
 %% %lots of spike metrics
 metrics.max=max(spikes);
 metrics.maxLocation=zeros(1,length(spikes));

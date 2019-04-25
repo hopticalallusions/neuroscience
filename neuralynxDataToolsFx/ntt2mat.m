@@ -82,6 +82,18 @@ fclose(fid);
 % ADBitVolts = sscanf(spikeHeader(tmpIdx(1) + length('ADBitVolts'):end), '%g %g %g %g', 1);
 % data = data * ADBitVolts * 1000; % milivolts
 
+tokens = regexp(spikeHeader,'-ADBitVolts\s+([0-9\.]+)\s+([0-9\.]+)\s+([0-9\.]+)\s+([0-9\.]+)','tokens');
+adbitmicrovolts = zeros(1,4);
+adbitmicrovolts(1) = str2double(tokens{1}{1}) * 1e6; % microvolts
+adbitmicrovolts(2) = str2double(tokens{1}{2}) * 1e6; % microvolts
+adbitmicrovolts(3) = str2double(tokens{1}{3}) * 1e6; % microvolts
+adbitmicrovolts(4) = str2double(tokens{1}{4}) * 1e6; % microvolts
+
+
+spikeWaveforms(:,1,:) = spikeWaveforms(:,1,:) * adbitmicrovolts(1);
+spikeWaveforms(:,2,:) = spikeWaveforms(:,2,:) * adbitmicrovolts(2);
+spikeWaveforms(:,3,:) = spikeWaveforms(:,3,:) * adbitmicrovolts(3);
+spikeWaveforms(:,4,:) = spikeWaveforms(:,4,:) * adbitmicrovolts(4);
 
 return;
 

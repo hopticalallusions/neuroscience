@@ -4,7 +4,7 @@ function [gradient] = buildCircularGradient(resolution,offsetFactor);
 % use this for phase plots and other circular data
 
 if (nargin < 1)
-    resolution = 128;
+    resolution = 360;
 end
 if (nargin < 2)
     offsetFactor = 1/3;
@@ -33,7 +33,7 @@ if (offsetFactor > 1 )
     offsetFactor = 1/3;
 end
 
-resolution=256;
+resolution=360;
 gradient=zeros(resolution,3);
 gray = 0:1/((resolution/2)-1):1;
 offset = round(resolution*offsetFactor);

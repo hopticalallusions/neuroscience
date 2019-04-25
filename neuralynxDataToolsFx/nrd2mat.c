@@ -82,8 +82,8 @@ int main( int argc, char *argv[] ) {
 		printf("| FLAGS   : each flag must be preceded by a -; e.g. -t -h ...  |\n");
 		printf("|           -t  -- do not output timestamp file                |\n");
 		printf("|           +T  -- output TTL file                             |\n");
-		printf("|           -h  -- do not output header file                   |\n");
-		printf("|           -H  -- display this help & quit                    |\n");
+		printf("|           -H  -- do not output header file                   |\n");
+		printf("|           -h  -- display this help & quit                    |\n");
 		printf("|           -v  -- verbose output                              |\n");
 		printf("|           -e  -- ignore error limit                          |\n");
 		printf("|                                                              |\n");
@@ -385,7 +385,7 @@ int main( int argc, char *argv[] ) {
 	// loop through all the data
 	//
     fseek( nrdFile, HEADER_SIZE, SEEK_SET);
-	while ( 1 ) {
+	while ( !feof(nrdFile) ) {
 	
 		if (obeyErrorLimit) {
 			if ( dataElementsSkipped > errorLimit ) { 
@@ -407,7 +407,7 @@ int main( int argc, char *argv[] ) {
 		if ( currentPosition+bytesPerRecord > lSize ) { 
 			if ( verboseOutput ) { printf("INFO : Stopping loop @ %f %% ...\n", (100.0f*goodRecordsRead)/num_recs); } 
 			if ( ((100.0f*goodRecordsRead)/num_recs) < 99.7f ) { printf("WARNING : only processed %f of records",(100.0f*goodRecordsRead)/num_recs); }
-			break; 
+//			break; 
 		}
 
 		if ( fread( currentPacket, bytesPerRecord,  1, nrdFile ) != 1 ) { printf("ERROR : an error occurred while reading the current packet in the data extraction loop! \n Stopping loop @ %f %% ...\n", (100*goodRecordsRead)/num_recs); break; };
