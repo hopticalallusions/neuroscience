@@ -712,7 +712,7 @@ valMaxG=zeros(1,totalFrames);
 ambientLightG = zeros(1,totalFrames);
 ambientLightR = zeros(1,totalFrames);
 
-
+frame = readFrame(vidObj);
 allFrame = zeros(size(frame)); frames = 1;
 vidObj.CurrentTime = 0;
 while hasFrame(vidObj)
@@ -726,7 +726,11 @@ avgFrame=mean(allFrame./frames,3);
 
 
 
-vidObj.CurrentTime = 7*60+52;
+vidObj.CurrentTime = 7*60+55;  % test with this
+
+% extract with this :
+yesPlot = false;
+vidObj.CurrentTime = 0;
 while hasFrame(vidObj)
 %while vidObj.CurrentTime > 8*60
    frame = readFrame(vidObj);
@@ -777,19 +781,59 @@ while hasFrame(vidObj)
      xxMedianMaxG(frameIdx)=median(xx);
      yyMedianMaxG(frameIdx)=median(yy);
      
-     subplot(2,3,1); imagesc(frame(:,:,1)); title('red')
-     subplot(2,3,2); imagesc(frame(:,:,2)); title('green')
-     subplot(2,3,3); imagesc(frame(:,:,3)); title('blue')
-     subplot(2,3,4); imagesc(mean(frame(:,:,:),3)); title('luminance')
-     subplot(2,3,5); imagesc(tempFrameR);
-     subplot(2,3,6); scatter( [ xxMedianMaxG xxMaxG ], [ yyMedianMaxG yyMaxG ] )
-     drawnow
+     if yesPlot
+         subplot(2,3,1); imagesc(frame(:,:,1)); title('red')
+         subplot(2,3,2); imagesc(frame(:,:,2)); title('green')
+         subplot(2,3,3); imagesc(frame(:,:,3)); title('blue')
+         subplot(2,3,4); imagesc(mean(frame(:,:,:),3)); title('luminance')
+         subplot(2,3,5); imagesc(tempFrameR);
+         subplot(2,3,6); scatter( [ xxMedianMaxG xxMaxG ], [ yyMedianMaxG yyMaxG ] ); ylim([0 480]); xlim([0 720]);
+         drawnow
+     end
      
      if mod(frameIdx,round((.05*totalFrames))) == 0
         disp([num2str(round(100*frameIdx/totalFrames)) '%'])
      end
    frameIdx=frameIdx+1;
 end
+
+
+tx=xxMedianMaxG; ty=yyMedianMaxG;
+tx( (tx<177)&(ty>333) ) = 0;
+ty( (tx<177)&(ty>333) ) = 0;
+tx( (tx<33) ) = 0;
+ty( (tx<33) ) = 0;
+scatter( tx, ty, 'k', 'filled' ); alpha(.1)
+
+
+
+txg=xxMaxG; tyg=yyMaxG;
+txg( (txg<177)&(tyg>333) ) = 0;
+tyg( (txg<177)&(tyg>333) ) = 0;
+txg( (txg<33) ) = 0;
+tyg( (txg<33) ) = 0;
+xGpos=nlxPositionFixer(txg); yGpos=nlxPositionFixer(tyg);
+figure; plot(xGpos,yGpos);
+txr=xxMaxR; tyr=yyMaxR;
+txr( (txr<190)&(tyr>230) ) = 0;
+tyr( (txr<190)&(tyr>230) ) = 0;
+txr( (txr<100) ) = 0;
+tyr( (txr<100) ) = 0;
+xRpos=nlxPositionFixer(txr); yRpos=nlxPositionFixer(tyr);
+hold on; plot( xRpos, yRpos );
+
+
+telData.maxmethxg = txg;
+telData.maxmethyg = tyg;
+telData.maxmethxr = txr;
+telData.maxmethyr = tyr;
+
+
+
+
+
+figure; scatter( xxMaxR, yyMaxR, 'k', 'filled' ); alpha(.1)
+
 
 xcMaxG = xxMaxG;
 ycMaxG = yyMaxG;
@@ -831,10 +875,10 @@ position.yyMedianMaxR = yyMedianMaxR;
 position.xxMedianMaxG = xxMedianMaxG;
 position.xxMedianMaxG = xxMedianMaxG;
 
-position.xRpos=xRpos;
-position.yRpos=yRpos;
-position.xGpos=xGpos;
-position.yGpos=yGpos;
+position.xRpos=txr; % xRpos;
+position.yRpos=tyr; % yRpos;
+position.xGpos=txg; % xGpos;
+position.yGpos=tyg; % yGpos;
 
 position.ambientLightR=ambientLightR;
 position.ambientLightG=ambientLightG;
@@ -843,6 +887,330 @@ position.angle = atan2( position.yGpos-position.yRpos, position.xGpos-position.x
 
 
 save([ filepath 'position.mat' ],'position')
+
+
+
+
+
+
+
+
+
+
+
+
+% extract with this :
+yesPlot = false;
+vidObj.CurrentTime = 0;
+
+% % test with this
+% vidObj.CurrentTime = 7*60+55;  
+% yesPlot = true;
+
+totalFrames = ceil(vidObj.Duration*vidObj.FrameRate);
+
+ratBodX  = zeros( 1, totalFrames );
+ratBodY  = zeros( 1, totalFrames );
+ratLumX  = zeros( 1, totalFrames );
+ratLumY  = zeros( 1, totalFrames );
+ratRX    = zeros( 1, totalFrames );
+ratRY    = zeros( 1, totalFrames );
+ratGX    = zeros( 1, totalFrames );
+ratGY    = zeros( 1, totalFrames );
+ratBX    = zeros( 1, totalFrames );
+ratBY    = zeros( 1, totalFrames );
+frameIdx = 1;
+
+frameBlock = uint8(zeros( 480, 720, 3, 10 ));
+
+
+while hasFrame(vidObj)    
+    frameBlock( :, :, :, mod( frameIdx, 9 )+1 ) = readFrame(vidObj);
+    
+    newFrame = frameBlock( :, :, :, mod( frameIdx, 9 )+1 );
+    oldFrame = frameBlock( :, :, :, mod( frameIdx+1, 9 )+1 );
+    
+    diffFrame =  newFrame - oldFrame;
+    diffMat = int16(newFrame) - int16(oldFrame);
+    
+    luminance = mean( diffFrame, 3);
+    [rowsL,colsL,vals] = find( luminance>200 );
+    luminanceR = mean( diffFrame(:,:,1), 3);
+    [rowsR,colsR,valsR] = find( luminanceR>200 );
+    luminanceg = mean( diffFrame(:,:,2), 3);
+    [rowsg,colsg,valsg] = find( luminanceg>200 );
+    luminanceB = mean( diffFrame(:,:,3), 3);
+    [rowsB,colsB,valsB] = find( luminanceB>200 );
+    luminanceBod = mean( diffFrame, 3);
+    [rowsBod,colsBod,valsBod] = find( (luminanceBod<200).*(luminanceBod>50) );
+%
+     ratBodX(frameIdx) =  median(colsBod)   ;
+     ratBodY(frameIdx) =  median(rowsBod)   ;
+     ratLumX(frameIdx) =  median(colsL)   ;
+     ratLumY(frameIdx) =  median(rowsL)   ;
+     ratRX(frameIdx)   =  median(colsR)  ;
+     ratRY(frameIdx)   =  median(rowsR)  ;
+     ratGX(frameIdx)   =  median(colsg)  ;
+     ratGY(frameIdx)   =  median(rowsg)  ;
+     ratBX(frameIdx)   =  median(colsB)  ;
+     ratBY(frameIdx)   =  median(rowsB)  ;
+   
+    %subplot(1,3,3);
+%     subplot(1,3,1); image(diffFrame(:,:,1));
+%     subplot(1,3,2); image(diffFrame(:,:,2));
+%     subplot(1,3,3); hold off; image(newFrame); hold on; 
+%     scatter( median(cols), median(rows), 'co', 'filled');
+%     scatter( median(colsR), median(rowsR), 'r^', 'filled');
+%     scatter( median(colsg), median(rowsg), 'gV', 'filled');
+%     scatter( median(colsB), median(rowsB), 'b*', 'filled');
+%     drawnow;
+%    subplot(1,3,2); image(diffFrame); drawnow;
+     if mod(frameIdx,round((.05*totalFrames))) == 0
+        disp([num2str(round(100*frameIdx/totalFrames)) '%'])
+     end
+     frameIdx=frameIdx+1;
+end
+
+
+figure;
+scatter( ratBodX, ratBodY, 'y', 'filled' ); alpha(.1); hold on;
+scatter( ratLumX, ratLumY, 'k', 'filled' ); alpha(.1);
+scatter( ratRX, ratRY, 'r', 'filled' ); alpha(.1);
+scatter( ratGX, ratGY, 'g', 'filled' ); alpha(.1);
+scatter( ratBX, ratBY, 'b', 'filled' ); alpha(.1);
+
+
+
+
+figure;
+scatter( ratRX, ratRY, 'r', 'filled' ); alpha(.1); hold on;
+scatter( ratGX, ratGY, 'g', 'filled' ); alpha(.1);
+scatter( ratBodX, ratBodY, 'y', 'filled' ); alpha(.1); hold on;
+scatter( ratLumX, ratLumY, 'k', 'filled' ); alpha(.1);
+
+tx=ratRX; ty=ratRY;
+tx( (tx<450)&(ty>400) ) = 0;
+ty( (tx<450)&(ty>400) ) = 0;
+tx( (tx<200)&(ty>200) ) = 0;
+ty( (tx<200)&(ty>200) ) = 0;
+tx( (tx<450)&(ty<40) ) = 0;
+ty( (tx<450)&(ty<40) ) = 0;
+tx(isnan(tx)) = 0;
+ty(isnan(ty)) = 0;
+txr=nlxPositionFixer(tx);
+tyr=nlxPositionFixer(ty);
+figure;
+scatter( tx, ty, 'k', 'filled' ); alpha(.1); hold on;
+scatter( nlxPositionFixer(tx), nlxPositionFixer(ty), 'filled' ); alpha(.1)
+plot( nlxPositionFixer(tx), nlxPositionFixer(ty) ); 
+figure; plot(nlxPositionFixer(tx)); hold on;  plot(nlxPositionFixer(ty))
+
+
+tx=ratGX; ty=ratGY;
+tx( (tx<450)&(ty>400) ) = 0;
+ty( (tx<450)&(ty>400) ) = 0;
+tx( (tx<200)&(ty>200) ) = 0;
+ty( (tx<200)&(ty>200) ) = 0;
+tx( (tx<450)&(ty<40) ) = 0;
+ty( (tx<450)&(ty<40) ) = 0;
+tx(isnan(tx)) = 0;
+ty(isnan(ty)) = 0;
+txg=nlxPositionFixer(tx);
+tyg=nlxPositionFixer(ty);
+
+
+tx=ratLumX; ty=ratLumY;
+tx( (tx<450)&(ty>400) ) = 0;
+ty( (tx<450)&(ty>400) ) = 0;
+tx( (tx<200)&(ty>200) ) = 0;
+ty( (tx<200)&(ty>200) ) = 0;
+tx( (tx<450)&(ty<40) ) = 0;
+ty( (tx<450)&(ty<40) ) = 0;
+tx(isnan(tx)) = 0;
+ty(isnan(ty)) = 0;
+txl=nlxPositionFixer(tx);
+tyl=nlxPositionFixer(ty);
+
+
+
+
+figure; hold on; plot(txr); plot(txg); plot(txl); plot(nlxPositionFixer(position.xRpos)); plot(nlxPositionFixer(position.xGpos))
+
+position.xRpos=txr; % xRpos;
+position.yRpos=tyr; % yRpos;
+position.xGpos=txg; % xGpos;
+position.yGpos=tyg; % yGpos;
+
+xx=(mean([ smoothWithGaussian(txr,30); smoothWithGaussian(txg,30); smoothWithGaussian(txl,30);  smoothWithGaussian(nlxPositionFixer(position.xRpos),30); smoothWithGaussian(nlxPositionFixer(position.xGpos),30) ]));
+yy=(mean([ smoothWithGaussian(tyr,30); smoothWithGaussian(tyg,30); smoothWithGaussian(tyl,30);  smoothWithGaussian(nlxPositionFixer(position.yRpos),30); smoothWithGaussian(nlxPositionFixer(position.yGpos),30) ]));
+
+figure; plot(xx); hold on; plot(yy)
+
+
+position.superX = xx;
+position.superY = yy;
+
+
+
+
+figure; plot(xx(350:end),xx(1:end-349))
+
+
+
+
+
+tx=ratRX; ty=ratRY;
+tx( (tx<450)&(ty>400) ) = 0;
+ty( (tx<450)&(ty>400) ) = 0;
+
+
+
+
+
+
+
+
+
+figure; plot(ratRX); hold on; plot(tx); plot(xcm)
+
+
+xpositions = tx;
+
+    correctedXPosition = xpositions;
+    smoothFactor = 3;
+    xcm=xpositions;
+    for ii = (smoothFactor+1):length(xpositions)-(smoothFactor+1)
+        xcm(ii) = nanmedian(xcm(ii-smoothFactor:ii+smoothFactor));
+    end
+    % zero jump smoothing
+    xz=xcm;
+    for ii=2:length(xpositions)
+        if xz(ii) < 5
+            if ii > 16
+                lookback = 15;
+            else
+                lookback = ii-1;
+            end
+            xz(ii) = nanmedian(xz(ii-lookback:ii-1));
+        end
+    end
+    % re-smooth median
+    smoothFactor = 8;
+    correctedXPosition=xz;
+    for ii = (smoothFactor+1):length(correctedXPosition)-(smoothFactor+1)
+        correctedXPosition(ii) = nanmedian(correctedXPosition(ii-smoothFactor:ii+smoothFactor));
+    end
+
+
+
+
+
+
+figure;
+plot( ratBodX, ratBodY ); hold on;
+plot( ratLumX, ratLumY ); 
+plot( ratRX, ratRY ); 
+plot( ratGX, ratGY  ); 
+plot( ratBX, ratBY ); 
+
+
+
+figure;
+plot( nlxPositionFixer(ratBodX), nlxPositionFixer(ratBodY),  'k'  ); hold on;
+plot( nlxPositionFixer(ratLumX), nlxPositionFixer(ratLumY),  ); 
+plot( nlxPositionFixer(ratRX), nlxPositionFixer(ratRY),  ); 
+plot( nlxPositionFixer(ratGX), nlxPositionFixer(ratGY),   ); 
+plot( nlxPositionFixer(ratBX), nlxPositionFixer(ratBY) ); 
+
+
+
+figure; plot(ratGX)
+
+
+
+
+figure; imagesc(diffMat(:,:,1))
+
+figure; histogram(diffMat(:,:,1))
+
+
+
+     tempFrame=frame(:,:,1);
+     tempFrame(find(tempFrame>250))=1;  % this is to eliminate parts of the image that are saturated in favor of the "halo"
+     ambientLightR(frameIdx) = median(tempFrame(:));
+     tempFrame=frame(:,:,1)-uint8(round(mean(frame(:,:,[2 3]),3)));
+     [maxVal, maxIdx ] = max(tempFrame(:));
+     % just use the first thing returned
+     [yy,xx] = ind2sub(size(tempFrame), maxIdx(1));
+     valMaxR(frameIdx) = maxVal;
+     xxMaxR(frameIdx)=xx(1);
+     yyMaxR(frameIdx)=yy(1);
+     valMaxR(frameIdx)=maxVal(1);
+     %
+     tempFrame=frame(:,:,2);
+     tempFrame(find(tempFrame>250))=1;  % this is to eliminate parts of the image that are saturated in favor of the "halo"
+     ambientLightG(frameIdx) = median(tempFrame(:));
+     tempFrame=frame(:,:,2)-uint8(round(mean(frame(:,:,[1 3]),3)));
+     [maxVal, maxIdx ] = max(tempFrame(:));
+     % just use the first thing returned
+     [yy,xx] = ind2sub(size(tempFrame), maxIdx(1));
+     valMaxG(frameIdx) = maxVal;
+     xxMaxG(frameIdx)=xx(1);
+     yyMaxG(frameIdx)=yy(1);
+     valMaxG(frameIdx)=maxVal(1);
+     %
+     %
+     tempFrame=frame(:,:,1);
+     tempFrame(find(tempFrame>250))=1;  % this is to eliminate parts of the image that are saturated in favor of the "halo"
+     tempFrame=frame(:,:,1)-uint8(round(mean(frame(:,:,[2 3]),3)));
+     [maxVal, maxIdx ] = max(tempFrame(:)>20);
+     % just use the first thing returned
+     [yy,xx] = ind2sub(size(tempFrame), maxIdx(1));
+     xxMedianMaxR(frameIdx)=median(xx);
+     yyMedianMaxR(frameIdx)=median(yy);
+     tempFrameR = tempFrame;
+     %
+     tempFrame=frame(:,:,2);
+     tempFrame(find(tempFrame>250))=1;  % this is to eliminate parts of the image that are saturated in favor of the "halo"
+     tempFrame=tempFrame- uint8(round(mean(frame(:,:,[1 3]),3)));
+     [maxVal, maxIdx ] = max(tempFrame(:)>20);
+     % just use the first thing returned
+     [yy,xx] = ind2sub(size(tempFrame), maxIdx(1));
+     xxMedianMaxG(frameIdx)=median(xx);
+     yyMedianMaxG(frameIdx)=median(yy);
+     
+     if yesPlot
+         subplot(2,3,1); imagesc(frame(:,:,1)); title('red')
+         subplot(2,3,2); imagesc(frame(:,:,2)); title('green')
+         subplot(2,3,3); imagesc(frame(:,:,3)); title('blue')
+         subplot(2,3,4); imagesc(mean(frame(:,:,:),3)); title('luminance')
+         subplot(2,3,5); imagesc(tempFrameR);
+         subplot(2,3,6); scatter( [ xxMedianMaxG xxMaxG ], [ yyMedianMaxG yyMaxG ] ); ylim([0 480]); xlim([0 720]);
+         drawnow
+     end
+     
+     if mod(frameIdx,round((.05*totalFrames))) == 0
+        disp([num2str(round(100*frameIdx/totalFrames)) '%'])
+     end
+   frameIdx=frameIdx+1;
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 figure; plot(xRpos,yRpos);
 

@@ -1,4 +1,4 @@
-function [ spikeWaveforms, spikeTimestamps, spikeHeader, ttNumber, cellNumber, selectedFeatures ] = ntt2mat(fname, recordStart, recordEnd)
+function [ spikeWaveforms, spikeTimestamps, spikeHeader, ttNumber, cellNumber, selectedFeatures, adbitmicrovolts ] = ntt2mat(fname, recordStart, recordEnd)
 
 if nargin < 2
     recordStart = 1;
@@ -83,18 +83,21 @@ fclose(fid);
 % data = data * ADBitVolts * 1000; % milivolts
 
 tokens = regexp(spikeHeader,'-ADBitVolts\s+([0-9\.]+)\s+([0-9\.]+)\s+([0-9\.]+)\s+([0-9\.]+)','tokens');
-adbitmicrovolts = zeros(1,4);
-adbitmicrovolts(1) = str2double(tokens{1}{1}) * 1e6; % microvolts
-adbitmicrovolts(2) = str2double(tokens{1}{2}) * 1e6; % microvolts
-adbitmicrovolts(3) = str2double(tokens{1}{3}) * 1e6; % microvolts
-adbitmicrovolts(4) = str2double(tokens{1}{4}) * 1e6; % microvolts
+if ~isempty(tokens)
+    adbitmicrovolts = zeros(1,4);
+    adbitmicrovolts(1) = str2double(tokens{1}{1}) * 1e6; % microvolts
+    adbitmicrovolts(2) = str2double(tokens{1}{2}) * 1e6; % microvolts
+    adbitmicrovolts(3) = str2double(tokens{1}{3}) * 1e6; % microvolts
+    adbitmicrovolts(4) = str2double(tokens{1}{4}) * 1e6; % microvolts
 
-
-spikeWaveforms(:,1,:) = spikeWaveforms(:,1,:) * adbitmicrovolts(1);
-spikeWaveforms(:,2,:) = spikeWaveforms(:,2,:) * adbitmicrovolts(2);
-spikeWaveforms(:,3,:) = spikeWaveforms(:,3,:) * adbitmicrovolts(3);
-spikeWaveforms(:,4,:) = spikeWaveforms(:,4,:) * adbitmicrovolts(4);
-
+    spikeWaveforms(:,1,:) = spikeWaveforms(:,1,:) * adbitmicrovolts(1);
+    spikeWaveforms(:,2,:) = spikeWaveforms(:,2,:) * adbitmicrovolts(2);
+    spikeWaveforms(:,3,:) = spikeWaveforms(:,3,:) * adbitmicrovolts(3);
+    spikeWaveforms(:,4,:) = spikeWaveforms(:,4,:) * adbitmicrovolts(4);
+else
+    warning('NO bitvolts!! returning raw values.');
+end
+    
 return;
 
 end

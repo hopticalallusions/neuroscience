@@ -1,6 +1,6 @@
 function [ labeledMatrix, labels, regionSizes ] = findBoundaries( data, threshold, minSize )
 
-    % this is not an especially clever implementation, but it works.
+    % this is not an especially clever implementation, but it mostly works.
 
     if nargin < 2
         threshold=1;
@@ -22,24 +22,24 @@ function [ labeledMatrix, labels, regionSizes ] = findBoundaries( data, threshol
     %        if not, assign a new label
     % now distribute that label to all neighbors with data
     for ii=2:rows-1
-        for jj=1:cols-1
+        for jj=2:cols-1
             % if there is data, label the region with the neighbors
             if data(ii,jj) > threshold
-                if labeledMatrix(ii-1,jj-1) > 0
+                if ( ii-1 > 0 )  && ( jj-1 > 0 ) && labeledMatrix(ii-1,jj-1) > 0 
                     labeledMatrix(ii,jj) = labeledMatrix(ii-1,jj-1);
-                elseif labeledMatrix(ii,jj-1) > 0
+                elseif ( jj-1 > 0 ) && labeledMatrix(ii,jj-1) > 0 
                     labeledMatrix(ii,jj) = labeledMatrix(ii,jj-1);
-                elseif labeledMatrix(ii+1,jj-1) > 0
+                elseif (ii+1 < size(labeledMatrix,1) )  && ( jj-1 > 0 ) && labeledMatrix(ii+1,jj-1) > 0 
                     labeledMatrix(ii,jj) = labeledMatrix(ii+1,jj-1);
-                elseif labeledMatrix(ii-1,jj) > 0
+                elseif ( ii-1 > 0 ) && labeledMatrix(ii-1,jj) > 0
                     labeledMatrix(ii,jj) = labeledMatrix(ii-1,jj);
-                elseif labeledMatrix(ii+1,jj) > 0
+                elseif (ii+1 < size(labeledMatrix,1) )  && labeledMatrix(ii+1,jj) > 0
                     labeledMatrix(ii,jj) = labeledMatrix(ii+1,jj);
-                elseif labeledMatrix(ii-1,jj+1) > 0
+                elseif ( ii-1 > 0 )  && ( jj+1 < size(labeledMatrix,2) ) && labeledMatrix(ii-1,jj+1) > 0
                     labeledMatrix(ii,jj) = labeledMatrix(ii-1,jj+1);
-                elseif labeledMatrix(ii,jj+1) > 0
+                elseif  ( jj+1 < size(labeledMatrix,2) ) && labeledMatrix(ii,jj+1) > 0
                     labeledMatrix(ii,jj) = labeledMatrix(ii,jj+1);
-                elseif labeledMatrix(ii+1,jj+1) > 0
+                elseif (ii+1 < size(labeledMatrix,1) )  && ( jj+1 < size(labeledMatrix,2) ) && labeledMatrix(ii+1,jj+1) > 0
                     labeledMatrix(ii,jj) = labeledMatrix(ii+1,jj+1);
                 else
                     % or create a new region
@@ -80,7 +80,7 @@ function [ labeledMatrix, labels, regionSizes ] = findBoundaries( data, threshol
     
     % order of processing matters, so go through and relabel everything in
     % all the other directions
-    for jj=1:cols-1
+    for jj=2:cols-1
         for ii=2:rows-1
             % if there is data, label the region with the neighbors
             if data(ii,jj) > threshold

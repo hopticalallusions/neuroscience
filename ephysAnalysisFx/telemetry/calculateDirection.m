@@ -5,12 +5,16 @@ function direction = calculateDirection( xpos, ypos, lagTime, framesPerSecond )
     end
     
     if nargin < 3
-        lagTime = 1.5; % second
+        lagTime = .5; % second
     end
 
     lagCenterIdx = round(lagTime*framesPerSecond); % neuralynx default.
 
-    lagFrames = lagCenterIdx-5:lagCenterIdx+5; % frames; this is to mitigate jumps that may occur
+    if lagCenterIdx < 3
+        lagCenterIdx = 3;
+    end
+    
+    lagFrames = lagCenterIdx-2:lagCenterIdx+2; % frames; this is to mitigate jumps that may occur
     laggedDir = zeros(length(lagFrames), length(xpos));
     for ii = 1 : length(lagFrames)
         for jj=lagFrames(ii)+1:length(xpos)-lagFrames(ii)

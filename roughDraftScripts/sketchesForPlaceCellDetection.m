@@ -150,6 +150,22 @@ figure; surface(sparistySurface)
 ttt=spiketimes(cellNumber==cellId);
 figure; plot( (ttt(2:end)-ttt(1))/60e6, 1./diff(ttt/1e6) ); title('firing rate over time');
 figure; hist(1./diff(ttt/1e6),0:400); title('instant spike rate histogram');
+% This book suggests that this sort of 1/ISI method for an instantaneous
+% rate is a bad idea. 
+% Neuronal Dynamics : From single neurons to networks and models of cognition. 
+% Wulfram Gerstner, Werner M. Kistler, Richard Naud and Liam Paninski
+%
+% TODO
+% better to convolve the train with a boxcar or Gaussian to derive a firing
+% rate. This will probably underestimate burst rates unless the filter
+% width is variable
+
+
+spikeRate=zeros(size(telemetry.x))
+
+
+
+
 
 % let's define a burst as any set of spikes where the cells occur within 
 % 90 ms of eachother (this is the length of a theta cycle)
@@ -250,6 +266,42 @@ burstId = 1;
 
     
 
+
+%% Firing Area
+
+% n_bins_cell_fires / n_bins_visited
+
+% TODO
+
+
+% could also do this temporally? (numbers will be small.)
+
+%% Spatial Coherence
+%
+% Muller Kubie 1989
+%
+% first order autocorrelation 
+%
+% z-xform of 
+%   correlation between
+%       list of firing rates in each pixel
+%       AND
+%       mean( 8 surrounding pixels)
+%
+% INPUT : spatial rate map matrix
+% 
+
+sz=size(array)
+signal = zeros(1,sz(1)*sz(2));
+surround = zeros(1,sz(1)*sz(2));
+for ii=2:sz(1)-1
+    for jj=2:sz(2)-1
+        idx = (ii-1)*sz(1);
+        signal(idx) = array(ii,jj);
+        surround(idx) = mean([ array(ii-1:ii+1,jj-1)   array(ii-1,jj)  array(ii+1,jj) array(ii-1:ii+1,jj-1) ]);
+    end
+end
+spatialFiringRateCoherence = sum( (signal-mean(signal)) .* (surround-mean(surround))/( sqrt(sum((signal-mean(signal)).^2)) .* sqrt(sum((surround-mean(surround)).^2)) ))
 
 
 

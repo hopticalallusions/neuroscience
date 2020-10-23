@@ -1,6 +1,9 @@
 
 function [gradient] = buildCircularGradient(resolution,offsetFactor);
 
+%It turns out that matlab has a built in HSV colormap which is basically this...
+% except for some reason it doesn't look as good.
+
 % use this for phase plots and other circular data
 
 if (nargin < 1)
@@ -32,6 +35,7 @@ if (offsetFactor > 1 )
     warning( [ 'WARN: offsetFactor -- less than zero, fixing '] )
     offsetFactor = 1/3;
 end
+
 
 resolution=360;
 gradient=zeros(resolution,3);

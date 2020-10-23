@@ -30,8 +30,11 @@ end
 % 2) sharp waves can be bigger than FSCV noise (clean by time estimation)
 % modify this to pull out the indexes and times of the points; these can be
 % aligned with the FSCV data later
+% 3) spikes can be bigger than maxThreshold=mean(cscLFP)+3*std(cscLFP) ...
+% for the March 5 session, FSCV is ~.45, spike is up to >0.2 and
+% maxThreshold is .1327
 
-maxThreshold=mean(cscLFP)+3*std(cscLFP);
+maxThreshold=mean(cscLFP)+2*std(cscLFP);
 windowSize=3200; % set window size; this is effectively neuralynx_sampling_hertz / fscv_sampling_hertz
 idealPeakCenter=round(windowSize/2); % the goal is to speed up the finding of the artifact on each subsequent run
 idx = 1; % start at the beginning
@@ -233,7 +236,14 @@ for iandi=1:length(idxs)
             end
         end
         %
-        correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx) = correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx) - (meanCscWindow/scalingFactor);
+        % this is a somewhat lazy solution, but it should prevent cases
+        % where the corrector tries to adjust a section that doesn't really
+        % have an artifact due to pop-out
+        %
+        %properly, this should probably use something like energy?
+%        if max(correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx) - (meanCscWindow/scalingFactor),1) < max(correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx),1)
+            correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx) = correctedCsc(idx+idealIdx:idx+windowSize-1+idealIdx) - (meanCscWindow/scalingFactor);
+%        end
         idealIdxs=[idealIdxs idealIdx];
     end
 end

@@ -24,7 +24,7 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
     %
     % 361 cm/s  % (13 km/h) https://a-z-animals.com/animals/rat/  
     % < 90 cm/s  Long LL,Hinman JR, Chen C-M, Escabi MA, Chrobak JJ (2014) Theta Dynamics in Rat: Speed and Acceleration across the Septotemporal Axis. PLoS ONE 9(5): e97987. https://doi.org/10.1371/journal.pone.0097987
-    % on a 140 straight track, they measured the animal's behavior. he
+    % on a 140 cm straight track, they measured the animal's behavior. he
     % peaks in the track center at around 80 cm/s the majority of the time
     % the acceleration max is about 80 cm/s*s 
     %
@@ -33,7 +33,7 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
     %     80 cm/s * 4 px/cm * 1/30 s/frames = 10.7 px/frame
     % walk   18 - 55 cm/s  -->> 2.4 - 7.3 px/frame
     % trot   55 - 80 cm/s  -->> 7.3 - 10.7 px/frame
-    % gallop 80 - 120 cm/s -->> 10.7 - 16 px/frame (assuming about 4 px per frame)
+    % gallop 80 - 120 cm/s -->> 10.7 - 16 px/frame (assuming about 4 px per cm?)
     %
     % I estimate my fast rat V4 was going at no more than 80 cm/s
     %
@@ -48,21 +48,21 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
     %       Gary B. Gillis, Andrew A. Biewener
     %       Journal of Experimental Biology 2001 204: 2717-2731;
     %
-    %   slow speeds (17?48cms?1)  walk {lateral sequence}
-    %   intermediate speeds (59?71cms?1)  {trot}
-    %   gallop  (60?122cms?1)  {transverse gallop}
+    %   slow speeds (17-48 cm/s)  walk {lateral sequence}
+    %   intermediate speeds (59-71 cm/s)  {trot}
+    %   gallop  (60-122 cm/s)  {transverse gallop}
     %
     %     Locomotor kinematics
     %     Rats use different gaits depending on their speed of locomotion. At 
-    %     relatively slow speeds (17?48cms?1), rats utilize a lateral sequence 
-    %     walk, at intermediate speeds (59?71cms?1) they typically use a trot, 
-    %     and at high and occasionally at intermediate speeds (60?122cms?1) they 
+    %     relatively slow speeds (17-48 cm/s), rats utilize a lateral sequence 
+    %     walk, at intermediate speeds (59-71 cm/s) they typically use a trot, 
+    %     and at high and occasionally at intermediate speeds (60-122 cm/s) they 
     %     use a transverse gallop. Among, and occasionally within, galloping 
     %     sequences, rats alternate the leading versus trailing hindlimb. 
     %     Although the speeds at which the animals chose to walk versus trot 
     %     were distinct, this was not always true of trotting and galloping, in 
     %     which one individual exhibited both trotting and galloping at speeds 
-    %     between 60 and 70cms?1.
+    %     between 60 and 70cm/s.
 
     
     
@@ -70,7 +70,7 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
     smoothFactor = 3;
     xcm=xpositions;
     for ii = (smoothFactor+1):length(xpositions)-(smoothFactor+1)
-        xcm(ii) = median(xcm(ii-smoothFactor:ii+smoothFactor));
+        xcm(ii) = nanmedian(xcm(ii-smoothFactor:ii+smoothFactor));
     end
     % zero jump smoothing
     xz=xcm;
@@ -81,14 +81,14 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
             else
                 lookback = ii-1;
             end
-            xz(ii) = median(xz(ii-lookback:ii-1));
+            xz(ii) = nanmedian(xz(ii-lookback:ii-1));
         end
     end
     % re-smooth median
     smoothFactor = 8;
     correctedXPosition=xz;
     for ii = (smoothFactor+1):length(correctedXPosition)-(smoothFactor+1)
-        correctedXPosition(ii) = median(correctedXPosition(ii-smoothFactor:ii+smoothFactor));
+        correctedXPosition(ii) = nanmedian(correctedXPosition(ii-smoothFactor:ii+smoothFactor));
     end
     
     
@@ -101,7 +101,7 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
         smoothFactor = 3;
         ycm=ypositions;
         for ii = (smoothFactor+1):length(ypositions)-(smoothFactor+1)
-            ycm(ii) = median(ycm(ii-smoothFactor:ii+smoothFactor));
+            ycm(ii) = nanmedian(ycm(ii-smoothFactor:ii+smoothFactor));
         end
         % zero jump smoothing
         yz=ycm;
@@ -112,14 +112,14 @@ function [ correctedXPosition, correctedYPosition ] = nlxPositionFixer( xpositio
                 else
                     lookback = ii-1;
                 end
-                yz(ii) = median(yz(ii-lookback:ii-1));
+                yz(ii) = nanmedian(yz(ii-lookback:ii-1));
             end
         end
         % re-smooth median
         smoothFactor = 8;
         correctedYPosition=yz;
         for ii = (smoothFactor+1):length(correctedYPosition)-(smoothFactor+1)
-            correctedYPosition(ii) = median(correctedYPosition(ii-smoothFactor:ii+smoothFactor));
+            correctedYPosition(ii) = nanmedian(correctedYPosition(ii-smoothFactor:ii+smoothFactor));
         end
     end
 

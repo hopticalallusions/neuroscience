@@ -2,10 +2,9 @@ function [data, fulltimestamps, header, ADBitVolts, sampFreq, channel, nValSamp 
 
 % now returns microvolts
 
-% Jeffrey Erlich, March 5, 2007
-% jerlich@princeton.edu
+% based code by : Jeffrey Erlich, March 5, 2007; jerlich@princeton.edu
 % 
-% modified by ahowe 2015-2019
+% modified by ahowe 2015-2020
 
 if nargin > 1
     recordStart = floor(recordStart/512);
@@ -136,6 +135,8 @@ if (length(timestamps) > 1)
             tempTimes = timestamps(idx):deltaTime:timestamps(idx)+(deltaTime*512);
         end
 
+        % for some reason in another version of this, I just have the first
+        % conditional and not the second. Not 100% certain why right now.
         if length(tempTimes) >= 512
             fulltimestamps( 1+(512*(idx-1)):512+(512*(idx-1)) ) = tempTimes(1:512);
         else

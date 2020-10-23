@@ -16,10 +16,10 @@ kurtFrameRaw=zeros(480,752);
 
 for rowIdx=1:480
     for colIdx=1:752
-%        minFrameRaw(rowIdx,colIdx) = min(frame(rowIdx,colIdx,1,:));
-%        maxFrameRaw(rowIdx,colIdx) = max(frame(rowIdx,colIdx,1,:));
+        minFrameRaw(rowIdx,colIdx) = min(frame(rowIdx,colIdx,1,:));
+        maxFrameRaw(rowIdx,colIdx) = max(frame(rowIdx,colIdx,1,:));
         avgFrameRaw(rowIdx,colIdx) = mean(frame(rowIdx,colIdx,1,:));
-%        skewFrameRaw(rowIdx,colIdx) = skewness(double(frame(rowIdx,colIdx,1,:)));
+        skewFrameRaw(rowIdx,colIdx) = skewness(double(frame(rowIdx,colIdx,1,:)));
 %        varFrameRaw(rowIdx,colIdx) = var(double(frame(rowIdx,colIdx,1,:)));
 %        stdFrameRaw(rowIdx,colIdx) = std(double(frame(rowIdx,colIdx,1,:)));
         medFrameRaw(rowIdx,colIdx) = median(frame(rowIdx,colIdx,1,:));
@@ -43,6 +43,8 @@ subplot(3,4,9); imagesc(madamFrameRaw); title('MADAM'); colormap(build_NOAA_colo
 subplot(3,4,10); imagesc(kurtFrameRaw); title('kurtosis'); colormap(build_NOAA_colorgradient); colorbar;
 subplot(3,4,11); imagesc(rangeFrameRaw); title('range'); colormap(build_NOAA_colorgradient); colorbar;
 
+
+return;
 
 framesMedFlattened=zeros(size(frame));
 for idx=1:1000
@@ -95,7 +97,7 @@ end
 
 
 
-figure; temp=framesMedFlattened(:,:,1,:); imagesc(max(,3))
+%figure; temp=framesMedFlattened(:,:,1,:); imagesc(max(,3))
 
 
 

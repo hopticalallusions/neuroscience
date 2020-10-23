@@ -2,7 +2,15 @@
 % See "http://paos.colorado.edu/research/wavelets/"
 % Written January 1998, final Oct 1999 by C. Torrence
 
-function [ power, global_ws, global_signif, period, time, sig95, coi  ]=hdWavelet( sst, toPlotOrNot )
+function [ power, global_ws, global_signif, period, time, sig95, coi  ]=hdWavelet( sst, toPlotOrNot, figHandle, normalizeGraph )
+
+if nargin < 3 && toPlotOrNot
+    figHandle = figure(199);
+end
+
+if nargin < 4
+    normalizeGraph = false;
+end
 
 %     time series of EEG
 %plot(time,sst); 
@@ -38,23 +46,39 @@ function [ power, global_ws, global_signif, period, time, sig95, coi  ]=hdWavele
 variance = std(sst)^2;
 sst = (sst - mean(sst))/sqrt(variance) ;
 
+
+
 n = length(sst);
 dt = 1/1000 ; % sampling resolution
 time = [0:length(sst)-1]*dt ;  % construct time array
 xlim = [0,length(sst)*dt];  % plotting range
 pad = 1;      % pad the time series with zeroes (recommended)
-dj = 1/16;    % specify sub octaves; 1/4 will do 4 sub-octaves per octave
-% this is the "high pass" cut off; that is, 32* 1/32000Hz will give a
-% smallest period (highest Hz) of 1/1000 ; 
-% "spacing between discrete scales. Default is 0.25.
-%         A smaller # will give better scale resolution, but be slower to
-%         plot."
-s0 = 1/2^6; % 64*dt; "smallest scale of the wavelet."
-% this determines the last frequency analyzed, relative to the above
-% basically this works out to a cutoff of 2^(log2(1/s0) - theValueOverdjBelow )
-j1 = 6/dj;    % this says do <n>/dj powers-of-two with 1/dj sub-octaves each
-%        the # of scales minus one. Scales range from S0 up to S0*2^(J1*DJ),
-%        to give a total of (J1+1) scales. Default is J1 = (LOG2(N DT/S0))/DJ.
+
+% settings I liked for high resolution.
+% dj = 1/16;
+% s0 = 1/2^9;
+% j1 = 9/dj;
+
+
+% dj = 1/16;    % specify sub octaves; 1/4 will do 4 sub-octaves per octave
+% % this is the "high pass" cut off; that is, 32* 1/32000Hz will give a
+% % smallest period (highest Hz) of 1/1000 ; 
+% % "spacing between discrete scales. Default is 0.25.
+% %         A smaller # will give better scale resolution, but be slower to
+% %         plot."
+% s0 = 1/2^9; % 64*dt; "smallest scale of the wavelet."
+% % this determines the last frequency analyzed, relative to the above
+% % basically this works out to a cutoff of 2^(log2(1/s0) - theValueOverdjBelow )
+% j1 = 9/dj;    % this says do <n>/dj powers-of-two with 1/dj sub-octaves each
+% %        the # of scales minus one. Scales range from S0 up to S0*2^(J1*DJ),
+% %        to give a total of (J1+1) scales. Default is J1 = (LOG2(N DT/S0))/DJ.
+
+dj = 1/4;
+s0 = 1/2^6;
+j1 = 6/dj;
+
+
+
 lag1 = 0.72;  % lag-1 autocorrelation for red noise background
 mother = 'MORLET'; % The choices are 'MORLET', 'PAUL', or 'DOG';
    %Morlet is standard; 
@@ -77,7 +101,7 @@ power = (abs(wave)).^2 ;        % compute wavelet power spectrum
 %    Its units are sigma^2 (the time series variance).
 
 % Significance levels: (variance=1 for the normalized SST)
-[signif,fft_theor] = wave_signif(1.0,dt,scale,0,lag1,-1,-1,mother);
+[ signif, fft_theor ] = wave_signif(1.0,dt,scale,0,lag1,-1,-1,mother);
 sig95 = (signif')*(ones(1,n));  % expand signif --> (J+1)x(N) array
 sig95 = power ./ sig95;         % where ratio > 1, power is significant
 
@@ -88,15 +112,26 @@ global_signif = wave_signif(variance,dt,scale,1,lag1,-1,dof,mother);
 
 %------------------------------------------------------ Plotting
 
+if normalizeGraph
+    tmpPower = power;
+    for rr=1:size(power,1)
+        tmpPower(rr,:) = power(rr,:)./max(power(rr,:));
+    end
+else
+    tmpPower = power;
+end
+
 if toPlotOrNot
 
-    figure;
+    
+    
+    figure(figHandle);
 
     %--- Plot time series
     subplot('position',[0.03 0.75 0.82 0.2])
     plot(time,sst); 
     hold on;
-    scatter( ctrTs, zeros(1,length(ctrTs)), 'o', 'filled');
+   % scatter( ctrTs, zeros(1,length(ctrTs)), 'o', 'filled');
     set(gca,'XLim',xlim(:))
     xlabel('Time (s)')
     ylabel('Input Signal (uV)')
@@ -109,7 +144,7 @@ if toPlotOrNot
     Yticks = 2.^(fix(log2(min(period))):fix(log2(max(period))));
     %contourf(time,log2(period),log2(power), levels); %,log2(levels));  %*** or use 'contourf' (fill)
     colormap(build_NOAA_colorgradient);
-    imagesc( time,log2(period), power );  %*** uncomment for 'image' plot
+    imagesc( time,log2(period), tmpPower );  %*** uncomment for 'image' plot
     xlabel('Time (s)')
     ylabel('Freq (Hz)')
     title('b) Wavelet Power Spectrum')

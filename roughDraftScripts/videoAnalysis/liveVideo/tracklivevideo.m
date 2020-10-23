@@ -1,3 +1,8 @@
+
+
+
+%% seagate video version
+
 vidObj = VideoReader('/Volumes/BlueMiniSeagateData/da11-day1-cpp/VT1.mpg');
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;

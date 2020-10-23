@@ -15,22 +15,21 @@ function [pwr,f] = plotFft( input, sampHz, plotFigs )
     % Plot single-sided amplitude spectrum.
     if ( plotFigs )
         figure;
-        %plot(f,(pwr));
-        hold on;
-        decimateFactor = floor(length(pwr)/(Fs*1));
+        decimateFactor = floor(length(pwr)/(Fs*1))+1;
         plot(f,pwr);
+        hold on;
         plot(decimate(f,decimateFactor),decimate(pwr,decimateFactor), 'LineWidth', 2)
         fftFilter = designfilt( 'lowpassiir',                     ...
                         'FilterOrder',              8  , ...
                         'PassbandFrequency',        1  , ...
                         'PassbandRipple',           0.2, ...
-                        'SampleRate',              1000);
+                        'SampleRate',              sampHz);
         pwrFilt = filtfilt( fftFilter, pwr);
         plot( f, pwrFilt, 'LineWidth', 2 );
         title('Single-Sided Amplitude Spectrum of data(t)')
         xlabel('Frequency (Hz)')
         ylabel('|Y(f)|')
-        axis([0 sampHz/2 0 max(pwr)])
+        axis([0 sampHz/2 prctile(pwr,2) max(pwr)])
     end
 
 end
