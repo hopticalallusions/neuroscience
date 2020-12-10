@@ -1,5 +1,52 @@
-%vidObj = VideoReader('~/Downloads/RatTY4_Rev_CNO_092820.mp4');
+vidObj = VideoReader('~/Desktop/izquierdoLab/tonyVideoAnalysis/RatTY4_Rev_CNO_092820.mp4');
 vidObj = VideoReader('~/src/DeepLabCut/test3-agh-2020-10-05/videos/RatTY4_Rev_CNO_092820DLC_resnet50_test3Oct5shuffle1_1000_bx_bp_labeled.mp4');
+
+illuminationDistribution = zeros( vidObj.Height, vidObj.Width, 256);
+vidObj.CurrentTime = 0;
+while hasFrame(vidObj)
+    frame = uint8(floor(mean(readFrame(vidObj),3)))+1;
+    [ row, col, val ] = find(frame);
+    tIdx = sub2ind([ vidObj.Height vidObj.Width 256 ], row, col, val);
+    illuminationDistribution(tIdx) = illuminationDistribution(tIdx) + 1;
+end
+
+meanFrame = zeros(vidObj.Height, vidObj.Width);
+for ii=1:vidObj.Height
+    for jj=1:vidObj.Width
+        meanFrame(ii,jj)=([1:256]*squeeze(illuminationDistribution(ii,jj,:)))./sum(squeeze(illuminationDistribution(ii,jj,:)));
+    end
+end
+figure; imagesc(meanFrame)
+
+
+figure;
+for ii=1:vidObj.Height
+    for jj=1:vidObj.Width
+        plot(0:255,squeeze(illuminationDistribution(ii,jj,:)), 'Color', [ 0 0 0 .1]); hold on;
+    end
+end
+xlim([0 256])
+        
+
+
+pp=kmeans(meanFrame,12);
+
+
+
+
+
+
+
+
+
+
+
+load(['~/data/izquierdo/tonyVideo/avgFrameRaw.mat'],'avgFrameRaw');
+figure; imagesc(avgFrameRaw)
+
+figure; for ii=200:300; plot(0:255, squeeze(illuminationDistribution(ii,200,:))); hold on; end
+
+
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 frame = readFrame(vidObj);

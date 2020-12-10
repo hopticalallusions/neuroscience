@@ -2,15 +2,20 @@
 % See "http://paos.colorado.edu/research/wavelets/"
 % Written January 1998, final Oct 1999 by C. Torrence
 
-function [ power, global_ws, global_signif, period, time, sig95, coi  ]=hdWavelet( sst, toPlotOrNot, figHandle, normalizeGraph )
+function [ power, global_ws, global_signif, period, time, sig95, coi  ]=hdWavelet( sst, toPlotOrNot, figHandle, normalizeGraph, samplingFreq )
 
 if nargin < 3 && toPlotOrNot
     figHandle = figure(199);
 end
 
 if nargin < 4
-    normalizeGraph = false;
+    normalizeGraph = 0;
 end
+
+if nargin < 5
+    samplingFreq = 1000;
+end
+
 
 %     time series of EEG
 %plot(time,sst); 
@@ -49,7 +54,7 @@ sst = (sst - mean(sst))/sqrt(variance) ;
 
 
 n = length(sst);
-dt = 1/1000 ; % sampling resolution
+dt = 1/samplingFreq ; % sampling resolution
 time = [0:length(sst)-1]*dt ;  % construct time array
 xlim = [0,length(sst)*dt];  % plotting range
 pad = 1;      % pad the time series with zeroes (recommended)
@@ -112,11 +117,13 @@ global_signif = wave_signif(variance,dt,scale,1,lag1,-1,dof,mother);
 
 %------------------------------------------------------ Plotting
 
-if normalizeGraph
+if normalizeGraph==1
     tmpPower = power;
     for rr=1:size(power,1)
         tmpPower(rr,:) = power(rr,:)./max(power(rr,:));
     end
+elseif normalizeGraph==2
+    tmpPower = log2(power+1);
 else
     tmpPower = power;
 end
